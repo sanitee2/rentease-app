@@ -1,0 +1,386 @@
+// ... enums and types remain the same ...
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  TENANT
+  LANDLORD
+  USER
+}
+
+enum ListingStatus {
+  PENDING
+  ACTIVE
+  DECLINED
+  ARCHIVED
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+}
+
+enum MaintenanceRequestStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum PricingType {
+  ROOM_BASED
+  LISTING_BASED
+}
+
+type Location {
+  latlng Float[]
+}
+
+type ImageSrc {
+  images String[]
+}
+
+model User {
+  id             String    @id @default(auto()) @map("_id") @db.ObjectId
+  name           String?
+  email          String?   @unique
+  emailVerified  DateTime?
+  image          String?
+  phoneNumber    String?
+  hashedPassword String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  role           UserRole  @default(USER)
+  favoriteIds    String[]  @db.ObjectId
+
+  // Base relations
+  accounts Account[]
+
+  // Role-specific profiles
+  tenant   TenantProfile?
+  landlord LandlordProfile?
+  admin    AdminProfile?
+
+  // Listing relations
+  ownedListings Listing[] // Listings owned by the user (as landlord)
+  rentedListing Listing?  @relation("ListingTenants", fields: [listingId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  listingId     String?   @db.ObjectId
+
+  // Room relations
+  rentedRoom Room?   @relation("RoomTenants", fields: [roomId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  roomId     String? @db.ObjectId
+
+  // Other relations - fix casing and naming
+  requestViewings     RequestViewing[]
+  reviews             Review[]
+  payments            Payment[]
+  maintenanceRequests MaintenanceRequest[]
+  leaseContracts      LeaseContract[]
+
+  @@map("users")
+}
+
+model TenantProfile {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId      String   @unique @db.ObjectId
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  favoriteIds String[] @db.ObjectId
+
+  // Tenant-specific relations
+  viewings    RequestViewing[]
+  reviews     Review[]
+  payments    Payment[]
+  maintenance MaintenanceRequest[]
+  leases      LeaseContract[]
+  currentRoom Room?                @relation("CurrentRoom", fields: [roomId], references: [id])
+  roomId      String?              @unique @db.ObjectId
+
+  @@map("tenant_profiles")
+}
+
+model LandlordProfile {
+  id     String @id @default(auto()) @map("_id") @db.ObjectId
+  userId String @unique @db.ObjectId
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Landlord-specific relations
+  listings Listing[]
+
+  // Landlord-specific fields
+  businessName String?
+  phoneNumber  String?
+
+  @@map("landlord_profiles")
+}
+
+model AdminProfile {
+  id     String @id @default(auto()) @map("_id") @db.ObjectId
+  userId String @unique @db.ObjectId
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Admin-specific fields
+  department  String?
+  permissions String[]
+
+  @@map("admin_profiles")
+}
+
+model Account {
+  id                String  @id @default(auto()) @map("_id") @db.ObjectId
+  userId            String  @db.ObjectId
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.String
+  access_token      String? @db.String
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Listing {
+  id                     String        @id @default(auto()) @map("_id") @db.ObjectId
+  title                  String
+  description            String
+  imageSrc               ImageSrc
+  category               String
+  roomCount              Int
+  locationValue          Location
+  street                 String
+  barangay               String
+  status                 ListingStatus @default(PENDING)
+  createdAt              DateTime      @default(now())
+  updatedAt              DateTime      @updatedAt
+  userId                 String        @db.ObjectId
+  maxGuests              Int? // Optional: only required if overnightGuestsAllowed is true
+  hasAgeRequirement      Boolean       @default(false)
+  minimumAge             Int? // Optional: only required if hasAgeRequirement is true
+  genderRestriction      String        @default("BOTH")
+  overnightGuestsAllowed Boolean       @default(false)
+  price                  Int? // Optional: only required if pricingType is LISTING_BASED
+  pricingType            PricingType   @default(LISTING_BASED) // Added: pricing type field
+  hasMaxTenantCount      Boolean       @default(false)
+  maxTenantCount         Int? // Optional: only required if hasMaxTenantCount is true
+
+  // Relations
+  user                User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tenants             User[]                @relation("ListingTenants")
+  rooms               Room[]
+  rules               HouseRules?
+  requestViewings     RequestViewing[]
+  reviews             Review[]
+  maintenanceRequests MaintenanceRequest[]
+  leaseContracts      LeaseContract[]
+  propertyAmenities   ListingsOnAmenities[]
+  LandlordProfile     LandlordProfile?      @relation(fields: [landlordProfileId], references: [id])
+  landlordProfileId   String?               @db.ObjectId
+
+  @@map("listings")
+}
+
+model Room {
+  id             String   @id @default(auto()) @map("_id") @db.ObjectId
+  title          String
+  description    String
+  imageSrc       ImageSrc
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  roomCategory   String
+  price          Int? // Optional: only required if listing's pricingType is ROOM_BASED
+  maxTenantCount Int? // Optional: only required based on room category settings
+  currentTenants String[] @default([]) @db.ObjectId
+  listingId      String   @db.ObjectId
+
+  // Relations
+  listing         Listing            @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  tenants         User[]             @relation("RoomTenants")
+  currentTenant   TenantProfile?     @relation("CurrentRoom")
+  requestViewings RequestViewing[]
+  amenities       RoomsOnAmenities[]
+
+  @@index([listingId])
+}
+
+// New model to handle the many-to-many relationship
+model RoomsOnAmenities {
+  id        String      @id @default(auto()) @map("_id") @db.ObjectId
+  room      Room        @relation(fields: [roomId], references: [id])
+  roomId    String      @db.ObjectId
+  amenity   RoomAmenity @relation(fields: [amenityId], references: [id])
+  amenityId String      @db.ObjectId
+  note      String? // Custom note for this specific amenity
+
+  @@map("rooms_amenities")
+}
+
+model RequestViewing {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  date            DateTime
+  time            DateTime
+  createdAt       DateTime @default(now())
+  userId          String   @db.ObjectId
+  roomId          String   @db.ObjectId
+  listingId       String   @db.ObjectId
+  tenantProfileId String?  @db.ObjectId
+
+  // Relations
+  user          User           @relation(fields: [userId], references: [id])
+  room          Room           @relation(fields: [roomId], references: [id])
+  listing       Listing        @relation(fields: [listingId], references: [id])
+  tenantProfile TenantProfile? @relation(fields: [tenantProfileId], references: [id])
+
+  @@map("request_viewings")
+}
+
+model Review {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  rating          Int
+  comment         String
+  createdAt       DateTime @default(now())
+  userId          String   @db.ObjectId
+  listingId       String   @db.ObjectId
+  tenantProfileId String?  @db.ObjectId
+
+  // Relations
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  listing       Listing        @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  tenantProfile TenantProfile? @relation(fields: [tenantProfileId], references: [id])
+
+  @@map("reviews")
+}
+
+model Payment {
+  id              String        @id @default(auto()) @map("_id") @db.ObjectId
+  amount          Float
+  date            DateTime      @default(now())
+  status          PaymentStatus // Change to use enum instead of String
+  userId          String        @db.ObjectId
+  leaseId         String        @db.ObjectId
+  tenantProfileId String?       @db.ObjectId
+
+  // Relations
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lease         LeaseContract  @relation(fields: [leaseId], references: [id], onDelete: Cascade)
+  tenantProfile TenantProfile? @relation(fields: [tenantProfileId], references: [id])
+
+  @@map("payments")
+}
+
+model MaintenanceRequest {
+  id              String                   @id @default(auto()) @map("_id") @db.ObjectId
+  description     String
+  status          MaintenanceRequestStatus // Change to use enum instead of String
+  createdAt       DateTime                 @default(now())
+  listingId       String                   @db.ObjectId
+  userId          String?                  @db.ObjectId
+  tenantProfileId String?                  @db.ObjectId
+
+  // Relations
+  listing       Listing        @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  user          User?          @relation(fields: [userId], references: [id])
+  tenantProfile TenantProfile? @relation(fields: [tenantProfileId], references: [id])
+
+  @@map("maintenance_requests")
+}
+
+model LeaseContract {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  startDate       DateTime
+  endDate         DateTime
+  rentAmount      Int
+  terms           String
+  createdAt       DateTime @default(now())
+  userId          String   @db.ObjectId
+  listingId       String   @db.ObjectId
+  tenantProfileId String?  @db.ObjectId
+
+  // Relations
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  listing       Listing        @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  payments      Payment[]
+  tenantProfile TenantProfile? @relation(fields: [tenantProfileId], references: [id])
+
+  @@map("lease_contracts")
+}
+
+model ListingCategories {
+  id             String      @id @default(auto()) @map("_id") @db.ObjectId
+  title          String
+  icon           String
+  desc           String
+  needsMaxTenant Boolean
+  pricingType    PricingType @default(LISTING_BASED)
+  roomTypes      String[]    @default([])
+
+  @@map("listing_categories")
+}
+
+model RoomCategories {
+  id             String  @id @default(auto()) @map("_id") @db.ObjectId
+  title          String
+  icon           String
+  desc           String
+  needsMaxTenant Boolean
+
+  @@map("room_categories")
+}
+
+model RoomAmenity {
+  id    String             @id @default(auto()) @map("_id") @db.ObjectId
+  title String
+  icon  String
+  desc  String
+  rooms RoomsOnAmenities[] // Relation to join table
+
+  @@map("room_amenities")
+}
+
+model PropertyAmenity {
+  id       String                @id @default(auto()) @map("_id") @db.ObjectId
+  title    String
+  icon     String
+  desc     String
+  listings ListingsOnAmenities[] // Relation to join table
+
+  @@map("property_amenities")
+}
+
+model HouseRules {
+  id              String  @id @default(auto()) @map("_id") @db.ObjectId
+  listingId       String  @unique @db.ObjectId
+  listing         Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  petsAllowed     Boolean @default(false)
+  childrenAllowed Boolean @default(false)
+  smokingAllowed  Boolean @default(false)
+  additionalNotes String? // Optional: can be empty
+
+  @@map("house_rules")
+}
+
+// Join table for listings and amenities
+model ListingsOnAmenities {
+  id        String          @id @default(auto()) @map("_id") @db.ObjectId
+  listing   Listing         @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  listingId String          @db.ObjectId
+  amenity   PropertyAmenity @relation(fields: [amenityId], references: [id])
+  amenityId String          @db.ObjectId
+  note      String? // Custom note for this specific amenity
+
+  @@map("listings_amenities")
+}
