@@ -6,7 +6,7 @@ import axios from 'axios';
 import { toast } from 'react-hot-toast';
 import Modal from './Modal';
 import Select, { SingleValue } from 'react-select';
-import { SafeListing } from "@/app/types";
+import { SafeListing, TenantData } from "@/app/types";
 import { MinimalUser } from "@/app/types";
 import { useAvailableUsers } from '@/app/hooks/useAvailableUsers';
 import { useUserListings } from '@/app/hooks/useUserListings';
@@ -15,7 +15,7 @@ import Input from '@/app/components/inputs/Input';
 interface AddTenantModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess?: () => void;
+  onSuccess: (newTenant: TenantData) => void;
 }
 
 interface SelectOption {
@@ -191,7 +191,7 @@ const AddTenantModal = ({
         return;
       }
 
-      await axios.post('/api/tenants', {
+      const response = await axios.post('/api/tenants', {
         userId: data.userId,
         listingId: data.listingId,
         ...roomData,
@@ -203,9 +203,8 @@ const AddTenantModal = ({
         }
       });
 
-      toast.success('Tenant added successfully');
+      onSuccess(response.data);
       reset();
-      if (onSuccess) onSuccess();
       onClose();
     } catch (error: any) {
       toast.error(error.response?.data?.error || 'Something went wrong');
@@ -235,6 +234,7 @@ const AddTenantModal = ({
         actionLabel="Loading..."
         body={<div className="text-center">Loading data...</div>}
         disabled={true}
+        size='sm'
       />
     );
   }
@@ -248,6 +248,7 @@ const AddTenantModal = ({
         actionLabel="Close"
         body={<div className="text-red-500">{error}</div>}
         disabled={false}
+        size='sm'
       />
     );
   }

@@ -121,6 +121,43 @@ const truncateText = (text: string, limit: number) => {
   return text.slice(0, limit) + '...';
 };
 
+// Add this CSS at the top of your file or in a separate CSS file
+const googlePlacesStyles = `
+  .pac-container {
+    border-radius: 8px;
+    border: 1px solid #e5e7eb;
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    margin-top: 4px;
+    font-family: inherit;
+    padding: 8px 0;
+  }
+
+  .pac-item {
+    padding: 8px 16px;
+    cursor: pointer;
+    font-size: 14px;
+    line-height: 1.5;
+    border: none;
+  }
+
+  .pac-item:hover {
+    background-color: #f3f4f6;
+  }
+
+  .pac-item-query {
+    font-size: 14px;
+    color: #111827;
+  }
+
+  .pac-matched {
+    font-weight: 500;
+  }
+
+  .pac-icon {
+    display: none;
+  }
+`;
+
 const AddListing = () => {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
@@ -405,6 +442,19 @@ const AddListing = () => {
       fetchAmenities();
     }
   }, [step]);
+
+  // Add this useEffect to inject the styles
+  useEffect(() => {
+    // Add the styles to the document head
+    const styleElement = document.createElement('style');
+    styleElement.textContent = googlePlacesStyles;
+    document.head.appendChild(styleElement);
+
+    return () => {
+      // Clean up the styles when component unmounts
+      document.head.removeChild(styleElement);
+    };
+  }, []);
 
   if (!isLoaded) return <div>Loading...</div>;
 

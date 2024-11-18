@@ -9,6 +9,8 @@ import useLoginModal from "@/app/hooks/useLoginModal";
 import useRentModal from "@/app/hooks/useRentModal";
 import { signOut } from "next-auth/react";
 import Image from 'next/image';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 interface UserMenuProps {
   currentUser?: SafeUser | null
@@ -22,10 +24,21 @@ const UserMenu: React.FC<UserMenuProps> = ({
   const rentModal = useRentModal();
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const router = useRouter();
   
   const toggleOpen = useCallback(() => {
     setIsOpen((value) => !value);
   }, []);
+
+  const handleItemClick = useCallback((action: () => void) => {
+    action();
+    setIsOpen(false);
+  }, []);
+
+  const handleNavigation = (path: string) => {
+    setIsOpen(false);
+    router.push(path);
+  };
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -59,13 +72,13 @@ const UserMenu: React.FC<UserMenuProps> = ({
           ) : (
             <div className="h-8 w-8 rounded-full bg-gray-100 flex items-center justify-center border border-gray-200">
               <span className="text-sm font-medium text-gray-600">
-                {currentUser?.name?.[0] || '?'}
+                {currentUser?.firstName?.[0] || '?'}
               </span>
             </div>
           )}
           <div className="flex flex-col -space-y-0.5">
             <span className="text-sm font-medium text-gray-900">
-              {currentUser?.name || 'Guest'}
+              {currentUser?.firstName || 'Guest'}
             </span>
             <span className="text-sm text-gray-500">
               {currentUser?.email || 'Sign in'}
@@ -84,35 +97,35 @@ const UserMenu: React.FC<UserMenuProps> = ({
             {currentUser ? (
               <>
                 <MenuItem 
-                  onClick={() => {}}
+                  onClick={() => handleItemClick(() => {})}
                   label="My trips"
                   className="hover:bg-gray-50 px-4 py-3"
                 />
                 <MenuItem 
-                  onClick={() => {}}
+                  onClick={() => handleItemClick(() => {})}
                   label="My favorites"
                   className="hover:bg-gray-50 px-4 py-3"
                 />
                 <MenuItem 
-                  onClick={() => {}}
+                  onClick={() => handleItemClick(() => {})}
                   label="My reservations"
                   className="hover:bg-gray-50 px-4 py-3"
                 />
                 <MenuItem 
-                  onClick={() => {}}
+                  onClick={() => handleItemClick(() => {})}
                   label="My account"
                   className="hover:bg-gray-50 px-4 py-3"
                 />
                 {currentUser.role === 'LANDLORD' && (
                   <MenuItem 
-                    onClick={rentModal.onOpen}
+                    onClick={() => handleItemClick(rentModal.onOpen)}
                     label="Add your rental"
                     className="hover:bg-gray-50 px-4 py-3"
                   />
                 )}
                 <hr className="my-2 border-gray-100" />
                 <MenuItem 
-                  onClick={() => signOut()}
+                  onClick={() => handleItemClick(() => signOut())}
                   label="Logout"
                   className="hover:bg-gray-50 px-4 py-3 text-gray-600"
                 />
@@ -120,12 +133,12 @@ const UserMenu: React.FC<UserMenuProps> = ({
             ) : (
               <>
                 <MenuItem 
-                  onClick={loginModal.onOpen}
+                  onClick={() => handleItemClick(loginModal.onOpen)}
                   label="Login"
                   className="hover:bg-gray-50 px-4 py-3"
                 />
                 <MenuItem 
-                  onClick={registerModal.onOpen}
+                  onClick={() => handleNavigation('/register')}
                   label="Sign up"
                   className="hover:bg-gray-50 px-4 py-3"
                 />

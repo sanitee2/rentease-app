@@ -5,6 +5,7 @@ import "./globals.css";
 import getCurrentUser from "./actions/getCurrentUser";
 import ClientOnly from "./components/ClientOnly";
 import dynamic from 'next/dynamic';
+import SessionExpiredModal from "./components/Modals/SessionExpiredModal";
 
 // Optimize font loading
 const inter = Inter({ 
@@ -47,6 +48,7 @@ export default async function RootLayout({
             <RegisterModal />
             <LoginModal />
             <ConfirmModal />
+            <SessionExpiredModal />
           </ClientOnly>
           <main className="overflow-y-auto">
             {children}

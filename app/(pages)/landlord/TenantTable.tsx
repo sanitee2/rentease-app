@@ -11,6 +11,8 @@ interface TenantTableProps {
   tenants: TenantData[];
   listings: SafeListing[];
   isLoading?: boolean;
+  onViewDetails: (tenant: TenantData) => void;
+  onRemoveTenant: (tenantId: string) => Promise<void>;
 }
 
 const ITEMS_PER_PAGE = 5;
@@ -23,11 +25,24 @@ interface ListingOption {
 type SortField = 'name' | 'email' | 'property' | 'room' | 'rent' | 'leaseStart';
 type SortOrder = 'asc' | 'desc';
 
+const formatFullName = (tenant: TenantData) => {
+  const parts = [
+    tenant.firstName,
+    tenant.middleName ? `${tenant.middleName.charAt(0)}.` : '',
+    tenant.lastName,
+    tenant.suffix || ''
+  ].filter(Boolean);
+  
+  return parts.length > 0 ? parts.join(' ') : '-';
+};
+
 const TenantTable: React.FC<TenantTableProps> = ({ 
   currentUserId, 
   tenants: initialTenants,
   listings: initialListings,
-  isLoading = false
+  isLoading = false,
+  onViewDetails,
+  onRemoveTenant
 }) => {
   const [selectedListing, setSelectedListing] = useState<'all' | SafeListing>('all');
   const [currentPage, setCurrentPage] = useState(1);
@@ -36,8 +51,26 @@ const TenantTable: React.FC<TenantTableProps> = ({
   const [sortField, setSortField] = useState<SortField>('name');
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
 
-  const sortData = useCallback(() => {
-    return [...filteredData].sort((a, b) => {
+  useEffect(() => {
+    let filtered = initialTenants;
+
+    if (selectedListing !== 'all') {
+      filtered = filtered.filter(tenant =>
+        tenant.leaseContracts.some(contract =>
+          contract.listing.id === selectedListing.id
+        )
+      );
+    }
+
+    if (searchTerm) {
+      const lowercasedFilter = searchTerm.toLowerCase();
+      filtered = filtered.filter(tenant =>
+        formatFullName(tenant).toLowerCase().includes(lowercasedFilter) ||
+        tenant?.email?.toLowerCase().includes(lowercasedFilter)
+      );
+    }
+
+    filtered = [...filtered].sort((a, b) => {
       const activeLease_a = a.leaseContracts
         .sort((x, y) => new Date(y.startDate).getTime() - new Date(x.startDate).getTime())[0];
       const activeLease_b = b.leaseContracts
@@ -47,7 +80,9 @@ const TenantTable: React.FC<TenantTableProps> = ({
 
       switch (sortField) {
         case 'name':
-          return multiplier * ((a.name || '').localeCompare(b.name || ''));
+          const nameA = formatFullName(a);
+          const nameB = formatFullName(b);
+          return multiplier * nameA.localeCompare(nameB);
         case 'email':
           return multiplier * ((a.email || '').localeCompare(b.email || ''));
         case 'property':
@@ -70,33 +105,10 @@ const TenantTable: React.FC<TenantTableProps> = ({
           return 0;
       }
     });
-  }, [filteredData, sortField, sortOrder]);
-
-  useEffect(() => {
-    let filtered = initialTenants;
-
-    if (selectedListing !== 'all') {
-      filtered = initialTenants.filter(tenant =>
-        tenant.leaseContracts.some(contract =>
-          contract.listing.id === selectedListing.id
-        )
-      );
-    }
-
-    if (searchTerm) {
-      const lowercasedFilter = searchTerm.toLowerCase();
-      filtered = filtered.filter(
-        tenant =>
-          tenant?.name?.toLowerCase().includes(lowercasedFilter) ||
-          tenant?.email?.toLowerCase().includes(lowercasedFilter)
-      );
-    }
-
-    filtered = sortData();
 
     setFilteredData(filtered);
     setCurrentPage(1);
-  }, [selectedListing, searchTerm, initialTenants, sortData]);
+  }, [selectedListing, searchTerm, initialTenants, sortField, sortOrder]);
 
   const totalPages = Math.ceil(filteredData.length / ITEMS_PER_PAGE);
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
@@ -219,7 +231,9 @@ const TenantTable: React.FC<TenantTableProps> = ({
                 
                 return (
                   <tr key={tenant.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">{tenant.name || '-'}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                      {formatFullName(tenant)}
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">{tenant.email}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
                       {activeLease?.listing.title || 'No active lease'}
@@ -237,7 +251,10 @@ const TenantTable: React.FC<TenantTableProps> = ({
                       ) : '-'}
                     </td>
                     <td className="px-6 py-4 text-end">
-                      <button className="inline-flex items-center px-3 py-1 text-sm font-medium rounded-full text-blue-700 bg-blue-50 hover:bg-blue-100">
+                      <button
+                        onClick={() => onViewDetails(tenant)}
+                        className="inline-flex items-center px-3 py-1 text-sm font-medium rounded-full text-blue-700 bg-blue-50 hover:bg-blue-100"
+                      >
                         View Details
                       </button>
                     </td>

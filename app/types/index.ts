@@ -98,7 +98,10 @@ export interface MinimalUser {
 
 export interface TenantData {
   id: string;
-  name: string | null;
+  firstName: string;
+  middleName?: string;
+  lastName: string;
+  suffix?: string;
   email: string | null;
   tenantProfile: {
     id: string;

@@ -33,6 +33,7 @@ interface RoomDetailsDrawerProps {
   listingCategory: {
     pricingType: 'ROOM_BASED' | 'LISTING_BASED';
   } | null;
+  onActualClose: () => void;
 }
 
 const EMPTY_ROOM = {
@@ -60,6 +61,7 @@ const RoomDetailsDrawer: React.FC<RoomDetailsDrawerProps> = ({
   onSave,
   onChange,
   listingCategory,
+  onActualClose,
 }) => {
   const { 
     setValue, 
@@ -230,6 +232,9 @@ const RoomDetailsDrawer: React.FC<RoomDetailsDrawerProps> = ({
 
     onChange(false); // Reset edited state before saving
     onSave(formData);
+
+    // Reset the form after saving
+    reset(EMPTY_ROOM);
   };
 
   const handleClose = () => {
@@ -245,7 +250,7 @@ const RoomDetailsDrawer: React.FC<RoomDetailsDrawerProps> = ({
   const handleActualClose = () => {
     reset(EMPTY_ROOM);
     onChange(false);
-    onClose();
+    onActualClose();
   };
 
   return (

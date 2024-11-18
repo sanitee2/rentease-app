@@ -1,4 +1,3 @@
-
 import prisma from "@/app/libs/prismadb";
 
 export default async function getTenants(userId: string) {
@@ -14,9 +13,16 @@ export default async function getTenants(userId: string) {
           }
         }
       },
-      include: {
+      select: {
+        id: true,
+        firstName: true,
+        middleName: true,
+        lastName: true,
+        suffix: true,
+        email: true,
         tenant: {
-          include: {
+          select: {
+            id: true,
             currentRoom: {
               select: {
                 id: true,
@@ -31,21 +37,28 @@ export default async function getTenants(userId: string) {
               userId: userId
             }
           },
-          include: {
+          select: {
+            id: true,
+            startDate: true,
+            endDate: true,
+            rentAmount: true,
             listing: {
               select: {
                 id: true,
-                title: true,
-              },
-            },
-          },
-        },
-      },
+                title: true
+              }
+            }
+          }
+        }
+      }
     });
 
     return tenants.map(tenant => ({
       id: tenant.id,
-      name: tenant.name,
+      firstName: tenant.firstName,
+      middleName: tenant.middleName || undefined,
+      lastName: tenant.lastName,
+      suffix: tenant.suffix || undefined,
       email: tenant.email,
       tenantProfile: tenant.tenant ? {
         id: tenant.tenant.id,

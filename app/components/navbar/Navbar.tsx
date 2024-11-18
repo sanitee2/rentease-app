@@ -29,7 +29,7 @@ const Navbar: React.FC<NavbarProps> = ({
   currentUser
 }) => {
   return ( 
-    <div className="fixed top-0 w-full bg-white z-50 shadow-sm">
+    <div className="fixed top-0 w-full bg-white z-20 shadow-sm">
       <div className="py-4 border-b-[1px]">
         <Container isNavbar>
           <div className="flex items-center justify-between gap-3 md:gap-0">

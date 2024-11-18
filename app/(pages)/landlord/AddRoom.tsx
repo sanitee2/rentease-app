@@ -265,6 +265,7 @@ const AddRoom: React.FC<AddRoomProps> = ({ rooms, setRooms, listingCategory }) =
       <RoomDetailsDrawer
         isOpen={isDrawerOpen}
         onClose={handleCancel}
+        onActualClose={handleCloseDrawer}
         room={selectedRoom}
         onSave={handleSaveRoom}
         onChange={setIsEdited}

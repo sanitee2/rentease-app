@@ -10,6 +10,7 @@ import LoadingState from '../loading';
 import axios from 'axios';
 import { SafeUser } from '@/app/types';
 import { FaTools, FaCreditCard, FaFileContract, FaBell } from 'react-icons/fa';
+import HostInfo from './HostInfo';
 
 interface DashboardClientProps {
   currentUser: SafeUser | null;
@@ -24,7 +25,8 @@ const DashboardClient: React.FC<DashboardClientProps> = ({ currentUser }) => {
     currentLease: null,
     currentRoom: null,
     totalPaid: 0,
-    activeLeaseCount: 0
+    activeLeaseCount: 0,
+    host: null
   });
 
   useEffect(() => {
@@ -52,7 +54,7 @@ const DashboardClient: React.FC<DashboardClientProps> = ({ currentUser }) => {
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">
-              Welcome back, {currentUser?.name}
+              Welcome back, {currentUser?.firstName}
             </h1>
             <p className="text-gray-500 mt-2">
               Manage your lease, payments, and maintenance requests
@@ -81,6 +83,8 @@ const DashboardClient: React.FC<DashboardClientProps> = ({ currentUser }) => {
               </div>
               <ActiveLease lease={data.currentLease} room={data.currentRoom} />
             </div>
+            
+            <HostInfo host={data.host} />
             
             <div className="bg-white rounded-2xl shadow-sm p-8 border border-gray-100">
               <div className="flex items-center justify-between mb-6">
