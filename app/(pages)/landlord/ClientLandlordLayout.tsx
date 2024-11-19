@@ -36,7 +36,9 @@ const ClientLandlordLayout: React.FC<ClientLandlordLayoutProps> = ({
         <SidebarItem icon={<RxDashboard size={20}/>} text="Dashboard" href="/landlord/dashboard"/>
         <SidebarItem icon={<RxHome size={20}/>} text="Listings" href="/landlord/listings" alert/>
         <SidebarItem icon={<PiUsers size={20}/>} text="Tenants" href="/landlord/tenants"/>
-        <SidebarItem icon={<PiMoneyLight size={20}/>} text="Home" href="/landlord/payments"/>
+        <SidebarItem icon={<PiMoneyLight size={20}/>} text="Payments" href="/landlord/payments"/>
+        <SidebarItem icon={<PiMoneyLight size={20}/>} text="Maintenance Requests" href="/landlord/payments"/>
+        <SidebarItem icon={<PiMoneyLight size={20}/>} text="Viewing Requests" href="/landlord/payments"/>
       </Sidebar>
       <main className={`transition-all duration-300 pt-[57px]
         ${expanded ? 'ml-64' : 'ml-20'}`}

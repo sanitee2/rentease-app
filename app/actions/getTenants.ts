@@ -20,6 +20,7 @@ export default async function getTenants(userId: string) {
         lastName: true,
         suffix: true,
         email: true,
+        image: true,
         tenant: {
           select: {
             id: true,
@@ -60,6 +61,7 @@ export default async function getTenants(userId: string) {
       lastName: tenant.lastName,
       suffix: tenant.suffix || undefined,
       email: tenant.email,
+      image: tenant.image || undefined,
       tenantProfile: tenant.tenant ? {
         id: tenant.tenant.id,
         currentRoom: tenant.tenant.currentRoom

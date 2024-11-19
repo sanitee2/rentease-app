@@ -103,6 +103,7 @@ export interface TenantData {
   lastName: string;
   suffix?: string;
   email: string | null;
+  image?: string | null;
   tenantProfile: {
     id: string;
     currentRoom?: {

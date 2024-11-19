@@ -180,12 +180,70 @@ const TenantTable: React.FC<TenantTableProps> = ({
               isClearable
               onChange={handleListingChange}
               styles={{
-                control: (base) => ({
+                control: (base, state) => ({
                   ...base,
                   borderRadius: '0.5rem',
-                  borderColor: '#e5e7eb',
+                  borderColor: state.isFocused ? '#6366f1' : '#e5e7eb',
+                  boxShadow: state.isFocused ? '0 0 0 1px #6366f1' : 'none',
+                  '&:hover': {
+                    borderColor: '#6366f1'
+                  }
                 }),
+                option: (base, state) => ({
+                  ...base,
+                  backgroundColor: state.isSelected 
+                    ? '#6366f1'
+                    : state.isFocused 
+                      ? '#e0e7ff'
+                      : 'white',
+                  color: state.isSelected ? 'white' : '#111827',
+                  '&:active': {
+                    backgroundColor: '#6366f1'
+                  }
+                }),
+                input: (base) => ({
+                  ...base,
+                  color: '#111827'
+                }),
+                singleValue: (base) => ({
+                  ...base,
+                  color: '#111827'
+                }),
+                indicatorSeparator: (base) => ({
+                  ...base,
+                  backgroundColor: '#e5e7eb'
+                }),
+                dropdownIndicator: (base, state) => ({
+                  ...base,
+                  color: state.isFocused ? '#6366f1' : '#9ca3af',
+                  '&:hover': {
+                    color: '#6366f1'
+                  }
+                }),
+                clearIndicator: (base, state) => ({
+                  ...base,
+                  color: state.isFocused ? '#6366f1' : '#9ca3af',
+                  '&:hover': {
+                    color: '#6366f1'
+                  }
+                }),
+                menu: (base) => ({
+                  ...base,
+                  borderRadius: '0.5rem',
+                  border: '1px solid #e5e7eb',
+                  boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)'
+                })
               }}
+              theme={(theme) => ({
+                ...theme,
+                colors: {
+                  ...theme.colors,
+                  primary: '#6366f1',
+                  primary75: '#818cf8',
+                  primary50: '#a5b4fc',
+                  primary25: '#e0e7ff',
+                },
+              })}
             />
           </div>
         </div>
@@ -196,8 +254,7 @@ const TenantTable: React.FC<TenantTableProps> = ({
           <thead className="bg-gray-50">
             <tr>
               {[
-                { field: 'name' as SortField, label: 'Name' },
-                { field: 'email' as SortField, label: 'Email' },
+                { field: 'name' as SortField, label: 'Tenant' },
                 { field: 'property' as SortField, label: 'Property' },
                 { field: 'room' as SortField, label: 'Room' },
                 { field: 'rent' as SortField, label: 'Rent' },
@@ -231,10 +288,20 @@ const TenantTable: React.FC<TenantTableProps> = ({
                 
                 return (
                   <tr key={tenant.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">
-                      {formatFullName(tenant)}
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 flex-shrink-0">
+                          <img
+                            className="h-10 w-10 rounded-full object-cover"
+                            src={tenant.image || '/images/placeholder.jpg'}
+                            alt={formatFullName(tenant)}
+                          />
+                        </div>
+                        <div className="text-sm">
+                          {formatFullName(tenant)}
+                        </div>
+                      </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">{tenant.email}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
                       {activeLease?.listing.title || 'No active lease'}
                     </td>
