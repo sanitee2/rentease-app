@@ -103,9 +103,11 @@ export async function POST(request: Request) {
               imageSrc: { images: room.images },
               roomCategory: room.roomCategory,
               price: listingCategory.pricingType === 'ROOM_BASED' ? 
-                parseInt(room.price.toString()) : null,
+                parseFloat(room.price.toString()) : null,
               listingId: newListing.id,
-              maxTenantCount: room.maxTenantCount ? parseInt(room.maxTenantCount.toString()) : 1
+              maxTenantCount: room.maxTenantCount ? 
+                parseInt(room.maxTenantCount.toString()) : 1,
+              currentTenants: undefined
             }
           });
 

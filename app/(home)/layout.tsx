@@ -14,6 +14,7 @@ export default async function HomeLayout({ children }: { children: React.ReactNo
       <main className="flex-grow pt-[80px]">
         {children}
       </main>
+      
       <Footer />
     </div>
   );

@@ -58,7 +58,7 @@ const ListingClient: React.FC<ListingClientProps> = ({
   }, [listing.category]);
 
   return (
-    <div className="max-w-screen mx-auto">
+    <div className="max-w-screen mx-auto pt-24 pb-24">
       <div className="flex flex-col gap-6">
         <ListingHead
           imageSrc={listing.imageSrc.images}

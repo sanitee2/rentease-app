@@ -7,11 +7,16 @@ import { AiOutlineClose } from 'react-icons/ai';
 
 interface FullScreenGalleryProps {
   images: string[];
-  onClose: () => void; // Add onClose prop to control visibility from the parent
+  onClose: () => void;
+  initialIndex: number;
 }
 
-const FullScreenGallery: React.FC<FullScreenGalleryProps> = ({ images, onClose }) => {
-  const [currentIndex, setCurrentIndex] = useState(0);
+const FullScreenGallery: React.FC<FullScreenGalleryProps> = ({ 
+  images, 
+  onClose,
+  initialIndex = 0 
+}) => {
+  const [currentIndex, setCurrentIndex] = useState(initialIndex);
 
   const handlePrev = () => {
     setCurrentIndex((prevIndex) =>

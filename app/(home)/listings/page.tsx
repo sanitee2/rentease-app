@@ -7,7 +7,7 @@ import EmptyState from "@/app/components/EmptyState";
 import ListingCard from "@/app/components/listings/ListingCard";
 
 
-export default async function Home() {
+export default async function ListingsPage() {
   const listings = await getListings();
   const currentUser = await getCurrentUser();
 
@@ -31,10 +31,11 @@ export default async function Home() {
   );
 
   return (
-    <ClientOnly>
       <Container>
         <div
           className="
+          pt-24
+          pb-24
           grid
           grid-cols-1
           sm:grid-cols-2
@@ -54,6 +55,5 @@ export default async function Home() {
           ))}
         </div>
       </Container>
-    </ClientOnly>
   );
 }

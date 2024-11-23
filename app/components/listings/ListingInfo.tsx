@@ -313,7 +313,7 @@ const ListingInfo: React.FC<ListingInfoProps> = ({
           <div className="flex items-center gap-4">
             <Avatar src={user?.image} />
             <div>
-              <h3 className="font-medium text-gray-900">{user?.name}</h3>
+              <h3 className="font-medium text-gray-900">{user?.firstName} {user?.lastName}</h3>
               <p className="text-sm text-gray-500">Property Host</p>
             </div>
           </div>

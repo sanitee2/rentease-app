@@ -68,7 +68,7 @@ const Listings = async() => {
               Manage and monitor your property listings
             </p>
           </div>
-            <ActiveListingsTable data={listings} />
+            <ActiveListingsTable data={listings} currentUser={currentUser}/>
         </div>
       </div>
     </div>

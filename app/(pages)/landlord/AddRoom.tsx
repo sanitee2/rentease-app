@@ -74,17 +74,32 @@ const AddRoom: React.FC<AddRoomProps> = ({ rooms, setRooms, listingCategory }) =
   };
 
   // Save the room and reset state
-  const handleSaveRoom = (updatedRoom: Room) => {
+  const handleSaveRoom = (roomData: any) => {
     if (selectedRoom) {
-      setRooms(prevRooms => 
-        prevRooms.map(room => 
-          room === selectedRoom ? updatedRoom : room
-        )
-      );
+      // Update existing room
+      setRooms(rooms.map(room => 
+        room === selectedRoom ? {
+          ...room,
+          ...roomData,
+          price: listingCategory?.pricingType === 'ROOM_BASED' 
+            ? parseFloat(roomData.price) 
+            : null,
+          maxTenantCount: parseInt(roomData.maxTenantCount) || 1
+        } : room
+      ));
     } else {
-      setRooms(prevRooms => [...prevRooms, updatedRoom]);
+      // Add new room
+      setRooms([...rooms, {
+        ...roomData,
+        id: Math.random().toString(36).substr(2, 9), // Temporary ID
+        price: listingCategory?.pricingType === 'ROOM_BASED' 
+          ? parseFloat(roomData.price) 
+          : null,
+        maxTenantCount: parseInt(roomData.maxTenantCount) || 1
+      }]);
     }
-    handleCloseDrawer();
+    setIsDrawerOpen(false);
+    setSelectedRoom(null);
   };
 
   // Handle closing the drawer with unsaved changes
@@ -93,15 +108,6 @@ const AddRoom: React.FC<AddRoomProps> = ({ rooms, setRooms, listingCategory }) =
       setIsModalOpen(true); // Show cancel confirmation modal
     } else {
       handleCloseDrawer(); // Close drawer if no changes
-    }
-  };
-
-  // Handle clicking outside the drawer
-  const handleOutsideClick = () => {
-    if (isEdited) {
-      setIsModalOpen(true);
-    } else {
-      handleCloseDrawer();
     }
   };
 
@@ -164,13 +170,20 @@ const AddRoom: React.FC<AddRoomProps> = ({ rooms, setRooms, listingCategory }) =
                 >
                   {/* Image Section */}
                   <div className="relative w-full h-48 group">
-                    {room.images.length > 0 ? (
-                      <Image
-                        src={room.images[0]}
-                        alt={room.title || `Room ${index + 1}`}
-                        fill
-                        className="object-cover"
-                      />
+                    {(room.images?.length > 0) ? (
+                      <>
+                        <Image
+                          src={room.images[0]}
+                          alt={room.title || `Room ${index + 1}`}
+                          fill
+                          className="object-cover"
+                        />
+                        {listingCategory?.pricingType === 'ROOM_BASED' && room.price && (
+                          <div className="absolute bottom-2 right-2 bg-black bg-opacity-75 text-white px-2 py-1 rounded">
+                            ₱{room.price.toLocaleString()}
+                          </div>
+                        )}
+                      </>
                     ) : (
                       <div className="w-full h-full bg-gray-100 flex items-center justify-center">
                         <BsDoorOpenFill size={32} className="text-gray-400" />

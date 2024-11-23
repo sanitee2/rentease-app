@@ -1,7 +1,7 @@
 'use client';
 
 import Button from "@/app/components/Button";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useRef } from "react";
 import { IoMdClose } from "react-icons/io";
 
 interface ModalProps {
@@ -39,33 +39,48 @@ const Modal: React.FC<ModalProps> = ({
 }) => {
 
   const [showModal, setShowModal] = useState(isOpen);
+  const scrollPosition = useRef(0);
 
   useEffect(() => {
     setShowModal(isOpen);
-  }, [isOpen]);
-
-  useEffect(() => {
+    
     if (isOpen) {
-      document.body.style.overflow = 'hidden';
+      // Save the current scroll position
+      scrollPosition.current = window.scrollY;
+      document.body.style.position = 'fixed';
+      document.body.style.top = `-${scrollPosition.current}px`;
+      document.body.style.width = '100%';
     } else {
-      document.body.style.overflow = 'unset';
+      // Restore the scroll position
+      document.body.style.position = '';
+      document.body.style.top = '';
+      document.body.style.width = '';
+      window.scrollTo({
+        top: scrollPosition.current,
+        behavior: 'instant'
+      });
     }
 
-    // Cleanup when component unmounts
     return () => {
-      document.body.style.overflow = 'unset';
+      if (document.body.style.position === 'fixed') {
+        document.body.style.position = '';
+        document.body.style.top = '';
+        document.body.style.width = '';
+        window.scrollTo({
+          top: scrollPosition.current,
+          behavior: 'instant'
+        });
+      }
     };
   }, [isOpen]);
 
-  const handleClose = useCallback(()=> {
-    if(disabled){
+  const handleClose = useCallback(() => {
+    if (disabled) {
       return;
     }
 
     setShowModal(false);
-    setTimeout(() => {
-      onClose();
-    }, 300)
+    onClose();
   }, [disabled, onClose]);
 
   const handleSubmit = useCallback(() => {

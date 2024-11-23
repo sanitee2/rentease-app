@@ -1,13 +1,16 @@
 'use client';
 
-import { SafeListing } from '@/app/types';
+import { SafeListing, SafeUser } from '@/app/types';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
-import { AiOutlinePlusCircle, AiOutlineEye, AiOutlineDelete } from 'react-icons/ai';
+import { AiOutlinePlusCircle, AiOutlineEye, AiOutlineDelete, AiOutlineEdit } from 'react-icons/ai';
+import { FaArchive } from 'react-icons/fa';
 import Link from 'next/link';
 import StatusBadge from './StatusBadge';
 import ListingModal from '@/app/components/Modals/ListingModal';
 import getCurrentUser from '@/app/actions/getCurrentUser';
+import { toast } from 'react-hot-toast';
+import { io } from 'socket.io-client';
 
 const truncateText = (text: string, limit: number) => {
   if (!text) return '';
@@ -17,16 +20,25 @@ const truncateText = (text: string, limit: number) => {
 
 interface ActiveListingsTableProps {
   data: SafeListing[];  // The prop should be an array of listings
+  currentUser?: SafeUser | null;
 }
 
 const ITEMS_PER_PAGE = 5; // Number of items per page
 
-const STATUS_OPTIONS = [
-  { value: 'all', label: 'All Status' },
-  { value: 'AVAILABLE', label: 'Available' },
-  { value: 'RESERVED', label: 'Reserved' },
-  { value: 'RENTED', label: 'Rented' },
-  { value: 'UNAVAILABLE', label: 'Unavailable' },
+type ListingStatus = 'ACTIVE' | 'PENDING' | 'ARCHIVED' | 'DECLINED';
+
+type FilterValue = ListingStatus | 'all';
+
+const FILTER_BADGES: Array<{
+  value: FilterValue;
+  label: string;
+  color: string;
+}> = [
+  { value: 'all', label: 'All', color: 'gray' },
+  { value: 'ACTIVE', label: 'Active', color: 'green' },
+  { value: 'PENDING', label: 'Pending', color: 'orange' },
+  { value: 'ARCHIVED', label: 'Archived', color: 'gray' },
+  { value: 'DECLINED', label: 'Declined', color: 'red' },
 ];
 
 const useClickOutside = (ref: any, callback: any) => {
@@ -47,7 +59,10 @@ const useClickOutside = (ref: any, callback: any) => {
   }, [ref, callback]);
 };
 
-const ActiveListingsTable: React.FC<ActiveListingsTableProps> = ({ data }) => {
+const ActiveListingsTable: React.FC<ActiveListingsTableProps> = ({ 
+  data,
+  currentUser 
+}) => {
   const [listings, setListings] = useState<SafeListing[]>(data);
   const [currentPage, setCurrentPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState('');
@@ -56,8 +71,7 @@ const ActiveListingsTable: React.FC<ActiveListingsTableProps> = ({ data }) => {
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [selectedListing, setSelectedListing] = useState<SafeListing | null>(null);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
-  const [currentUser, setCurrentUser] = useState<any>(null);
-  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [statusFilter, setStatusFilter] = useState<FilterValue>('all');
 
   const menuRef = useRef(null);
 
@@ -67,10 +81,12 @@ const ActiveListingsTable: React.FC<ActiveListingsTableProps> = ({ data }) => {
   
   // Update listings state and apply default sort when data prop changes
   useEffect(() => {
+    if (!data) return;
+    
     const sortedData = [...data].sort((a, b) => {
       const dateA = new Date(a.createdAt).getTime();
       const dateB = new Date(b.createdAt).getTime();
-      return dateB - dateA; // Sort in descending order (latest first)
+      return dateB - dateA;
     });
     setListings(sortedData);
     setFilteredData(sortedData);
@@ -144,33 +160,51 @@ const ActiveListingsTable: React.FC<ActiveListingsTableProps> = ({ data }) => {
     setCurrentPage(newPage);
   };
 
-  // Handle delete button click
-  const handleDelete = async (id: string) => {
+  // Modify handleDelete to handleArchive
+  const handleArchive = async (id: string) => {
     try {
-      // Make an API request to delete the listing
-      await axios.delete(`/api/delete-listing?id=${id}`);
+      // Make an API request to archive the listing
+      const response = await axios.patch(`/api/delete-listing?id=${id}`);
   
-      // After successful deletion, update the listings state
-      const updatedListings = listings.filter((listing) => listing.id !== id);
-      setListings(updatedListings);
-      setFilteredData(updatedListings); // Update filtered data as well
+      if (response.status === 200) {
+        // After successful archival, update the listings state
+        const updatedListings = listings.filter((listing) => listing.id !== id);
+        setListings(updatedListings);
+        setFilteredData(updatedListings); // Update filtered data as well
+        toast.success('Listing archived successfully');
+      }
     } catch (error) {
-      console.error('Error deleting listing:', error);
+      console.error('Error archiving listing:', error);
+      toast.error('Failed to archive listing');
     }
   };
-
-  useEffect(() => {
-    const fetchUser = async () => {
-      const user = await getCurrentUser();
-      setCurrentUser(user);
-    };
-    fetchUser();
-  }, []);
 
   const handleView = useCallback((listing: SafeListing) => {
     setSelectedListing(listing);
     setIsViewModalOpen(true);
   }, []);
+
+  useEffect(() => {
+    if (!currentUser?.id) return;
+
+    // Initialize socket connection
+    const socket = io({
+      path: '/api/socket',
+    });
+    
+    // Connect to the listings room
+    socket.emit('join-listings-room', currentUser.id);
+
+    // Listen for updates
+    socket.on('listings-update', (updatedListings) => {
+      setListings(updatedListings);
+    });
+
+    // Cleanup on unmount
+    return () => {
+      socket.disconnect();
+    };
+  }, [currentUser?.id]);
 
   return (
     <div className="w-full">
@@ -201,6 +235,34 @@ const ActiveListingsTable: React.FC<ActiveListingsTableProps> = ({ data }) => {
               <path d="m21 21-4.3-4.3"></path>
             </svg>
           </div>
+        </div>
+        
+        <div className="flex gap-2">
+          {FILTER_BADGES.map((badge) => (
+            <button
+              key={badge.value}
+              onClick={() => setStatusFilter(badge.value)}
+              className={`
+                px-3 py-1 rounded-full text-sm font-medium
+                ${statusFilter === badge.value
+                  ? `bg-${badge.color}-100 text-${badge.color}-700 ring-2 ring-${badge.color}-600`
+                  : `bg-${badge.color}-50 text-${badge.color}-600 hover:bg-${badge.color}-100`
+                }
+                transition-colors
+              `}
+            >
+              {badge.label}
+              {badge.value !== 'all' && (
+                <span className="ml-1 px-2 py-0.5 rounded-full text-xs bg-white">
+                  {listings.filter(item => 
+                    badge.value === 'ARCHIVED' 
+                      ? item.status === 'ARCHIVED'
+                      : item.status === badge.value
+                  ).length}
+                </span>
+              )}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -264,12 +326,28 @@ const ActiveListingsTable: React.FC<ActiveListingsTableProps> = ({ data }) => {
                   >
                     <AiOutlineEye className="mr-1" /> View
                   </button>
-                  <button
-                    onClick={() => handleDelete(listing.id)}
-                    className="inline-flex items-center px-3 py-1 text-sm font-medium rounded-full text-red-700 bg-red-50 hover:bg-red-100"
-                  >
-                    <AiOutlineDelete className="mr-1" /> Delete
-                  </button>
+                  
+                  {listing.status !== 'ARCHIVED' && (
+                    <>
+                      <Link href={`/landlord/listings/edit/${listing.id}`}>
+                        <button className="inline-flex items-center px-3 py-1 text-sm font-medium rounded-full text-green-700 bg-green-50 hover:bg-green-100">
+                          <AiOutlineEdit className="mr-1" /> Edit
+                        </button>
+                      </Link>
+                      <button
+                        onClick={() => handleArchive(listing.id)}
+                        className="inline-flex items-center px-3 py-1 text-sm font-medium rounded-full text-gray-700 bg-gray-50 hover:bg-gray-100"
+                      >
+                        <FaArchive className="mr-1" /> Archive
+                      </button>
+                    </>
+                  )}
+                  
+                  {listing.status === 'ARCHIVED' && (
+                    <span className="inline-flex items-center px-3 py-1 text-sm font-medium rounded-full text-gray-500 bg-gray-100">
+                      Archived
+                    </span>
+                  )}
                 </td>
               </tr>
             ))}

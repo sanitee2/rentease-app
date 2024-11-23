@@ -1,8 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/app/libs/prismadb';
+import getCurrentUser from '@/app/actions/getCurrentUser';
+import { getIO } from '@/app/lib/socket';
 
-export async function DELETE(req: NextRequest) {
+export async function PATCH(req: NextRequest) {
   try {
+    const currentUser = await getCurrentUser();
+
+    if (!currentUser) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');
 
@@ -10,27 +18,37 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ error: 'Missing listing ID' }, { status: 400 });
     }
 
-    // First update the listing to inactive
-    await prisma.listing.update({
+    // Verify the listing belongs to the current user
+    const listing = await prisma.listing.findUnique({
+      where: { id },
+    });
+
+    if (!listing || listing.userId !== currentUser.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
+    }
+
+    // Update the listing status to ARCHIVED
+    const archivedListing = await prisma.listing.update({
       where: { id },
       data: { status: 'ARCHIVED' }
     });
 
-    // Then delete all rooms associated with the listing
-    await prisma.room.deleteMany({
-      where: { listingId: id },
+    // After successful update
+    const io = getIO();
+    const updatedListings = await prisma.listing.findMany({
+      where: { userId: currentUser.id }
     });
+    
+    io.to(`listings-${currentUser.id}`).emit('listings-update', updatedListings);
 
-    // Finally delete the listing
-    const deletedListing = await prisma.listing.delete({
-      where: { id },
-    });
-
-    return NextResponse.json({ message: 'Listing deleted successfully' }, { status: 200 });
-  } catch (error) {
-    console.error('Error deleting listing:', error);
     return NextResponse.json({ 
-      error: 'Failed to delete listing',
+      message: 'Listing archived successfully',
+      listing: archivedListing 
+    }, { status: 200 });
+  } catch (error) {
+    console.error('Error archiving listing:', error);
+    return NextResponse.json({ 
+      error: 'Failed to archive listing',
       details: error instanceof Error ? error.message : 'Unknown error'
     }, { status: 500 });
   }

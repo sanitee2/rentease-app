@@ -4,8 +4,8 @@ import { FieldValues, SubmitHandler, useForm } from 'react-hook-form';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import { useRouter } from 'next/navigation';
-import { StandaloneSearchBox, GoogleMap, Marker, Libraries, StreetViewPanorama, useLoadScript } from '@react-google-maps/api';
-import { ListingCategory } from '@/app/types'; // Import the ListingCategory type
+import { StandaloneSearchBox, LoadScript, GoogleMap, Marker, Libraries, StreetViewPanorama, useLoadScript } from '@react-google-maps/api';
+import { ListingCategory } from '@/app/types';
 
 import Heading from '@/app/components/Heading';
 import Select from 'react-select';
@@ -16,7 +16,6 @@ import ImageUpload from '@/app/components/inputs/ImageUpload';
 import Breadcrumbs from '@/app/components/Breadcrumbs';
 import useListingCategories from '@/app/hooks/useListingCategories';
 import { getIconComponent } from '@/lib/utils';
-import AddRoom from '../../AddRoom';
 import { PiNavigationArrowBold } from 'react-icons/pi';
 import Button from "@/app/components/Button";
 import { IoArrowBack, IoArrowForward } from "react-icons/io5";
@@ -35,9 +34,10 @@ import { FaSmoking } from 'react-icons/fa';
 import * as FaIcons from 'react-icons/fa';
 import { IoCheckmarkCircle } from "react-icons/io5";
 import LoadingState from './loading';
-import { GOOGLE_MAPS_LIBRARIES, GOOGLE_MAPS_OPTIONS } from '@/lib/constants/google-maps';
+import AddRoom from '../../../AddRoom';
 
-// Add this constant near the top of the file, after imports
+const libraries: Libraries = ['places', 'geometry'];
+
 const SURIGAO_BARANGAYS = [
   { value: 'Alegria', label: 'Alegria' },
   { value: 'Alipayo', label: 'Alipayo' },
@@ -79,14 +79,12 @@ const SURIGAO_BARANGAYS = [
   { value: 'Zaragoza', label: 'Zaragoza' },
 ];
 
-// Add this helper function at the top of the file
 const stripHtml = (html: string) => {
   const tmp = document.createElement('div');
   tmp.innerHTML = html;
   return tmp.textContent || tmp.innerText || '';
 };
 
-// Add this helper function at the top of the file
 const truncateHtml = (html: string, wordCount: number) => {
   const div = document.createElement('div');
   div.innerHTML = html;
@@ -96,7 +94,6 @@ const truncateHtml = (html: string, wordCount: number) => {
   return words.slice(0, wordCount).join(' ') + '...';
 };
 
-// Add these interfaces at the top of your file
 interface PropertyAmenity {
   id: string;
   title: string;
@@ -113,13 +110,11 @@ interface PropertyAmenities {
   [key: string]: AmenityValue;
 }
 
-// Add this helper function at the top of the file
 const truncateText = (text: string, limit: number) => {
   if (text.length <= limit) return text;
   return text.slice(0, limit) + '...';
 };
 
-// Add this CSS at the top of your file or in a separate CSS file
 const googlePlacesStyles = `
   .pac-container {
     border-radius: 8px;
@@ -156,7 +151,7 @@ const googlePlacesStyles = `
   }
 `;
 
-const AddListing = () => {
+const EditListing = ({ listingId }: { listingId: string }) => {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [images, setImages] = useState<string[]>([]);
@@ -164,7 +159,7 @@ const AddListing = () => {
   const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
   const searchBoxRef = useRef<google.maps.places.SearchBox | null>(null);
   const { categories, loading, error, selectedCategory, selectCategory } = useListingCategories();
-  const [rooms, setRooms] = useState<any[]>([]); // Manage rooms state
+  const [rooms, setRooms] = useState<any[]>([]);
   const [selectState, setSelectState] = useState({ isFocused: false });
   const [propertyAmenities, setPropertyAmenities] = useState<any[]>([]);
   const [isAmenitiesLoading, setIsAmenitiesLoading] = useState(true);
@@ -201,6 +196,58 @@ const AddListing = () => {
     },
   });
 
+  useEffect(() => {
+    const fetchListing = async () => {
+      try {
+        setIsLoading(true);
+        const response = await axios.get(`/api/listings/${listingId}`);
+        const listingData = response.data;
+        
+        // Set images
+        setImages(listingData.images || []);
+        
+        // Set location
+        if (listingData.locationValue?.latlng) {
+          const [lat, lng] = listingData.locationValue.latlng;
+          setLocation({ lat, lng });
+        }
+
+        // Set rooms
+        setRooms(listingData.rooms.map((room: any) => ({
+          ...room,
+          amenities: room.amenities.reduce((acc: any, amenity: any) => ({
+            ...acc,
+            [amenity.amenityId]: {
+              selected: true,
+              note: amenity.note || ''
+            }
+          }), {})
+        })));
+
+        // Set form values, including propertyAmenities
+        const formValues = {
+          ...listingData,
+          propertyAmenities: listingData.propertyAmenities || {},
+        };
+
+        // Set each form value individually
+        Object.entries(formValues).forEach(([key, value]) => {
+          setValue(key, value);
+        });
+
+      } catch (error) {
+        console.error('Error fetching listing:', error);
+        toast.error('Failed to load listing data');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    if (listingId) {
+      fetchListing();
+    }
+  }, [listingId, setValue]);
+
   const category = watch('category');
   const roomCount = watch('roomCount');
   const street = watch('street');
@@ -221,42 +268,39 @@ const AddListing = () => {
       
       const formData = {
         ...data,
-        rooms: rooms.map(room => {
-          // Get room category to check if maxTenantCount is needed
-          const roomCategory = categories.find(c => c.title === room.roomCategory);
-          
-          return {
-            ...room,
-            price: selectedCategory?.pricingType === 'ROOM_BASED' ? 
-              parseInt(room.price) : 
-              null,
-            // Only include maxTenantCount if the room category needs it
-            maxTenantCount: room.maxTenantCount ? 
-              parseInt(room.maxTenantCount) : 
-              null
-          };
-        }),
+        rooms: rooms.map(room => ({
+          ...room,
+          price: selectedCategory?.pricingType === 'ROOM_BASED' ? 
+            parseInt(room.price) : 
+            undefined,
+          maxTenantCount: room.needsMaxTenant ? 
+            parseInt(room.maxTenantCount) : 
+            undefined
+        })),
         imageSrc: { images },
-        // Handle listing-level maxTenantCount
-        hasMaxTenantCount: data.hasMaxTenantCount || false,
-        maxTenantCount: data.hasMaxTenantCount ? 
-          parseInt(data.maxTenantCount) : 
-          null,
         price: selectedCategory?.pricingType === 'LISTING_BASED' ? 
           parseInt(data.price) : 
-          null,
+          undefined,
         
-        // House rules should match the schema exactly
         houseRules: {
-          petsAllowed: data.petsAllowed || false,
-          childrenAllowed: data.childrenAllowed || false,
-          smokingAllowed: data.smokingAllowed || false,
-          additionalNotes: data.additionalNotes?.trim() || null
+          genderRestriction: data.genderRestriction,
+          hasAgeRequirement: data.hasAgeRequirement,
+          minimumAge: data.hasAgeRequirement ? 
+            parseInt(data.minimumAge) : 
+            undefined,
+          overnightGuestsAllowed: data.overnightGuestsAllowed,
+          maxGuests: data.overnightGuestsAllowed ? 
+            parseInt(data.maxGuests) : 
+            undefined,
+          petsAllowed: data.petsAllowed,
+          childrenAllowed: data.childrenAllowed,
+          smokingAllowed: data.smokingAllowed,
+          additionalNotes: data.additionalNotes?.trim() || undefined
         }
       };
 
-      await axios.post('/api/listings', formData);
-      toast.success('Listing created!');
+      await axios.put(`/api/listings/${listingId}`, formData);
+      toast.success('Listing updated!');
       router.push('/landlord/listings');
       router.refresh();
       reset();
@@ -269,7 +313,7 @@ const AddListing = () => {
   };
 
   const handleNextStep = (e: React.MouseEvent) => {
-    e.preventDefault(); // Prevent form submission
+    e.preventDefault();
     if (step === 1 && category) {
       setStep(2);
     } else if (step === 2 && street && barangay && location) {
@@ -281,7 +325,6 @@ const AddListing = () => {
     } else if (step === 5 && title && description) {
       setStep(6);
     } else if (step === 6) {
-      // Only require gender restriction for house rules step
       const genderRestriction = watch('genderRestriction');
       if (genderRestriction) {
         setStep(7);
@@ -292,10 +335,25 @@ const AddListing = () => {
   };
 
   const handlePreviousStep = (e: React.MouseEvent) => {
-    e.preventDefault(); // Prevent form submission
+    e.preventDefault();
     if (step > 1) {
       setStep(step - 1);
     }
+  };
+
+  const searchOptions = {
+    componentRestrictions: { 
+      country: 'ph',
+    },
+    types: ['address'],
+    bounds: {
+      north: 9.8527,
+      south: 9.7155,
+      east: 125.5439,
+      west: 125.4571
+    },
+    strictBounds: true,
+    fields: ['address_components', 'geometry', 'formatted_address'],
   };
 
   const handlePlacesChanged = () => {
@@ -308,8 +366,6 @@ const AddListing = () => {
         const lat = location.lat();
         const lng = location.lng();
 
-
-        // If coordinates are valid, proceed with setting the location
         const addressComponents = place.address_components || [];
         const streetNumber = addressComponents.find(component => 
           component.types.includes('street_number')
@@ -364,8 +420,10 @@ const AddListing = () => {
   ];
 
   const { isLoaded } = useLoadScript({
-    googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY as string,
-    libraries: GOOGLE_MAPS_LIBRARIES
+    googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY!,
+    libraries: libraries,
+    language: "en",
+    region: "PH"
   });
 
   const isStepComplete = (currentStep: number) => {
@@ -397,13 +455,8 @@ const AddListing = () => {
   };
 
   const canNavigateToStep = (targetStep: number, currentStep: number): boolean => {
-    // Can always go back to previous steps
     if (targetStep < currentStep) return true;
-    
-    // Can't skip ahead - must complete current step first
     if (targetStep > currentStep && !isStepComplete(currentStep)) return false;
-    
-    // Can only move one step at a time going forward
     return targetStep <= currentStep + 1;
   };
 
@@ -412,7 +465,16 @@ const AddListing = () => {
       setIsAmenitiesLoading(true);
       try {
         const response = await axios.get('/api/amenities/property');
-        setPropertyAmenities(response.data);
+        const currentAmenities = watch('propertyAmenities') || {};
+        
+        // Merge existing selections with new amenities data
+        const mergedAmenities = response.data.map((amenity: PropertyAmenity) => ({
+          ...amenity,
+          selected: currentAmenities[amenity.id]?.selected || false,
+          note: currentAmenities[amenity.id]?.note || ''
+        }));
+        
+        setPropertyAmenities(mergedAmenities);
       } catch (error) {
         console.error('Error fetching property amenities:', error);
         toast.error('Failed to load property amenities');
@@ -421,34 +483,29 @@ const AddListing = () => {
       }
     };
 
-    if (step === 6) { // Only fetch when on the amenities step
+    if (step === 6) {
       fetchAmenities();
     }
-  }, [step]);
+  }, [step, watch]);
 
-  // Add this useEffect to inject the styles
   useEffect(() => {
-    // Add the styles to the document head
     const styleElement = document.createElement('style');
     styleElement.textContent = googlePlacesStyles;
     document.head.appendChild(styleElement);
 
     return () => {
-      // Clean up the styles when component unmounts
       document.head.removeChild(styleElement);
     };
   }, []);
 
-  if (!isLoaded) return <LoadingState />;
+  if (!isLoaded) return <div>Loading...</div>;
 
   return (
     <div className="w-full bg-gray-50 p-6">
-      <div className='text-3xl font-semibold mb-2'>Add Listing</div>
+      <div className='text-3xl font-semibold mb-2'>Edit Listing</div>
       <Breadcrumbs />
-      {/* Progress Bar Container */}
       <div className="mb-16 mt-8 max-w-full px-5">
         <div className="relative">
-          {/* Main Progress Bar - Centered with step indicators */}
           <div className="absolute top-1/2 -translate-y-1/2 w-full h-1 bg-gray-200 rounded-full">
             <div 
               className="h-full bg-indigo-600 transition-all duration-500 ease-in-out rounded-full"
@@ -456,7 +513,6 @@ const AddListing = () => {
             />
           </div>
 
-          {/* Step Indicators */}
           <div className="relative flex justify-between">
             {stepTitles.map((title, index) => {
               const stepNumber = index + 1;
@@ -500,7 +556,6 @@ const AddListing = () => {
                     )}
                   </button>
 
-                  {/* Step Title */}
                   <div className={`
                     absolute -bottom-6
                     left-1/2 -translate-x-1/2
@@ -523,7 +578,6 @@ const AddListing = () => {
         <div className="flex flex-row gap-6">
           <div className="flex-grow-[3]">
             {step === 1 && (
-              // CATEGORY STEP
               <div className="bg-white shadow rounded-lg p-6 mb-6 flex flex-col gap-6">
                 <Heading title="Which of these best describes your place?" subtitle="Pick a category" />
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-3 max-h-[50vh] overflow-y-auto">
@@ -533,7 +587,7 @@ const AddListing = () => {
                     onClick={(category) => setCustomValue('category', category)}
                     selected={category === item.title}
                     label={item.title}
-                    icon={getIconComponent(item.icon)} // Dynamically set the icon
+                    icon={getIconComponent(item.icon)}
                   />
                 ))}
                 </div>
@@ -541,26 +595,31 @@ const AddListing = () => {
             )}
 
             {step === 2 && (
-              // LOCATION STEP
               <div className="bg-white shadow rounded-lg p-6 mb-6 flex flex-col gap-6">
                 <Heading title="Where is your place located?" subtitle="Help guests find you!" />
                 <div className='grid grid-cols-1 md:grid-cols-2 gap-3'>
-                  {isLoaded && (
-                    <StandaloneSearchBox
-                      onLoad={ref => searchBoxRef.current = ref}
-                      onPlacesChanged={handlePlacesChanged}
-                      options={GOOGLE_MAPS_OPTIONS}
-                    >
-                      <Input
-                        id="street"
-                        label="Street Address"
-                        disabled={isLoading}
-                        register={register}
-                        errors={errors}
-                        required
-                      />
-                    </StandaloneSearchBox>
-                  )}
+                  <StandaloneSearchBox
+                    onLoad={(ref) => {
+                      if (ref) {
+                        searchBoxRef.current = ref;
+                        const input = document.querySelector('input[type="text"]');
+                        if (input) {
+                          input.setAttribute('placeholder', '');
+                        }
+                      }
+                    }}
+                    onPlacesChanged={handlePlacesChanged}
+                    options={searchOptions}
+                  >
+                    <Input
+                      id='street'
+                      register={register}
+                      errors={errors}
+                      type="text"
+                      label="Street address"
+                      required
+                    />
+                  </StandaloneSearchBox>
                   
                   <div className="w-full relative z-20">
                     <div className="relative">
@@ -614,57 +673,54 @@ const AddListing = () => {
                   </div>
                 </div>
                 
-                {location && (
-                  <div>
-                    <button
-                      type="button"
-                      className="bg-indigo-500 hover:bg-indigo-900 text-white font-bold py-2 px-4 rounded mb-4 transition duration-200 ease-in-out"
-                      onClick={handleUseCurrentLocation}
-                    >
-                      Use Current Location
-                    </button>
-                  <div className="flex flex-row gap-4">
-                    <GoogleMap
-                      zoom={15}
-                      center={location}
-                      mapContainerStyle={{ width: '50%', height: '400px' }}
-                      options={{
-                        disableDefaultUI: true,
-                        zoomControl: true,
-                      }}
-                    >
+                <div className="flex flex-row gap-4">
+                  <GoogleMap
+                    zoom={15}
+                    center={location || { lat: 9.7847, lng: 125.4899 }}
+                    mapContainerStyle={{ width: '50%', height: '400px' }}
+                    options={{
+                      disableDefaultUI: true,
+                      zoomControl: true,
+                      streetViewControl: true,
+                    }}
+                    onLoad={(map) => {
+                      if (location) {
+                        map.panTo(location);
+                      }
+                    }}
+                  >
+                    {location && (
                       <Marker 
                         position={location}
                         draggable={true}
                         onDragEnd={handleMarkerDragEnd}
                       />
-                    </GoogleMap>
-                    <GoogleMap
-                      zoom={15}
-                      center={location}
-                      mapContainerStyle={{ width: '50%', height: '400px' }}
+                    )}
+                  </GoogleMap>
+                  <GoogleMap
+                    zoom={15}
+                    center={location || { lat: 9.7847, lng: 125.4899 }}
+                    mapContainerStyle={{ width: '50%', height: '400px' }}
+                    options={{
+                      disableDefaultUI: true,
+                      zoomControl: true,
+                    }}
+                  >
+                    <StreetViewPanorama
                       options={{
+                        position: location,
+                        visible: true,
+                        pov: { heading: 100, pitch: 0 },
+                        zoom: 1,
                         disableDefaultUI: true,
-                        zoomControl: true,
+                        disableDoubleClickZoom: true,
+                        clickToGo: false,
+                        showRoadLabels: false,
+                        enableCloseButton: false,
                       }}
-                    >
-                      <StreetViewPanorama
-                        options={{
-                          position: location,
-                          visible: true,
-                          pov: { heading: 100, pitch: 0 },
-                          zoom: 1,
-                          disableDefaultUI: true,
-                          disableDoubleClickZoom: true,
-                          clickToGo: false,
-                          showRoadLabels: false,
-                          enableCloseButton: false,
-                        }}
-                      />
-                    </GoogleMap>
-                  </div>
-                  </div>
-                )}
+                    />
+                  </GoogleMap>
+                </div>
               </div>
             )}
 
@@ -677,7 +733,6 @@ const AddListing = () => {
             )}  
 
             {step === 4 && (
-              // IMAGES STEP
               <div className="bg-white shadow rounded-lg p-6 mb-6">
                 <Heading title="Add a photo of your place" subtitle="Show people what your place looks like!" />
                 <ImageUpload value={images} onChange={setImages} />
@@ -857,7 +912,6 @@ const AddListing = () => {
                 />
                 
                 <div className="space-y-8">
-                  {/* Guest Limits Section */}
                   <div className="bg-white p-8 rounded-xl border border-gray-200 shadow-sm">
                     <div className="flex items-center gap-3 mb-6">
                       <div className="p-2 bg-indigo-100 rounded-lg">
@@ -869,7 +923,6 @@ const AddListing = () => {
                       </div>
                     </div>
                     <div className="grid grid-cols-2 gap-6 auto-rows-auto">
-                      {/* Overnight Guests Toggle and Counter */}
                       <div className="bg-gray-50/50 p-6 rounded-xl border border-gray-100 hover:border-indigo-200 transition-all h-fit">
                         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                           <div>
@@ -901,7 +954,6 @@ const AddListing = () => {
                         )}
                       </div>
 
-                      {/* Age Requirement Toggle and Counter */}
                       <div className="bg-gray-50/50 p-6 rounded-xl border border-gray-100 hover:border-indigo-200 transition-all h-fit">
                         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                           <div>
@@ -933,7 +985,6 @@ const AddListing = () => {
                     </div>
                   </div>
 
-                  {/* Property Rules Section */}
                   <div className="bg-white p-8 rounded-xl border border-gray-200 shadow-sm">
                     <div className="flex items-center gap-3 mb-6">
                       <div className="p-2 bg-indigo-100 rounded-lg">
@@ -945,7 +996,6 @@ const AddListing = () => {
                       </div>
                     </div>
 
-                    {/* Gender Restriction */}
                     <div className="mb-8">
                       <h4 className="font-medium text-gray-900 mb-4">Gender Restriction</h4>
                       <div className="grid grid-cols-3 gap-4">
@@ -976,7 +1026,6 @@ const AddListing = () => {
                       </div>
                     </div>
 
-                    {/* House Rules */}
                     <div className="grid md:grid-cols-3 gap-4">
                       {[
                         { id: 'petsAllowed', label: 'Pets Allowed', icon: MdPets },
@@ -1013,7 +1062,6 @@ const AddListing = () => {
                     </div>
                   </div>
 
-                  {/* Additional Notes Section */}
                   <div className="bg-white p-8 rounded-xl border border-gray-200 shadow-sm hover:border-indigo-300 transition-all">
                     <div className="flex items-center gap-3 mb-6">
                       <div className="p-2 bg-indigo-100 rounded-lg">
@@ -1045,11 +1093,9 @@ const AddListing = () => {
             )}
 
             {step === 8 && (
-              // OVERVIEW STEP
               <div className="bg-white shadow rounded-lg p-6 mb-6">
                 <Heading title="Overview" subtitle="Review all the information before submitting." />
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
-                  {/* Category Card */}
                   <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 hover:border-indigo-500 transition">
                     <div className="flex justify-between items-start">
                       <div className="flex gap-3">
@@ -1068,7 +1114,6 @@ const AddListing = () => {
                     </div>
                   </div>
 
-                  {/* Location Card */}
                   <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 hover:border-indigo-500 transition">
                     <div className="flex justify-between items-start">
                       <div className="flex gap-3">
@@ -1087,7 +1132,6 @@ const AddListing = () => {
                     </div>
                   </div>
 
-                  {/* Rooms Card */}
                   <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 hover:border-indigo-500 transition">
                     <div className="flex justify-between items-start">
                       <div className="flex gap-3">
@@ -1106,7 +1150,6 @@ const AddListing = () => {
                     </div>
                   </div>
 
-                  {/* Images Card */}
                   <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 hover:border-indigo-500 transition">
                     <div className="flex justify-between items-start">
                       <div className="flex gap-3">
@@ -1125,7 +1168,6 @@ const AddListing = () => {
                     </div>
                   </div>
 
-                  {/* Title Card - Updated with truncation */}
                   <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 hover:border-indigo-500 transition">
                     <div className="flex justify-between items-start">
                       <div className="flex gap-3">
@@ -1146,7 +1188,6 @@ const AddListing = () => {
                     </div>
                   </div>
 
-                  {/* Description Card - Updated to use truncateHtml */}
                   <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 hover:border-indigo-500 transition">
                     <div className="flex justify-between items-start">
                       <div className="flex gap-3">
@@ -1167,7 +1208,6 @@ const AddListing = () => {
                     </div>
                   </div>
 
-                  {/* New Property Amenities Card */}
                   <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 hover:border-indigo-500 transition">
                     <div className="flex justify-between items-start">
                       <div className="flex gap-3">
@@ -1195,7 +1235,6 @@ const AddListing = () => {
                     </div>
                   </div>
 
-                  {/* House Rules Card */}
                   <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 hover:border-indigo-500 transition">
                     <div className="flex justify-between items-start">
                       <div className="flex gap-3">
@@ -1254,7 +1293,6 @@ const AddListing = () => {
             )}
           </div>
         </div>
-        {/* Navigation Buttons */}
         <div className="flex flex-row items-center gap-4 w-full">
           {step > 1 && (
             <Button
@@ -1270,12 +1308,12 @@ const AddListing = () => {
               label="Next"
               onClick={(e) => handleNextStep(e)}
               disabled={isLoading || !isStepComplete(step)}
-              rightIcon={IoArrowForward}  // Changed from icon to rightIcon
+              rightIcon={IoArrowForward}
             />
           )}
           {step === 8 && (
             <Button
-              label="Create Listing"
+              label="Update Listing"
               onClick={handleSubmit(onSubmit)}
               disabled={isLoading}
             />
@@ -1286,13 +1324,12 @@ const AddListing = () => {
   );
 };
 
-// Wrap your AddListing component with Suspense
-const AddListingPage = () => {
+const EditListingPage = ({ params }: { params: { listingId: string } }) => {
   return (
     <Suspense fallback={<LoadingState />}>
-      <AddListing />
+      <EditListing listingId={params.listingId} />
     </Suspense>
   );
 };
 
-export default AddListingPage;
+export default EditListingPage; 
