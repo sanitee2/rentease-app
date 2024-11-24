@@ -21,7 +21,16 @@ const ListingModal: React.FC<ListingModalProps> = ({
   currentUser
 }) => {
   const category = useMemo(() => {
-    return categories.find((item) => item.label === listing.category);
+    const found = categories.find((item) => item.label === listing.category);
+    return found ? {
+      id: found.label,
+      title: found.label,
+      icon: found.icon.toString(),
+      desc: found.description,
+      needsMaxTenant: false,
+      pricingType: 'default',
+      roomTypes: []
+    } : null;
   }, [listing.category]);
 
   return (
@@ -44,6 +53,8 @@ const ListingModal: React.FC<ListingModalProps> = ({
             title={listing.title}
             user={currentUser!}
             category={category}
+            currentUser={currentUser}
+            userEmail={currentUser?.email}
             description={listing.description}
             roomCount={listing.roomCount}
             locationValue={listing.locationValue.latlng}

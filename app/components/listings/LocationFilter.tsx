@@ -32,16 +32,25 @@ const LocationFilter: React.FC<LocationFilterProps> = ({
   const [mapKey, setMapKey] = useState<number>(0);
   const searchBoxRef = useRef<google.maps.places.SearchBox | null>(null);
 
-  useEffect(() => {
-    if (isReset) {
-      handleClearLocation();
-    }
-  }, [isReset]);
-
   const { isLoaded } = useLoadScript({
     googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY as string,
     libraries: GOOGLE_MAPS_LIBRARIES
   });
+
+  const handleClearLocation = useCallback(() => {
+    setLocation(null);
+    setSearchValue('');
+    setPlaceDetails(null);
+    setRadius(1);
+    setMapKey(prev => prev + 1);
+    onLocationChange(null);
+  }, [onLocationChange]);
+
+  useEffect(() => {
+    if (isReset) {
+      handleClearLocation();
+    }
+  }, [isReset, handleClearLocation]);
 
   const radiusOptions = [
     { value: 0.1, label: '100 meters' },
@@ -85,15 +94,6 @@ const LocationFilter: React.FC<LocationFilterProps> = ({
       onLocationChange({ ...location, radius: newRadius });
     }
   }, [location, onLocationChange]);
-
-  const handleClearLocation = useCallback(() => {
-    setLocation(null);
-    setSearchValue('');
-    setPlaceDetails(null);
-    setRadius(1);
-    setMapKey(prev => prev + 1);
-    onLocationChange(null);
-  }, [onLocationChange]);
 
   const getZoomLevel = (radius: number) => {
     if (radius <= 0.2) return 16;

@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/app/libs/prismadb';
 
+// Add this export to mark the route as dynamic
+export const dynamic = 'force-dynamic'
+
 // Handle GET requests to get the count of viewing requests for a listing by a user
 export async function GET(req: NextRequest) {
   try {

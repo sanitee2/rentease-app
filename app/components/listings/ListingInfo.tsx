@@ -67,7 +67,7 @@ interface ListingInfoProps {
     note: string | null;
   }[];
   currentUser: SafeUser | null | undefined;
-  userEmail: string | null;
+  userEmail: string | null | undefined;
 }
 
 const ListingInfo: React.FC<ListingInfoProps> = ({

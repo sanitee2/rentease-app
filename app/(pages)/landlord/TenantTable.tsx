@@ -5,6 +5,7 @@ import { SafeUser, SafeListing, TenantData } from '@/app/types';
 import axios from 'axios';
 import Select from 'react-select';
 import toast from 'react-hot-toast';
+import Image from 'next/image';
 
 interface TenantTableProps {
   currentUserId: string | undefined;
@@ -291,10 +292,12 @@ const TenantTable: React.FC<TenantTableProps> = ({
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center gap-3">
                         <div className="h-10 w-10 flex-shrink-0">
-                          <img
-                            className="h-10 w-10 rounded-full object-cover"
+                          <Image
                             src={tenant.image || '/images/placeholder.jpg'}
                             alt={formatFullName(tenant)}
+                            width={40}
+                            height={40}
+                            className="h-10 w-10 rounded-full object-cover"
                           />
                         </div>
                         <div className="text-sm">

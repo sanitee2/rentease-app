@@ -5,7 +5,7 @@ import { FieldValues, useForm } from 'react-hook-form';
 import toast from "react-hot-toast";
 import axios from 'axios';
 import CategoryInput from '@/app/components/inputs/CategoryInput';
-import { getIconComponent } from '@/lib/utils';
+import { getIconComponent } from '@/app/libs/utils';
 import * as FaIcons from 'react-icons/fa';
 import Counter from '@/app/components/inputs/Counter';
 

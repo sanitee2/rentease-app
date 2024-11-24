@@ -15,7 +15,7 @@ import Counter from '@/app/components/inputs/Counter';
 import ImageUpload from '@/app/components/inputs/ImageUpload';
 import Breadcrumbs from '@/app/components/Breadcrumbs';
 import useListingCategories from '@/app/hooks/useListingCategories';
-import { getIconComponent } from '@/lib/utils';
+import { getIconComponent } from '@/app/libs/utils';
 import { PiNavigationArrowBold } from 'react-icons/pi';
 import Button from "@/app/components/Button";
 import { IoArrowBack, IoArrowForward } from "react-icons/io5";
