@@ -64,15 +64,13 @@ const Tenants = () => {
   const handleTenantRemoval = useCallback(async (tenantId: string) => {
     try {
       await axios.delete(`/api/tenants/${tenantId}/remove`);
-      // Fetch fresh data after removal
-      const response = await axios.get('/api/tenants');
-      setTenants(response.data);
+      await refreshData();
       toast.success('Tenant removed successfully');
     } catch (error) {
       console.error('Error removing tenant:', error);
       toast.error('Failed to remove tenant');
     }
-  }, []);
+  }, [refreshData]);
 
   if (isLoading) {
     return <LoadingState />;
@@ -149,13 +147,23 @@ const Tenants = () => {
 
         <AddTenantModal
           isOpen={isAddModalOpen}
-          onClose={() => setIsAddModalOpen(false)}
-          onSuccess={async () => {
-            // Fetch fresh data after adding
-            const response = await axios.get('/api/tenants');
-            setTenants(response.data);
+          onClose={() => {
             setIsAddModalOpen(false);
-            toast.success('Tenant added successfully');
+            // Reset the form by forcing a remount of the modal
+            if (!isAddModalOpen) {
+              setIsAddModalOpen(false);
+            }
+          }}
+          onSuccess={async (newTenant) => {
+            try {
+              // Fetch fresh data after adding
+              await refreshData();
+              setIsAddModalOpen(false);
+              toast.success('Tenant added successfully');
+            } catch (error) {
+              console.error('Error refreshing data:', error);
+              toast.error('Failed to refresh tenant data');
+            }
           }}
         />
 

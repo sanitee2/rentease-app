@@ -14,24 +14,76 @@ import 'slick-carousel/slick/slick.css';
 import 'slick-carousel/slick/slick-theme.css';
 import { MdArrowBackIos, MdArrowForwardIos } from 'react-icons/md';
 
+interface Room {
+  id: string;
+  title: string;
+  description: string;
+  imageSrc: {
+    images: string[];
+  };
+  price?: number;
+  roomCategory: string;
+  maxTenantCount?: number;
+  currentTenants: string[];
+  amenities: {
+    amenity: {
+      id: string;
+      title: string;
+      icon: string;
+      desc: string;
+    };
+  }[];
+}
+
 interface ListingCardProps {
-  data: SafeListing;
-  rooms: SafeRoom[]; // Add rooms prop to the component
+  data: {
+    id: string;
+    title: string;
+    description: string;
+    imageSrc: {
+      images: string[];
+    };
+    category: string;
+    roomCount: number;
+    locationValue: {
+      latlng: number[];
+    };
+    street: string;
+    barangay: string;
+    status: 'PENDING' | 'ACTIVE' | 'DECLINED' | 'ARCHIVED';
+    price?: number;
+    pricingType: 'ROOM_BASED' | 'LISTING_BASED';
+    maxGuests?: number;
+    hasAgeRequirement: boolean;
+    minimumAge?: number;
+    genderRestriction: string;
+    overnightGuestsAllowed: boolean;
+    hasMaxTenantCount: boolean;
+    maxTenantCount?: number;
+    rooms: Room[];
+    rules?: {
+      petsAllowed: boolean;
+      childrenAllowed: boolean;
+      smokingAllowed: boolean;
+      additionalNotes?: string;
+    };
+    createdAt: string;
+    updatedAt: string;
+  };
+  currentUser: SafeUser | null | undefined;
   onAction?: (id: string) => void;
   disabled?: boolean;
   actionLabel?: string;
   actionId?: string;
-  currentUser?: SafeUser | null;
 }
 
 const ListingCard: React.FC<ListingCardProps> = ({
   data,
-  rooms,
+  currentUser,
   onAction,
   disabled,
   actionLabel,
-  actionId = '',
-  currentUser,
+  actionId = ''
 }) => {
   const router = useRouter();
 
@@ -52,16 +104,27 @@ const ListingCard: React.FC<ListingCardProps> = ({
 
   // Calculate price range from the rooms data
   const priceRange = useMemo(() => {
-    if (rooms.length === 0) {
+    if (data.pricingType === 'LISTING_BASED') {
+      return data.price ? `${data.price.toLocaleString('en-US')}` : null;
+    }
+
+    if (!data.rooms || data.rooms.length === 0) {
       return null;
     }
-    const prices = rooms.map((room) => room.price);
+
+    const prices = data.rooms
+      .map((room) => room.price)
+      .filter((price): price is number => price !== undefined && price !== null);
+
+    if (prices.length === 0) return null;
+
     const minPrice = Math.min(...prices);
     const maxPrice = Math.max(...prices);
+    
     return minPrice === maxPrice
       ? `${minPrice.toLocaleString('en-US')}`
       : `${minPrice.toLocaleString('en-US')} - ${maxPrice.toLocaleString('en-US')}`;
-  }, [rooms]);
+  }, [data]);
 
   // Custom arrow components for the slider
   const PrevArrow = (props: any) => {

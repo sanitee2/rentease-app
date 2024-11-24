@@ -5,6 +5,7 @@ import { Fragment, useState } from 'react';
 import { TenantData } from '@/app/types';
 import { IoTrashOutline, IoCloseOutline } from "react-icons/io5";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/app/components/ui/tabs';
+import { toast } from 'react-hot-toast';
 
 interface TenantDetailsModalProps {
   isOpen: boolean;
@@ -37,12 +38,17 @@ const TenantDetailsModal: React.FC<TenantDetailsModalProps> = ({
   });
 
   const handleTenantRemoval = async () => {
+    if (!window.confirm('Are you sure you want to remove this tenant? This will end their current lease and change their role back to user.')) {
+      return;
+    }
+
     try {
       setIsRemoving(true);
       await onRemove(tenant.id);
       onClose();
     } catch (error) {
       console.error('Error removing tenant:', error);
+      toast.error('Failed to remove tenant');
     } finally {
       setIsRemoving(false);
     }
@@ -168,11 +174,7 @@ const TenantDetailsModal: React.FC<TenantDetailsModalProps> = ({
 
                 <div className="mt-6 flex justify-end gap-3">
                   <button
-                    onClick={() => {
-                      if (window.confirm('Are you sure you want to remove this tenant? This will end their current lease and change their role back to user.')) {
-                        handleTenantRemoval();
-                      }
-                    }}
+                    onClick={handleTenantRemoval}
                     disabled={isRemoving}
                     className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-indigo-700 bg-indigo-50 border border-indigo-100 rounded-md hover:bg-indigo-100 transition-colors disabled:opacity-50"
                   >

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import prisma from "@/app/libs/prismadb";
+import { getIO } from '@/app/lib/socket';
 
 export async function GET(
   request: Request,
@@ -80,92 +81,11 @@ export async function PUT(
   { params }: { params: { listingId: string } }
 ) {
   try {
-    const { listingId } = params;
     const body = await request.json();
-
-    // First, delete all room amenities
-    const existingRooms = await prisma.room.findMany({
-      where: { listingId },
-      include: { amenities: true }
-    });
-
-    for (const room of existingRooms) {
-      await prisma.roomsOnAmenities.deleteMany({
-        where: { roomId: room.id }
-      });
-    }
-
     const updatedListing = await prisma.listing.update({
-      where: {
-        id: listingId
-      },
-      data: {
-        title: body.title,
-        description: body.description,
-        category: body.category,
-        locationValue: body.locationValue,
-        imageSrc: body.imageSrc,
-        genderRestriction: body.genderRestriction,
-        hasAgeRequirement: body.hasAgeRequirement,
-        minimumAge: body.minimumAge,
-        overnightGuestsAllowed: body.overnightGuestsAllowed,
-        maxGuests: body.maxGuests,
-        rooms: {
-          deleteMany: {},
-          create: body.rooms.map((room: any) => ({
-            title: room.title,
-            description: room.description,
-            imageSrc: { images: room.images },
-            price: parseFloat(room.price) || 0,
-            roomCategory: room.roomCategory,
-            maxTenantCount: room.maxTenantCount || 1,
-            currentTenants: room.currentTenants || 0,
-            amenities: {
-              create: Object.entries(room.amenities || {})
-                .filter(([_, value]: [string, any]) => value.selected && value.id)
-                .map(([_, value]: [string, any]) => ({
-                  amenityId: value.id,
-                  note: value.note || ''
-                }))
-            }
-          }))
-        },
-        propertyAmenities: {
-          deleteMany: {},
-          create: Object.entries(body.propertyAmenities || {})
-            .filter(([_, value]: [string, any]) => value.selected && value.id)
-            .map(([_, value]: [string, any]) => ({
-              amenityId: value.id,
-              note: value.note || ''
-            }))
-        },
-        rules: {
-          upsert: {
-            create: {
-              petsAllowed: body.petsAllowed,
-              childrenAllowed: body.childrenAllowed,
-              smokingAllowed: body.smokingAllowed,
-              additionalNotes: body.additionalNotes
-            },
-            update: {
-              petsAllowed: body.petsAllowed,
-              childrenAllowed: body.childrenAllowed,
-              smokingAllowed: body.smokingAllowed,
-              additionalNotes: body.additionalNotes
-            }
-          }
-        }
-      },
+      where: { id: params.listingId },
+      data: body,
       include: {
-        rooms: {
-          include: {
-            amenities: {
-              include: {
-                amenity: true
-              }
-            }
-          }
-        },
         propertyAmenities: {
           include: {
             amenity: true
@@ -174,6 +94,37 @@ export async function PUT(
         rules: true
       }
     });
+
+    // Emit socket event for update
+    try {
+      const io = getIO();
+      const safeListing = {
+        ...updatedListing,
+        createdAt: updatedListing.createdAt.toISOString(),
+        updatedAt: updatedListing.updatedAt.toISOString(),
+        propertyAmenities: updatedListing.propertyAmenities.map(pa => ({
+          amenity: {
+            id: pa.amenity.id,
+            title: pa.amenity.title,
+            icon: pa.amenity.icon,
+            desc: pa.amenity.desc
+          },
+          note: pa.note
+        })),
+        rules: updatedListing.rules ? {
+          id: updatedListing.rules.id,
+          listingId: updatedListing.rules.listingId,
+          petsAllowed: updatedListing.rules.petsAllowed,
+          childrenAllowed: updatedListing.rules.childrenAllowed,
+          smokingAllowed: updatedListing.rules.smokingAllowed,
+          additionalNotes: updatedListing.rules.additionalNotes
+        } : null
+      };
+      
+      io.emit('listing-updated', safeListing);
+    } catch (socketError) {
+      console.error('Socket emission error:', socketError);
+    }
 
     return NextResponse.json(updatedListing);
   } catch (error) {

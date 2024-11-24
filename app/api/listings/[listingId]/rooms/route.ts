@@ -16,8 +16,8 @@ export async function GET(
       where: {
         listingId: params.listingId,
       },
-      orderBy: {
-        title: 'asc'
+      include: {
+        currentTenant: true,
       }
     });
 

@@ -18,7 +18,22 @@ const LandlordNavbar: React.FC<LandlordNavbarProps> = ({
   setExpanded
 }) => {
   return (
-    <div className='fixed right-0 left-0 top-0 h-[70px] flex flex-row justify-between items-center px-4 bg-white shadow-sm z-50'>
+    <div className='
+      fixed 
+      right-0 
+      left-0 
+      top-0 
+      h-[70px] 
+      flex 
+      flex-row 
+      justify-between 
+      items-center 
+      px-4 
+      bg-white 
+      shadow-sm 
+      z-[30]
+      mx-auto
+    '>
       <div className='flex items-center gap-4'>
         <button 
           onClick={() => setExpanded(!expanded)}
@@ -28,7 +43,6 @@ const LandlordNavbar: React.FC<LandlordNavbarProps> = ({
           {expanded ? <LuChevronFirst size={20}/> : <LuChevronLast size={20} />}
         </button>
         <Logo />
-        
       </div>
       <div>
         <UserMenu currentUser={currentUser}/>

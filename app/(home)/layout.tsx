@@ -7,15 +7,18 @@ export default async function HomeLayout({ children }: { children: React.ReactNo
   const currentUser = await getCurrentUser();
 
   return (
-    <div className="flex flex-col min-h-screen relative overflow-x-hidden overflow-y-auto">
-      <ClientOnly>
-        <Navbar currentUser={currentUser} />
-      </ClientOnly>
-      <main className="flex-grow pt-[80px]">
-        {children}
-      </main>
-      
-      <Footer />
-    </div>
+    <>
+      <div className="fixed top-0 w-full bg-white z-30 shadow-sm">
+        <ClientOnly>
+          <Navbar currentUser={currentUser} />
+        </ClientOnly>
+      </div>
+      <div className="flex flex-col min-h-screen">
+        <main className="flex-grow pt-[80px]">
+          {children}
+        </main>
+        <Footer />
+      </div>
+    </>
   );
 }

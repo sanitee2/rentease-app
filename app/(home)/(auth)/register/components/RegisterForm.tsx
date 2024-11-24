@@ -122,8 +122,8 @@ const RegisterForm = () => {
         return;
       }
 
-      toast.success('Account created! Logging you in...');
-      window.location.reload();
+      toast.success('Account created! Redirecting...');
+      router.push('/listings');
     } catch (error: any) {
       if (error.response?.data?.error) {
         toast.error(error.response.data.error);

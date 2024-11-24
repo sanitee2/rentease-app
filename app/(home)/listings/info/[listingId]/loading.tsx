@@ -2,7 +2,7 @@ import ClientOnly from "@/app/components/ClientOnly";
 
 const LoadingState = () => {
   return (
-    <div className="max-w-screen mx-auto">
+    <div className="max-w-screen mx-auto pt-14 pb-14">
       <div className="flex flex-col gap-6">
         <div className="w-full h-[60vh] overflow-hidden rounded-xl relative">
           <div className="w-full h-full bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 animate-shimmer" />

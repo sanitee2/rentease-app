@@ -14,12 +14,20 @@ export async function DELETE(
 
     const { tenantId } = params;
 
-    // Get the tenant with all necessary relations
+    // Get the tenant with all necessary relations, focusing on TenantProfile's currentRoom
     const tenant = await prisma.user.findUnique({
       where: { id: tenantId },
       include: {
-        tenant: true,
-        rentedRoom: true,
+        tenant: {
+          include: {
+            currentRoom: {
+              select: {
+                id: true,
+                currentTenants: true
+              }
+            }
+          }
+        },
         leaseContracts: {
           where: {
             endDate: { gt: new Date() }
@@ -33,55 +41,52 @@ export async function DELETE(
     }
 
     try {
-      // Check if the room is already assigned to another tenant
-      if (tenant.rentedRoom) {
-        const conflictingTenant = await prisma.tenantProfile.findFirst({
-          where: {
-            roomId: tenant.rentedRoom.id,
-            userId: { not: tenantId },
-          },
-        });
-
-        if (conflictingTenant) {
-          throw new Error('Conflict: The room is already assigned to another tenant.');
+      await prisma.$transaction(async (prisma) => {
+        // 1. Update the Room's currentTenants array if there's a currentRoom in TenantProfile
+        if (tenant.tenant?.currentRoom) {
+          const currentRoom = tenant.tenant.currentRoom;
+          const updatedTenants = currentRoom.currentTenants.filter(
+            id => id !== tenantId
+          );
+          
+          await prisma.room.update({
+            where: { id: currentRoom.id },
+            data: {
+              currentTenants: updatedTenants
+            }
+          });
         }
-      }
 
-      // 1. Update the TenantProfile to remove the roomId
-      await prisma.tenantProfile.update({
-        where: { userId: tenantId },
-        data: { roomId: null },
-      });
+        // 2. Update the TenantProfile to remove room reference
+        if (tenant.tenant) {
+          await prisma.tenantProfile.update({
+            where: { userId: tenantId },
+            data: {
+              roomId: null
+            }
+          });
+        }
 
-      // 2. Update the Room's currentTenants
-      if (tenant.rentedRoom) {
-        await prisma.room.update({
-          where: { id: tenant.rentedRoom.id },
-          data: {
-            currentTenants: {
-              set: tenant.rentedRoom.currentTenants.filter(id => id !== tenantId),
+        // 3. Handle lease contracts
+        for (const lease of tenant.leaseContracts) {
+          await prisma.leaseContract.update({
+            where: { id: lease.id },
+            data: {
+              endDate: new Date(),
+              terms: `${lease.terms}\nLease terminated early on ${new Date().toLocaleDateString()}`,
             },
-          },
-        });
-      }
+          });
+        }
 
-      // 3. Handle lease contracts
-      for (const lease of tenant.leaseContracts) {
-        await prisma.leaseContract.update({
-          where: { id: lease.id },
+        // 4. Update user role
+        await prisma.user.update({
+          where: { id: tenantId },
           data: {
-            endDate: new Date(),
-            terms: `${lease.terms}\nLease terminated early on ${new Date().toLocaleDateString()}`,
+            role: 'USER',
+            roomId: null,
+            listingId: null
           },
         });
-      }
-
-      // 4. Finally update user role
-      await prisma.user.update({
-        where: { id: tenantId },
-        data: {
-          role: 'USER',
-        },
       });
 
       return NextResponse.json({ 
@@ -90,12 +95,7 @@ export async function DELETE(
       });
 
     } catch (error: any) {
-      if (error.code === 'P2002' && error.meta?.target === 'tenant_profiles_roomId_key') {
-        return new NextResponse(
-          'Conflict: The room is already assigned to another tenant.',
-          { status: 409 }
-        );
-      }
+      console.error('[TENANT_REMOVE_ERROR]', error);
       throw error;
     }
 
