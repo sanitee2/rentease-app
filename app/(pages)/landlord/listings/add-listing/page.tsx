@@ -6,7 +6,7 @@ import toast from 'react-hot-toast';
 import { useRouter } from 'next/navigation';
 import { StandaloneSearchBox, GoogleMap, Marker, Libraries, StreetViewPanorama, useLoadScript } from '@react-google-maps/api';
 import { ListingCategory } from '@/app/types'; // Import the ListingCategory type
-
+import { getIconComponent } from '@/app/libs/utils';
 import Heading from '@/app/components/Heading';
 import Select from 'react-select';
 import CategoryInput from '@/app/components/inputs/CategoryInput';
@@ -15,7 +15,6 @@ import Counter from '@/app/components/inputs/Counter';
 import ImageUpload from '@/app/components/inputs/ImageUpload';
 import Breadcrumbs from '@/app/components/Breadcrumbs';
 import useListingCategories from '@/app/hooks/useListingCategories';
-import { getIconComponent } from '@/lib/utils';
 import AddRoom from '../../AddRoom';
 import { PiNavigationArrowBold } from 'react-icons/pi';
 import Button from "@/app/components/Button";

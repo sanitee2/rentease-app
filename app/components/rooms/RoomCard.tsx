@@ -7,7 +7,7 @@ import { FaPesoSign, FaUsers } from 'react-icons/fa6';
 import Button from '../Button';
 import CategoryListing from '../listings/CategoryListing';
 import * as FaIcons from 'react-icons/fa';
-import { getIconComponent } from '@/lib/utils';
+import { getIconComponent } from '@/app/libs/utils';
 import { IconType } from 'react-icons';
 
 interface RoomCardProps {

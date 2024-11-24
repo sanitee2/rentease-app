@@ -2,7 +2,7 @@ import React from 'react';
 import { ListingCategory } from '@/app/types';
 import CategoryInput from '@/app/components/inputs/CategoryInput';
 import Heading from '@/app/components/Heading';
-import { getIconComponent } from '@/lib/utils';
+import { getIconComponent } from '@/app/libs/utils';
 
 interface CategoryStepProps {
   categories: ListingCategory[];

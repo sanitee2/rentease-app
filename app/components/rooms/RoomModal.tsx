@@ -13,7 +13,7 @@ import { MdArrowBackIos, MdArrowForwardIos } from 'react-icons/md';
 import { useRouter } from 'next/navigation';
 import * as FaIcons from 'react-icons/fa';
 import { IconType } from 'react-icons';
-import { getIconComponent } from '@/lib/utils';
+import { getIconComponent } from '@/app/libs/utils';
 
 interface RoomModalProps {
   isOpen: boolean;
@@ -24,6 +24,7 @@ interface RoomModalProps {
 
 const RoomModal: React.FC<RoomModalProps> = ({ isOpen, onClose, roomData, onRequestViewing }) => {
   const [isFullScreen, setIsFullScreen] = useState(false);
+  const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
 
   // Custom arrows for the slider
   const PrevArrow = (props: any) => {
@@ -64,6 +65,7 @@ const RoomModal: React.FC<RoomModalProps> = ({ isOpen, onClose, roomData, onRequ
     customPaging: () => (
       <div className="w-2.5 h-2.5 mx-1 rounded-full bg-indigo-200 hover:bg-indigo-300 transition-all duration-200" />
     ),
+    afterChange: (index: number) => setCurrentSlideIndex(index),
   };
 
   const sliderStyles = `
@@ -211,7 +213,8 @@ const RoomModal: React.FC<RoomModalProps> = ({ isOpen, onClose, roomData, onRequ
       {isFullScreen ? (
         <FullScreenGallery 
           images={roomData.imageSrc.images} 
-          onClose={() => setIsFullScreen(false)} 
+          onClose={() => setIsFullScreen(false)}
+          initialIndex={currentSlideIndex}
         />
       ) : (
         <Modal
