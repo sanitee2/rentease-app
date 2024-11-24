@@ -19,7 +19,11 @@ export async function GET() {
         // Include all related data based on schema relationships
         leases: {
           include: {
-            listing: true,
+            listing: {
+              include: {
+                user: true
+              }
+            },
             payments: {
               orderBy: {
                 date: 'desc'
@@ -68,6 +72,15 @@ export async function GET() {
       new Date(lease.endDate) >= new Date()
     ).length;
 
+    // Get host information from the current lease
+    const host = currentLease?.listing?.user ? {
+      id: currentLease.listing.user.id,
+      name: currentLease.listing.user.firstName + ' ' + currentLease.listing.user.lastName,
+      email: currentLease.listing.user.email,
+      image: currentLease.listing.user.image,
+      phone: currentLease.listing.user.phoneNumber || undefined
+    } : null;
+
     // Format the response data
     const responseData = {
       leases: tenantProfile.leases.map(lease => ({
@@ -92,7 +105,8 @@ export async function GET() {
       } : null,
       currentRoom: tenantProfile.currentRoom,
       totalPaid,
-      activeLeaseCount
+      activeLeaseCount,
+      host,
     };
 
     return NextResponse.json(responseData);

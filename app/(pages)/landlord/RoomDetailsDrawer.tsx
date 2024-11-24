@@ -33,6 +33,7 @@ interface RoomDetailsDrawerProps {
   listingCategory: {
     pricingType: 'ROOM_BASED' | 'LISTING_BASED';
   } | null;
+  onActualClose: () => void;
 }
 
 const EMPTY_ROOM = {
@@ -60,6 +61,7 @@ const RoomDetailsDrawer: React.FC<RoomDetailsDrawerProps> = ({
   onSave,
   onChange,
   listingCategory,
+  onActualClose,
 }) => {
   const { 
     setValue, 
@@ -110,34 +112,17 @@ const RoomDetailsDrawer: React.FC<RoomDetailsDrawerProps> = ({
   }, []);
 
   useEffect(() => {
-    const fetchCategoryPricingType = async () => {
-      try {
-        const response = await axios.get(`/api/listingCategories/${listingCategory}`);
-        setCategoryPricingType(response.data.pricingType);
-      } catch (error) {
-        console.error('Error fetching category pricing type:', error);
-      }
-    };
-
-    if (listingCategory) {
-      fetchCategoryPricingType();
-    }
-  }, [listingCategory]);
-
-  useEffect(() => {
     if (room) {
       Object.keys(room).forEach((key) => {
-        setValue(key, room[key as keyof Room]);
+        setValue(key, room[key as keyof Room], {
+          shouldValidate: true,
+          shouldDirty: false
+        });
       });
     } else {
       reset({
-        title: '',
-        description: '',
-        roomCategory: '',
+        ...EMPTY_ROOM,
         price: listingCategory?.pricingType === 'ROOM_BASED' ? 0 : null,
-        images: [],
-        amenities: {},
-        maxTenantCount: 1
       });
     }
   }, [room, setValue, reset, listingCategory]);
@@ -194,7 +179,12 @@ const RoomDetailsDrawer: React.FC<RoomDetailsDrawerProps> = ({
       errors.images = 'Please add at least one room image';
     }
 
-    return errors;
+    const selectedCategory = categories.find(c => c.title === formValues.roomCategory);
+    if (selectedCategory?.needsMaxTenant && (!formValues.maxTenantCount || formValues.maxTenantCount < 1)) {
+      errors.maxTenantCount = 'Please specify maximum number of tenants';
+    }
+
+    return Object.keys(errors).length === 0;
   };
 
   const isFormValid = () => {
@@ -218,18 +208,24 @@ const RoomDetailsDrawer: React.FC<RoomDetailsDrawerProps> = ({
   const handleSave = () => {
     if (!isFormValid()) return;
 
-    const formData = {
+    const formData: Room = {
       title: watch('title'),
       description: watch('description'),
       roomCategory: watch('roomCategory'),
-      price: watch('price') ? parseFloat(watch('price')) : null,
       images: watch('images'),
       amenities: watch('amenities'),
+      price: listingCategory?.pricingType === 'ROOM_BASED' 
+        ? parseFloat(watch('price')) 
+        : null,
       maxTenantCount: parseInt(watch('maxTenantCount')?.toString() || '1')
     };
 
-    onChange(false); // Reset edited state before saving
+    
+    console.log(formData)
+
+    onChange(false);
     onSave(formData);
+    handleActualClose();
   };
 
   const handleClose = () => {
@@ -245,8 +241,9 @@ const RoomDetailsDrawer: React.FC<RoomDetailsDrawerProps> = ({
   const handleActualClose = () => {
     reset(EMPTY_ROOM);
     onChange(false);
-    onClose();
+    onActualClose();
   };
+
 
   return (
     <>
@@ -316,7 +313,15 @@ const RoomDetailsDrawer: React.FC<RoomDetailsDrawerProps> = ({
                 disabled={false}
                 register={register}
                 errors={errors}
-                required={listingCategory?.pricingType === 'ROOM_BASED'}
+                required={true}
+                value={watch('price')}
+                onChange={(value) => {
+                  const numValue = parseFloat(value);
+                  setValue('price', numValue, {
+                    shouldValidate: true,
+                    shouldDirty: true
+                  });
+                }}
               />
             )}
 
@@ -370,7 +375,10 @@ const RoomDetailsDrawer: React.FC<RoomDetailsDrawerProps> = ({
                   title="Maximum Tenants"
                   subtitle="Maximum number of tenants allowed in this room"
                   value={watch('maxTenantCount')}
-                  onChange={(value) => setValue('maxTenantCount', value)}
+                  onChange={(value) => setValue('maxTenantCount', value, {
+                    shouldValidate: true,
+                    shouldDirty: true
+                  })}
                 />
               </div>
             )}

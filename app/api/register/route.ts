@@ -9,7 +9,10 @@ export async function POST(
   const body = await request.json();
   const {
     email,
-    name,
+    firstName,
+    middleName,
+    lastName,
+    suffix,
     password,
     role,
     phoneNumber,
@@ -21,10 +24,14 @@ export async function POST(
   const user = await prisma.user.create({
     data: {
       email,
-      name,
+      firstName,
+      middleName,
+      lastName,
+      suffix,
       hashedPassword,
       role,
       image,
+      phoneNumber,
       ...(role === 'TENANT' && {
         tenant: {
           create: {}

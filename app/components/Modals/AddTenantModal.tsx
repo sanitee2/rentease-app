@@ -1,21 +1,22 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useForm, Controller, FieldValues, UseFormRegister } from 'react-hook-form';
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
 import Modal from './Modal';
 import Select, { SingleValue } from 'react-select';
-import { SafeListing } from "@/app/types";
+import { SafeListing, TenantData } from "@/app/types";
 import { MinimalUser } from "@/app/types";
 import { useAvailableUsers } from '@/app/hooks/useAvailableUsers';
 import { useUserListings } from '@/app/hooks/useUserListings';
 import Input from '@/app/components/inputs/Input';
+import debounce from 'lodash/debounce';
 
 interface AddTenantModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess?: () => void;
+  onSuccess: (newTenant: TenantData) => void;
 }
 
 interface SelectOption {
@@ -23,14 +24,18 @@ interface SelectOption {
   label: string;
 }
 
-interface UserOption extends SelectOption {}
+interface UserOption extends SelectOption {
+  label: string;
+}
 
 interface ListingOption extends SelectOption {
   listing: SafeListing;
+  isDisabled: boolean;
 }
 
 interface RoomOption extends SelectOption {
   price: number;
+  isDisabled: boolean;
 }
 
 type FormKeys = keyof FormData;
@@ -45,24 +50,30 @@ interface FormData extends FieldValues {
   terms: string;
 }
 
+const getOccupancyLabel = (currentCount: number, maxCount: number | null) => {
+  if (!maxCount) return '';
+  return ` (${currentCount}/${maxCount} tenants)`;
+};
+
+const isAtCapacity = (currentCount: number, maxCount: number | null) => {
+  if (!maxCount) return false;
+  return currentCount >= maxCount;
+};
+
 const AddTenantModal = ({
   isOpen,
   onClose,
   onSuccess,
 }: AddTenantModalProps) => {
-  const { users: availableUsers, isLoading: isLoadingUsers, error: usersError } = useAvailableUsers();
+  const { users: availableUsers, isLoading: isLoadingUsers, error: usersError, searchUsers } = useAvailableUsers();
   const { listings, isLoading: isLoadingListings, error: listingsError } = useUserListings();
 
-  const isLoadingData = isLoadingUsers || isLoadingListings;
+  const isLoadingInitialData = isLoadingListings;
   const error = usersError || listingsError;
 
   const [isLoading, setIsLoading] = useState(false);
   const [selectedListing, setSelectedListing] = useState<SafeListing | null>(null);
-  const [availableRooms, setAvailableRooms] = useState<Array<{
-    value: string;
-    label: string;
-    price: number;
-  }>>([]);
+  const [availableRooms, setAvailableRooms] = useState<RoomOption[]>([]);
   const [selectedListingOption, setSelectedListingOption] = useState<ListingOption | null>(null);
   const [selectedRoomOption, setSelectedRoomOption] = useState<RoomOption | null>(null);
   const [selectState, setSelectState] = useState({ 
@@ -111,11 +122,19 @@ const AddTenantModal = ({
         const fetchRooms = async () => {
           try {
             const response = await axios.get(`/api/listings/${listing.id}/rooms`);
-            const rooms = response.data.map((room: any) => ({
-              value: room.id,
-              label: `${room.title || `Room ${room.roomNumber}`} - ₱${room.price?.toLocaleString()}/month`,
-              price: room.price
-            }));
+            const rooms = response.data.map((room: any) => {
+              const currentTenantCount = room.currentTenants?.length || 0;
+              const maxTenants = room.maxTenantCount;
+              const occupancyLabel = getOccupancyLabel(currentTenantCount, maxTenants);
+              const isDisabled = isAtCapacity(currentTenantCount, maxTenants);
+
+              return {
+                value: room.id,
+                label: `${room.title || `Room ${room.roomNumber}`}${occupancyLabel} - ₱${room.price?.toLocaleString()}/month`,
+                price: room.price,
+                isDisabled: isDisabled
+              } satisfies RoomOption;
+            });
             setAvailableRooms(rooms);
           } catch (error) {
             console.error('Error fetching rooms:', error);
@@ -129,19 +148,52 @@ const AddTenantModal = ({
     }
   }, [selectedListingOption, setValue]);
 
-  const userOptions = availableUsers?.map(user => ({
-    value: user.id,
-    label: user.name ? `${user.name} (${user.email})` : user.email,
-  })) ?? [];
+  const debouncedSearch = useMemo(
+    () => debounce((value: string) => {
+      if (value?.length >= 3) {
+        searchUsers(value);
+      }
+    }, 300),
+    [searchUsers]
+  );
+
+  const handleUserSearch = useCallback((inputValue: string) => {
+    console.log('Search input:', inputValue);
+    debouncedSearch(inputValue);
+  }, [debouncedSearch]);
+
+  const userOptions = useMemo(() => 
+    availableUsers?.map(user => {
+      const phoneNumber = user.phoneNumber || '';
+      const maskedPhone = phoneNumber.length >= 11 
+        ? phoneNumber.replace(/(\d{4})(\d{3})(\d{1})(\d{3})/, '**** *** *$4')
+        : 'No phone';
+      return {
+        value: user.id,
+        label: `${user.firstName} ${user.lastName} (${maskedPhone})`,
+      };
+    }) ?? [], 
+  [availableUsers]);
 
   const listingOptions: ListingOption[] = listings
     ?.filter(listing => listing.status === 'ACTIVE')
-    ?.map(listing => ({
-      value: listing.id,
-      label: `${listing.title} - ${listing.pricingType === 'LISTING_BASED' ? 
-        `₱${listing.price?.toLocaleString() || 0}/month` : 'Room based'}`,
-      listing
-    })) ?? [];
+    ?.map(listing => {
+      const currentTenantCount = listing.tenants?.length || 0;
+      const maxTenants = listing.hasMaxTenantCount ? listing.maxTenantCount : null;
+      const occupancyLabel = getOccupancyLabel(currentTenantCount, maxTenants);
+      const isDisabled = isAtCapacity(currentTenantCount, maxTenants);
+
+      return {
+        value: listing.id,
+        label: `${listing.title}${occupancyLabel} - ${
+          listing.pricingType === 'LISTING_BASED' 
+            ? `₱${listing.price?.toLocaleString() || 0}/month` 
+            : 'Room based'
+        }`,
+        listing,
+        isDisabled
+      };
+    }) ?? [];
 
   const validateDates = (endDate: string) => {
     const start = new Date(watch('startDate'));
@@ -191,7 +243,7 @@ const AddTenantModal = ({
         return;
       }
 
-      await axios.post('/api/tenants', {
+      const response = await axios.post('/api/tenants', {
         userId: data.userId,
         listingId: data.listingId,
         ...roomData,
@@ -203,9 +255,8 @@ const AddTenantModal = ({
         }
       });
 
-      toast.success('Tenant added successfully');
+      onSuccess(response.data);
       reset();
-      if (onSuccess) onSuccess();
       onClose();
     } catch (error: any) {
       toast.error(error.response?.data?.error || 'Something went wrong');
@@ -226,15 +277,16 @@ const AddTenantModal = ({
     }
   };
 
-  if (isLoadingData) {
+  if (isLoadingInitialData) {
     return (
       <Modal
         isOpen={isOpen}
         onClose={onClose}
         title="Add New Tenant"
         actionLabel="Loading..."
-        body={<div className="text-center">Loading data...</div>}
+        body={<div className="text-center">Loading properties...</div>}
         disabled={true}
+        size='sm'
       />
     );
   }
@@ -248,6 +300,7 @@ const AddTenantModal = ({
         actionLabel="Close"
         body={<div className="text-red-500">{error}</div>}
         disabled={false}
+        size='sm'
       />
     );
   }
@@ -287,7 +340,7 @@ const AddTenantModal = ({
                 ${value || selectState.userFocused ? 'scale-75 -translate-y-4' : 'scale-80 translate-y-0'}
                 text-zinc-400
               `}>
-                Select User
+                Search User
               </label>
               <Select<UserOption>
                 {...field}
@@ -296,6 +349,22 @@ const AddTenantModal = ({
                   onChange(option?.value);
                 }}
                 options={userOptions}
+                onInputChange={(newValue) => {
+                  if (!newValue) {
+                    searchUsers('');
+                  } else {
+                    handleUserSearch(newValue);
+                  }
+                }}
+                isLoading={isLoadingUsers}
+                loadingMessage={() => "Searching users..."}
+                noOptionsMessage={({ inputValue }) => {
+                  console.log('No options message, input:', inputValue, 'Loading:', isLoadingUsers, 'Options:', userOptions);
+                  if (!inputValue) return "Start typing to search...";
+                  if (inputValue.length < 3) return "Type at least 3 characters...";
+                  if (isLoadingUsers) return "Searching...";
+                  return "No users found";
+                }}
                 placeholder=" "
                 styles={selectStyles}
                 menuPortalTarget={document.body}
@@ -376,6 +445,13 @@ const AddTenantModal = ({
                 onFocus={() => setSelectState(prev => ({ ...prev, listingFocused: true }))}
                 onBlur={() => setSelectState(prev => ({ ...prev, listingFocused: false }))}
                 isDisabled={isLoading}
+                isOptionDisabled={(option) => option.isDisabled}
+                noOptionsMessage={({ inputValue }) => {
+                  if (listingOptions.every(opt => opt.isDisabled)) {
+                    return "All properties are at maximum capacity";
+                  }
+                  return "No properties found";
+                }}
               />
             </div>
             {errors.listingId && (
@@ -447,6 +523,13 @@ const AddTenantModal = ({
                   onBlur={() => setSelectState(prev => ({ ...prev, roomFocused: false }))}
                   isDisabled={isLoading}
                   isLoading={isLoadingListings}
+                  isOptionDisabled={(option) => option.isDisabled}
+                  noOptionsMessage={({ inputValue }) => {
+                    if (availableRooms.every(opt => opt.isDisabled)) {
+                      return "All rooms are at maximum capacity";
+                    }
+                    return "No rooms available";
+                  }}
                 />
               </div>
             )}
@@ -568,7 +651,7 @@ const AddTenantModal = ({
       actionLabel={isLoading ? "Adding..." : "Add Tenant"}
       onSubmit={handleSubmit(onSubmit)}
       body={bodyContent}
-      disabled={isLoading || isLoadingData || !!error}
+      disabled={isLoading || !!error}
       size='sm'
     />
   );

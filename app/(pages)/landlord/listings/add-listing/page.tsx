@@ -4,7 +4,7 @@ import { FieldValues, SubmitHandler, useForm } from 'react-hook-form';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import { useRouter } from 'next/navigation';
-import { StandaloneSearchBox, LoadScript, GoogleMap, Marker, Libraries, StreetViewPanorama, useLoadScript } from '@react-google-maps/api';
+import { StandaloneSearchBox, GoogleMap, Marker, Libraries, StreetViewPanorama, useLoadScript } from '@react-google-maps/api';
 import { ListingCategory } from '@/app/types'; // Import the ListingCategory type
 
 import Heading from '@/app/components/Heading';
@@ -35,9 +35,7 @@ import { FaSmoking } from 'react-icons/fa';
 import * as FaIcons from 'react-icons/fa';
 import { IoCheckmarkCircle } from "react-icons/io5";
 import LoadingState from './loading';
-
-// Move the libraries array outside of the component to ensure it's reused
-const libraries: Libraries = ['places', 'geometry'];
+import { GOOGLE_MAPS_LIBRARIES, GOOGLE_MAPS_OPTIONS } from '@/lib/constants/google-maps';
 
 // Add this constant near the top of the file, after imports
 const SURIGAO_BARANGAYS = [
@@ -121,6 +119,43 @@ const truncateText = (text: string, limit: number) => {
   return text.slice(0, limit) + '...';
 };
 
+// Add this CSS at the top of your file or in a separate CSS file
+const googlePlacesStyles = `
+  .pac-container {
+    border-radius: 8px;
+    border: 1px solid #e5e7eb;
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    margin-top: 4px;
+    font-family: inherit;
+    padding: 8px 0;
+  }
+
+  .pac-item {
+    padding: 8px 16px;
+    cursor: pointer;
+    font-size: 14px;
+    line-height: 1.5;
+    border: none;
+  }
+
+  .pac-item:hover {
+    background-color: #f3f4f6;
+  }
+
+  .pac-item-query {
+    font-size: 14px;
+    color: #111827;
+  }
+
+  .pac-matched {
+    font-weight: 500;
+  }
+
+  .pac-icon {
+    display: none;
+  }
+`;
+
 const AddListing = () => {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
@@ -186,34 +221,37 @@ const AddListing = () => {
       
       const formData = {
         ...data,
-        rooms: rooms.map(room => ({
-          ...room,
-          price: selectedCategory?.pricingType === 'ROOM_BASED' ? 
-            parseInt(room.price) : 
-            undefined,
-          maxTenantCount: room.needsMaxTenant ? 
-            parseInt(room.maxTenantCount) : 
-            undefined
-        })),
+        rooms: rooms.map(room => {
+          // Get room category to check if maxTenantCount is needed
+          const roomCategory = categories.find(c => c.title === room.roomCategory);
+          
+          return {
+            ...room,
+            price: selectedCategory?.pricingType === 'ROOM_BASED' ? 
+              parseInt(room.price) : 
+              null,
+            // Only include maxTenantCount if the room category needs it
+            maxTenantCount: room.maxTenantCount ? 
+              parseInt(room.maxTenantCount) : 
+              null
+          };
+        }),
         imageSrc: { images },
+        // Handle listing-level maxTenantCount
+        hasMaxTenantCount: data.hasMaxTenantCount || false,
+        maxTenantCount: data.hasMaxTenantCount ? 
+          parseInt(data.maxTenantCount) : 
+          null,
         price: selectedCategory?.pricingType === 'LISTING_BASED' ? 
           parseInt(data.price) : 
-          undefined,
+          null,
         
+        // House rules should match the schema exactly
         houseRules: {
-          genderRestriction: data.genderRestriction,
-          hasAgeRequirement: data.hasAgeRequirement,
-          minimumAge: data.hasAgeRequirement ? 
-            parseInt(data.minimumAge) : 
-            undefined,
-          overnightGuestsAllowed: data.overnightGuestsAllowed,
-          maxGuests: data.overnightGuestsAllowed ? 
-            parseInt(data.maxGuests) : 
-            undefined,
-          petsAllowed: data.petsAllowed,
-          childrenAllowed: data.childrenAllowed,
-          smokingAllowed: data.smokingAllowed,
-          additionalNotes: data.additionalNotes?.trim() || undefined
+          petsAllowed: data.petsAllowed || false,
+          childrenAllowed: data.childrenAllowed || false,
+          smokingAllowed: data.smokingAllowed || false,
+          additionalNotes: data.additionalNotes?.trim() || null
         }
       };
 
@@ -258,22 +296,6 @@ const AddListing = () => {
     if (step > 1) {
       setStep(step - 1);
     }
-  };
-
-  // Update searchOptions with more specific restrictions
-  const searchOptions = {
-    componentRestrictions: { 
-      country: 'ph',
-    },
-    types: ['address'], // More specific than 'street_address'
-    bounds: {
-      north: 9.8527, // Surigao City bounds
-      south: 9.7155,
-      east: 125.5439,
-      west: 125.4571
-    },
-    strictBounds: true,
-    fields: ['address_components', 'geometry', 'formatted_address'],
   };
 
   const handlePlacesChanged = () => {
@@ -342,10 +364,8 @@ const AddListing = () => {
   ];
 
   const { isLoaded } = useLoadScript({
-    googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY!,
-    libraries: libraries,
-    language: "en",
-    region: "PH"
+    googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY as string,
+    libraries: GOOGLE_MAPS_LIBRARIES
   });
 
   const isStepComplete = (currentStep: number) => {
@@ -406,7 +426,20 @@ const AddListing = () => {
     }
   }, [step]);
 
-  if (!isLoaded) return <div>Loading...</div>;
+  // Add this useEffect to inject the styles
+  useEffect(() => {
+    // Add the styles to the document head
+    const styleElement = document.createElement('style');
+    styleElement.textContent = googlePlacesStyles;
+    document.head.appendChild(styleElement);
+
+    return () => {
+      // Clean up the styles when component unmounts
+      document.head.removeChild(styleElement);
+    };
+  }, []);
+
+  if (!isLoaded) return <LoadingState />;
 
   return (
     <div className="w-full bg-gray-50 p-6">
@@ -512,28 +545,22 @@ const AddListing = () => {
               <div className="bg-white shadow rounded-lg p-6 mb-6 flex flex-col gap-6">
                 <Heading title="Where is your place located?" subtitle="Help guests find you!" />
                 <div className='grid grid-cols-1 md:grid-cols-2 gap-3'>
-                  <StandaloneSearchBox
-                    onLoad={(ref) => {
-                      if (ref) {
-                        searchBoxRef.current = ref;
-                        const input = document.querySelector('input[type="text"]');
-                        if (input) {
-                          input.setAttribute('placeholder', '');
-                        }
-                      }
-                    }}
-                    onPlacesChanged={handlePlacesChanged}
-                    options={searchOptions}
-                  >
-                    <Input
-                      id='street'
-                      register={register}
-                      errors={errors}
-                      type="text"
-                      label="Street address"
-                      required
-                    />
-                  </StandaloneSearchBox>
+                  {isLoaded && (
+                    <StandaloneSearchBox
+                      onLoad={ref => searchBoxRef.current = ref}
+                      onPlacesChanged={handlePlacesChanged}
+                      options={GOOGLE_MAPS_OPTIONS}
+                    >
+                      <Input
+                        id="street"
+                        label="Street Address"
+                        disabled={isLoading}
+                        register={register}
+                        errors={errors}
+                        required
+                      />
+                    </StandaloneSearchBox>
+                  )}
                   
                   <div className="w-full relative z-20">
                     <div className="relative">

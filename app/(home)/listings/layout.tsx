@@ -5,12 +5,11 @@ import ClientOnly from "@/app/components/ClientOnly";
 import Container from "@/app/components/Container";
 
 export default async function layout({ children }: { children: React.ReactNode }) {
-
   return (
-    <div className="pb-20 pt-20">
-      <Container>
+    <div className="flex flex-col min-h-screen">
+      <main className="flex-grow">
           {children}
-      </Container>
+      </main>
     </div>
   );
 }

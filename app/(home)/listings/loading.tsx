@@ -23,6 +23,7 @@ const LoadingState = () => {
                 cursor-pointer 
                 group
                 animate-fade-in-up
+                bg-white
               "
               style={{
                 animationDelay: `${index * 100}ms`
@@ -36,9 +37,9 @@ const LoadingState = () => {
                 overflow-hidden 
                 rounded-xl 
                 bg-gradient-to-r 
-                from-gray-200 
-                via-gray-300 
-                to-gray-200 
+                from-gray-100 
+                via-gray-200 
+                to-gray-100 
                 animate-shimmer
                 bg-[length:200%_100%]
               "/>
@@ -50,9 +51,9 @@ const LoadingState = () => {
                   h-4 
                   w-3/4 
                   bg-gradient-to-r 
-                  from-gray-200 
-                  via-gray-300 
-                  to-gray-200 
+                  from-gray-100 
+                  via-gray-200 
+                  to-gray-100 
                   animate-shimmer
                   bg-[length:200%_100%]
                   rounded
@@ -63,9 +64,9 @@ const LoadingState = () => {
                   h-4 
                   w-1/2 
                   bg-gradient-to-r 
-                  from-gray-200 
-                  via-gray-300 
-                  to-gray-200 
+                  from-gray-100 
+                  via-gray-200 
+                  to-gray-100 
                   animate-shimmer
                   bg-[length:200%_100%]
                   rounded
@@ -76,9 +77,9 @@ const LoadingState = () => {
                   h-4 
                   w-1/3 
                   bg-gradient-to-r 
-                  from-gray-200 
-                  via-gray-300 
-                  to-gray-200 
+                  from-gray-100 
+                  via-gray-200 
+                  to-gray-100 
                   animate-shimmer
                   bg-[length:200%_100%]
                   rounded
@@ -93,9 +94,9 @@ const LoadingState = () => {
                         h-6 
                         w-16 
                         bg-gradient-to-r 
-                        from-gray-200 
-                        via-gray-300 
-                        to-gray-200 
+                        from-gray-100 
+                        via-gray-200 
+                        to-gray-100 
                         animate-shimmer
                         bg-[length:200%_100%]
                         rounded-full

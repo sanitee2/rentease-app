@@ -1,26 +1,71 @@
-import prisma from "@/app/libs/prismadb";
+import { headers } from 'next/headers';
 
-
-
-export default async function getListings() {
+export default async function getListings(params: {
+  category?: string;
+  minPrice?: string;
+  maxPrice?: string;
+  pricingType?: string;
+  genderRestriction?: string;
+  lat?: string;
+  lng?: string;
+  radius?: string;
+}) {
   try {
-    const listings = await prisma.listing.findMany({
-      where: {
-        status: 'ACTIVE', // Only fetch active listings
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
+    const {
+      category,
+      minPrice,
+      maxPrice,
+      pricingType,
+      genderRestriction,
+      lat,
+      lng,
+      radius
+    } = params;
+
+    let query: any = {};
+
+    if (category) {
+      query.category = category;
+    }
+
+    if (minPrice) {
+      query.minPrice = minPrice;
+    }
+
+    if (maxPrice) {
+      query.maxPrice = maxPrice;
+    }
+
+    if (pricingType) {
+      query.pricingType = pricingType;
+    }
+
+    if (genderRestriction) {
+      query.genderRestriction = genderRestriction;
+    }
+
+    // Add location parameters if they exist
+    if (lat && lng && radius) {
+      query.lat = lat;
+      query.lng = lng;
+      query.radius = radius;
+    }
+
+    // Get the host from headers
+    const headersList = headers();
+    const host = headersList.get('host');
+    const protocol = process.env.NODE_ENV === 'development' ? 'http' : 'https';
+    
+    const searchParams = new URLSearchParams(query);
+    const apiUrl = `${protocol}://${host}/api/listings?${searchParams}`;
+    
+    const listings = await fetch(apiUrl, {
+      cache: 'no-store'
     });
-
-    const safeListings = listings.map((listing) => ({
-      ...listing,
-      createdAt: listing.createdAt.toISOString(),
-      updatedAt: listing.updatedAt.toISOString(), // Convert updatedAt to a string
-    }));
-
-    return safeListings;
+    
+    return listings.json();
   } catch (error: any) {
-    throw new Error(error);
+    console.error('Listings fetch error:', error);
+    throw new Error('Failed to fetch listings');
   }
 }

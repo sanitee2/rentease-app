@@ -14,7 +14,7 @@ const StatusBadge: React.FC<StatusBadgeProps> = ({ status }) => {
       case 'pending':
         return 'bg-orange-50 text-orange-700 border-orange-100';
       case 'archived':
-        return 'bg-red-50 text-red-700 border-red-100';
+        return 'bg-gray-50 text-gray-700 border-black-100';
       default:
         return 'bg-gray-50 text-gray-700 border-gray-100';
     }

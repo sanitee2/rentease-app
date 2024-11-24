@@ -1,13 +1,15 @@
 'use client';
 
-import { SafeListing } from '@/app/types';
+import { SafeListing, SafeUser } from '@/app/types';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
-import { AiOutlinePlusCircle, AiOutlineEye, AiOutlineDelete } from 'react-icons/ai';
+import { AiOutlinePlusCircle, AiOutlineEye, AiOutlineDelete, AiOutlineEdit } from 'react-icons/ai';
+import { FaArchive } from 'react-icons/fa';
 import Link from 'next/link';
 import StatusBadge from './StatusBadge';
 import ListingModal from '@/app/components/Modals/ListingModal';
 import getCurrentUser from '@/app/actions/getCurrentUser';
+import { toast } from 'react-hot-toast';
 
 const truncateText = (text: string, limit: number) => {
   if (!text) return '';
@@ -17,16 +19,25 @@ const truncateText = (text: string, limit: number) => {
 
 interface ActiveListingsTableProps {
   data: SafeListing[];  // The prop should be an array of listings
+  currentUser?: SafeUser | null;
 }
 
 const ITEMS_PER_PAGE = 5; // Number of items per page
 
-const STATUS_OPTIONS = [
-  { value: 'all', label: 'All Status' },
-  { value: 'AVAILABLE', label: 'Available' },
-  { value: 'RESERVED', label: 'Reserved' },
-  { value: 'RENTED', label: 'Rented' },
-  { value: 'UNAVAILABLE', label: 'Unavailable' },
+type ListingStatus = 'ACTIVE' | 'PENDING' | 'ARCHIVED' | 'DECLINED';
+
+type FilterValue = ListingStatus | 'all';
+
+const FILTER_BADGES: Array<{
+  value: FilterValue;
+  label: string;
+  color: string;
+}> = [
+  { value: 'all', label: 'All', color: 'gray' },
+  { value: 'ACTIVE', label: 'Active', color: 'green' },
+  { value: 'PENDING', label: 'Pending', color: 'orange' },
+  { value: 'ARCHIVED', label: 'Archived', color: 'gray' },
+  { value: 'DECLINED', label: 'Declined', color: 'red' },
 ];
 
 const useClickOutside = (ref: any, callback: any) => {
@@ -47,17 +58,30 @@ const useClickOutside = (ref: any, callback: any) => {
   }, [ref, callback]);
 };
 
-const ActiveListingsTable: React.FC<ActiveListingsTableProps> = ({ data }) => {
+// Add a status priority map
+const STATUS_PRIORITY: Record<ListingStatus, number> = {
+  'ACTIVE': 1,
+  'PENDING': 2,
+  'ARCHIVED': 3,
+  'DECLINED': 4,
+};
+
+// Define sortable columns type
+type SortableColumns = 'title' | 'street' | 'status' | 'createdAt';
+
+const ActiveListingsTable: React.FC<ActiveListingsTableProps> = ({ 
+  data,
+  currentUser 
+}) => {
   const [listings, setListings] = useState<SafeListing[]>(data);
   const [currentPage, setCurrentPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState('');
   const [filteredData, setFilteredData] = useState<SafeListing[]>(data);
-  const [sortColumn, setSortColumn] = useState<string>('createdAt');
+  const [sortColumn, setSortColumn] = useState<SortableColumns>('createdAt');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [selectedListing, setSelectedListing] = useState<SafeListing | null>(null);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
-  const [currentUser, setCurrentUser] = useState<any>(null);
-  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [statusFilter, setStatusFilter] = useState<FilterValue>('all');
 
   const menuRef = useRef(null);
 
@@ -65,20 +89,59 @@ const ActiveListingsTable: React.FC<ActiveListingsTableProps> = ({ data }) => {
     setIsOpen(false);
   });
   
-  // Update listings state and apply default sort when data prop changes
+  // Update listings state when data prop changes
   useEffect(() => {
-    const sortedData = [...data].sort((a, b) => {
-      const dateA = new Date(a.createdAt).getTime();
-      const dateB = new Date(b.createdAt).getTime();
-      return dateB - dateA; // Sort in descending order (latest first)
-    });
+    if (!data) return;
+    
+    const sortedData = [...data].sort((a, b) => 
+      STATUS_PRIORITY[a.status] - STATUS_PRIORITY[b.status]
+    );
+    
     setListings(sortedData);
     setFilteredData(sortedData);
   }, [data]);
 
+  // Handle archive action - simplified version without socket
+  const handleArchive = async (listingId: string) => {
+    try {
+      console.log('Before Archive - Listings:', listings);
+      const response = await axios.patch(`/api/listings/${listingId}/status`, {
+        status: 'ARCHIVED' as ListingStatus
+      });
+      console.log('Archive Response:', response.data);
+
+      if (response.status === 200) {
+        setListings(prev => {
+          const updated = prev.map(listing => 
+            listing.id === listingId 
+              ? { ...listing, status: 'ARCHIVED' as ListingStatus }
+              : listing
+          );
+          console.log('After Archive - Updated Listings:', updated);
+          return updated;
+        });
+        
+        setFilteredData(prev => 
+          prev.map(listing => 
+            listing.id === listingId 
+              ? { ...listing, status: 'ARCHIVED' as ListingStatus }
+              : listing
+          )
+        );
+        
+        toast.success('Listing archived successfully');
+      }
+    } catch (error) {
+      console.error('Archive error:', error);
+      toast.error('Failed to archive listing');
+    }
+  };
+
   // Filter listings based on search query and status filter
   useEffect(() => {
-    let filtered = listings;
+    if (!listings) return;
+    
+    let filtered = [...listings];
 
     // Apply search filter
     if (searchQuery) {
@@ -94,40 +157,52 @@ const ActiveListingsTable: React.FC<ActiveListingsTableProps> = ({ data }) => {
       filtered = filtered.filter((listing) => listing.status === statusFilter);
     }
 
-    setFilteredData(filtered);
-  }, [searchQuery, listings, statusFilter]);
-
-  // Modify handleSort to handle date sorting
-  const handleSort = (column: string) => {
-    let order: 'asc' | 'desc' = 'asc';
-
-    if (sortColumn === column) {
-      order = sortOrder === 'asc' ? 'desc' : 'asc';
-    }
-
-    setSortColumn(column);
-    setSortOrder(order);
-
-    const sortedData = [...filteredData].sort((a, b) => {
-      if (column === 'createdAt') {
-        const dateA = new Date(a.createdAt).getTime();
-        const dateB = new Date(b.createdAt).getTime();
-        return order === 'asc' ? dateA - dateB : dateB - dateA;
+    // Sort by status priority and then by the selected sort column
+    filtered.sort((a, b) => {
+      // First sort by status priority
+      const statusCompare = STATUS_PRIORITY[a.status] - STATUS_PRIORITY[b.status];
+      if (statusCompare !== 0) return statusCompare;
+      
+      // Then by the selected column
+      if (sortColumn === 'title') {
+        return sortOrder === 'asc' 
+          ? a.title.localeCompare(b.title)
+          : b.title.localeCompare(a.title);
       }
-
-      const valueA = a[column as keyof SafeListing] ?? '';
-      const valueB = b[column as keyof SafeListing] ?? '';
-
-      if (valueA < valueB) {
-        return order === 'asc' ? -1 : 1;
+      
+      if (sortColumn === 'street') {
+        return sortOrder === 'asc'
+          ? a.street.localeCompare(b.street)
+          : b.street.localeCompare(a.street);
       }
-      if (valueA > valueB) {
-        return order === 'asc' ? 1 : -1;
+      
+      if (sortColumn === 'status') {
+        return sortOrder === 'asc'
+          ? a.status.localeCompare(b.status)
+          : b.status.localeCompare(a.status);
       }
+      
+      if (sortColumn === 'createdAt') {
+        return sortOrder === 'asc'
+          ? new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+          : new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      }
+      
       return 0;
     });
 
-    setFilteredData(sortedData);
+    setFilteredData(filtered);
+    setCurrentPage(1);
+  }, [listings, searchQuery, statusFilter, sortColumn, sortOrder]);
+
+  // Add type-safe sort handler
+  const handleSort = (column: SortableColumns) => {
+    setSortOrder(currentOrder => 
+      sortColumn === column 
+        ? currentOrder === 'asc' ? 'desc' : 'asc'
+        : 'asc'
+    );
+    setSortColumn(column);
   };
 
   // Pagination logic
@@ -144,36 +219,13 @@ const ActiveListingsTable: React.FC<ActiveListingsTableProps> = ({ data }) => {
     setCurrentPage(newPage);
   };
 
-  // Handle delete button click
-  const handleDelete = async (id: string) => {
-    try {
-      // Make an API request to delete the listing
-      await axios.delete(`/api/delete-listing?id=${id}`);
-  
-      // After successful deletion, update the listings state
-      const updatedListings = listings.filter((listing) => listing.id !== id);
-      setListings(updatedListings);
-      setFilteredData(updatedListings); // Update filtered data as well
-    } catch (error) {
-      console.error('Error deleting listing:', error);
-    }
-  };
-
-  useEffect(() => {
-    const fetchUser = async () => {
-      const user = await getCurrentUser();
-      setCurrentUser(user);
-    };
-    fetchUser();
-  }, []);
-
   const handleView = useCallback((listing: SafeListing) => {
     setSelectedListing(listing);
     setIsViewModalOpen(true);
   }, []);
 
   return (
-    <div className="w-full">
+    <div className="bg-white rounded-lg shadow">
       <div className="flex justify-between items-center p-6">
         <div className="relative max-w-xs">
           <label className="sr-only">Search</label>
@@ -202,41 +254,46 @@ const ActiveListingsTable: React.FC<ActiveListingsTableProps> = ({ data }) => {
             </svg>
           </div>
         </div>
+        
+        <div className="flex gap-2">
+          {FILTER_BADGES.map((badge) => (
+            <button
+              key={badge.value}
+              onClick={() => setStatusFilter(badge.value)}
+              className={`
+                px-3 py-1 rounded-full text-sm font-medium
+                ${statusFilter === badge.value
+                  ? `bg-${badge.color}-100 text-${badge.color}-700 ring-2 ring-${badge.color}-600`
+                  : `bg-${badge.color}-50 text-${badge.color}-600 hover:bg-${badge.color}-100`
+                }
+                transition-colors
+              `}
+            >
+              {badge.label}
+              {badge.value !== 'all' && (
+                <span className="ml-1 px-2 py-0.5 rounded-full text-xs bg-white">
+                  {listings.filter(item => item.status === badge.value).length}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
       </div>
 
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
-              <th
-                scope="col"
-                className="px-6 py-3 text-start text-xs font-medium text-gray-500 uppercase dark:text-neutral-500 cursor-pointer"
-                style={{ minWidth: '150px' }}  // Consistent column width
-                onClick={() => handleSort('title')}  // Add click handler for sorting
-              >
+              <th scope="col" className="px-6 py-3 text-start text-xs font-medium text-gray-500 uppercase dark:text-neutral-500 cursor-pointer" style={{ minWidth: '150px' }} onClick={() => handleSort('title')}>
                 Title {sortColumn === 'title' && (sortOrder === 'asc' ? '▲' : '▼')}
               </th>
-              <th
-                scope="col"
-                className="px-6 py-3 text-start text-xs font-medium text-gray-500 uppercase dark:text-neutral-500 cursor-pointer"
-                style={{ minWidth: '150px' }}  // Consistent column width
-                onClick={() => handleSort('street')}  // Add click handler for sorting
-              >
+              <th scope="col" className="px-6 py-3 text-start text-xs font-medium text-gray-500 uppercase dark:text-neutral-500 cursor-pointer" style={{ minWidth: '150px' }} onClick={() => handleSort('street')}>
                 Address {sortColumn === 'street' && (sortOrder === 'asc' ? '▲' : '▼')}
               </th>
-              <th
-                scope="col"
-                className="px-6 py-3 text-start text-xs font-medium text-gray-500 uppercase dark:text-neutral-500 cursor-pointer"
-                style={{ minWidth: '100px' }}  // Consistent column width
-                onClick={() => handleSort('price')}  // Add click handler for sorting
-              >
-                Status {sortColumn === 'price' && (sortOrder === 'asc' ? '▲' : '▼')}
+              <th scope="col" className="px-6 py-3 text-start text-xs font-medium text-gray-500 uppercase dark:text-neutral-500 cursor-pointer" style={{ minWidth: '100px' }} >
+                Status 
               </th>
-              <th
-                scope="col"
-                className="px-6 py-3 text-end text-xs font-medium text-gray-500 uppercase dark:text-neutral-500"
-                style={{ minWidth: '100px' }}  // Consistent column width
-              >
+              <th scope="col" className="px-6 py-3 text-end text-xs font-medium text-gray-500 uppercase dark:text-neutral-500" style={{ minWidth: '100px' }}>
                 Actions
               </th>
             </tr>
@@ -244,51 +301,43 @@ const ActiveListingsTable: React.FC<ActiveListingsTableProps> = ({ data }) => {
           <tbody className="divide-y divide-gray-100">
             {currentData.map((listing) => (
               <tr key={listing.id} className="hover:bg-gray-50 transition-colors">
-                <td 
-                  className="px-6 py-4 text-sm text-gray-900" 
-                  style={{ minHeight: '50px' }}
-                  title={listing.title}
-                >
+                <td className="px-6 py-4 text-sm text-gray-900" style={{ minHeight: '50px' }} title={listing.title}>
                   {truncateText(listing.title, 25) || '-'}
                 </td>
-                <td className="px-6 py-4 text-sm text-gray-900" style={{ minHeight: '50px' }}>  {/* Fixed cell height */}
+                <td className="px-6 py-4 text-sm text-gray-900" style={{ minHeight: '50px' }}>
                   {listing.street && listing.barangay ? `${listing.street}, ${listing.barangay}` : '-'}
                 </td>
-                <td className="px-6 py-4 text-sm text-gray-900" style={{ minHeight: '50px' }}>  {/* Fixed cell height */}
-                <StatusBadge status={listing.status} />
+                <td className="px-6 py-4 text-sm text-gray-900" style={{ minHeight: '50px' }}>
+                  <StatusBadge status={listing.status} />
                 </td>
                 <td className="px-6 py-4 text-end space-x-2">
-                  <button
-                    onClick={() => handleView(listing)}
-                    className="inline-flex items-center px-3 py-1 text-sm font-medium rounded-full text-blue-700 bg-blue-50 hover:bg-blue-100"
-                  >
-                    <AiOutlineEye className="mr-1" /> View
+                  <button onClick={() => handleView(listing)} className="inline-flex items-center px-3 py-1 text-sm font-medium rounded-full text-blue-700 bg-blue-50 hover:bg-blue-100">
+                    <AiOutlineEye className="mr-1" />View
                   </button>
-                  <button
-                    onClick={() => handleDelete(listing.id)}
-                    className="inline-flex items-center px-3 py-1 text-sm font-medium rounded-full text-red-700 bg-red-50 hover:bg-red-100"
-                  >
-                    <AiOutlineDelete className="mr-1" /> Delete
-                  </button>
+                  {listing.status !== 'ARCHIVED' && (
+                    <><Link href={`/landlord/listings/edit/${listing.id}`}>
+                      <button className="inline-flex items-center px-3 py-1 text-sm font-medium rounded-full text-green-700 bg-green-50 hover:bg-green-100">
+                        <AiOutlineEdit className="mr-1" />Edit
+                      </button>
+                    </Link>
+                    <button onClick={() => handleArchive(listing.id)} className="inline-flex items-center px-3 py-1 text-sm font-medium rounded-full text-gray-700 bg-gray-50 hover:bg-gray-100">
+                      <FaArchive className="mr-1" />Archive
+                    </button></>
+                  )}
+                  {listing.status === 'ARCHIVED' && (
+                    <span className="inline-flex items-center px-3 py-1 text-sm font-medium rounded-full text-gray-500 bg-gray-100">
+                      Archived
+                    </span>
+                  )}
                 </td>
               </tr>
             ))}
-
-            {/* Add empty rows to maintain consistent table height */}
             {emptyRowsCount > 0 && Array.from({ length: emptyRowsCount }).map((_, idx) => (
-              <tr key={`empty-${idx}`} className="h-16 bg-gray-100">  {/* Fixed row height */}
-                <td className="px-6 py-4" style={{ minHeight: '50px' }}>  {/* Empty cell */}
-                  &nbsp;
-                </td>
-                <td className="px-6 py-4" style={{ minHeight: '50px' }}>  {/* Empty cell */}
-                  &nbsp;
-                </td>
-                <td className="px-6 py-4" style={{ minHeight: '50px' }}>  {/* Empty cell */}
-                  &nbsp;
-                </td>
-                <td className="px-6 py-4" style={{ minHeight: '50px' }}>  {/* Empty cell */}
-                  &nbsp;
-                </td>
+              <tr key={`empty-${idx}`} className="h-16 bg-gray-100">
+                <td className="px-6 py-4" style={{ minHeight: '50px' }}>&nbsp;</td>
+                <td className="px-6 py-4" style={{ minHeight: '50px' }}>&nbsp;</td>
+                <td className="px-6 py-4" style={{ minHeight: '50px' }}>&nbsp;</td>
+                <td className="px-6 py-4" style={{ minHeight: '50px' }}>&nbsp;</td>
               </tr>
             ))}
           </tbody>

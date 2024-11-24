@@ -11,6 +11,8 @@ interface TenantTableProps {
   tenants: TenantData[];
   listings: SafeListing[];
   isLoading?: boolean;
+  onViewDetails: (tenant: TenantData) => void;
+  onRemoveTenant: (tenantId: string) => Promise<void>;
 }
 
 const ITEMS_PER_PAGE = 5;
@@ -23,11 +25,24 @@ interface ListingOption {
 type SortField = 'name' | 'email' | 'property' | 'room' | 'rent' | 'leaseStart';
 type SortOrder = 'asc' | 'desc';
 
+const formatFullName = (tenant: TenantData) => {
+  const parts = [
+    tenant.firstName,
+    tenant.middleName ? `${tenant.middleName.charAt(0)}.` : '',
+    tenant.lastName,
+    tenant.suffix || ''
+  ].filter(Boolean);
+  
+  return parts.length > 0 ? parts.join(' ') : '-';
+};
+
 const TenantTable: React.FC<TenantTableProps> = ({ 
   currentUserId, 
   tenants: initialTenants,
   listings: initialListings,
-  isLoading = false
+  isLoading = false,
+  onViewDetails,
+  onRemoveTenant
 }) => {
   const [selectedListing, setSelectedListing] = useState<'all' | SafeListing>('all');
   const [currentPage, setCurrentPage] = useState(1);
@@ -36,8 +51,26 @@ const TenantTable: React.FC<TenantTableProps> = ({
   const [sortField, setSortField] = useState<SortField>('name');
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
 
-  const sortData = useCallback(() => {
-    return [...filteredData].sort((a, b) => {
+  useEffect(() => {
+    let filtered = initialTenants;
+
+    if (selectedListing !== 'all') {
+      filtered = filtered.filter(tenant =>
+        tenant.leaseContracts.some(contract =>
+          contract.listing.id === selectedListing.id
+        )
+      );
+    }
+
+    if (searchTerm) {
+      const lowercasedFilter = searchTerm.toLowerCase();
+      filtered = filtered.filter(tenant =>
+        formatFullName(tenant).toLowerCase().includes(lowercasedFilter) ||
+        tenant?.email?.toLowerCase().includes(lowercasedFilter)
+      );
+    }
+
+    filtered = [...filtered].sort((a, b) => {
       const activeLease_a = a.leaseContracts
         .sort((x, y) => new Date(y.startDate).getTime() - new Date(x.startDate).getTime())[0];
       const activeLease_b = b.leaseContracts
@@ -47,7 +80,9 @@ const TenantTable: React.FC<TenantTableProps> = ({
 
       switch (sortField) {
         case 'name':
-          return multiplier * ((a.name || '').localeCompare(b.name || ''));
+          const nameA = formatFullName(a);
+          const nameB = formatFullName(b);
+          return multiplier * nameA.localeCompare(nameB);
         case 'email':
           return multiplier * ((a.email || '').localeCompare(b.email || ''));
         case 'property':
@@ -70,33 +105,10 @@ const TenantTable: React.FC<TenantTableProps> = ({
           return 0;
       }
     });
-  }, [filteredData, sortField, sortOrder]);
-
-  useEffect(() => {
-    let filtered = initialTenants;
-
-    if (selectedListing !== 'all') {
-      filtered = initialTenants.filter(tenant =>
-        tenant.leaseContracts.some(contract =>
-          contract.listing.id === selectedListing.id
-        )
-      );
-    }
-
-    if (searchTerm) {
-      const lowercasedFilter = searchTerm.toLowerCase();
-      filtered = filtered.filter(
-        tenant =>
-          tenant?.name?.toLowerCase().includes(lowercasedFilter) ||
-          tenant?.email?.toLowerCase().includes(lowercasedFilter)
-      );
-    }
-
-    filtered = sortData();
 
     setFilteredData(filtered);
     setCurrentPage(1);
-  }, [selectedListing, searchTerm, initialTenants, sortData]);
+  }, [selectedListing, searchTerm, initialTenants, sortField, sortOrder]);
 
   const totalPages = Math.ceil(filteredData.length / ITEMS_PER_PAGE);
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
@@ -168,12 +180,70 @@ const TenantTable: React.FC<TenantTableProps> = ({
               isClearable
               onChange={handleListingChange}
               styles={{
-                control: (base) => ({
+                control: (base, state) => ({
                   ...base,
                   borderRadius: '0.5rem',
-                  borderColor: '#e5e7eb',
+                  borderColor: state.isFocused ? '#6366f1' : '#e5e7eb',
+                  boxShadow: state.isFocused ? '0 0 0 1px #6366f1' : 'none',
+                  '&:hover': {
+                    borderColor: '#6366f1'
+                  }
                 }),
+                option: (base, state) => ({
+                  ...base,
+                  backgroundColor: state.isSelected 
+                    ? '#6366f1'
+                    : state.isFocused 
+                      ? '#e0e7ff'
+                      : 'white',
+                  color: state.isSelected ? 'white' : '#111827',
+                  '&:active': {
+                    backgroundColor: '#6366f1'
+                  }
+                }),
+                input: (base) => ({
+                  ...base,
+                  color: '#111827'
+                }),
+                singleValue: (base) => ({
+                  ...base,
+                  color: '#111827'
+                }),
+                indicatorSeparator: (base) => ({
+                  ...base,
+                  backgroundColor: '#e5e7eb'
+                }),
+                dropdownIndicator: (base, state) => ({
+                  ...base,
+                  color: state.isFocused ? '#6366f1' : '#9ca3af',
+                  '&:hover': {
+                    color: '#6366f1'
+                  }
+                }),
+                clearIndicator: (base, state) => ({
+                  ...base,
+                  color: state.isFocused ? '#6366f1' : '#9ca3af',
+                  '&:hover': {
+                    color: '#6366f1'
+                  }
+                }),
+                menu: (base) => ({
+                  ...base,
+                  borderRadius: '0.5rem',
+                  border: '1px solid #e5e7eb',
+                  boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)'
+                })
               }}
+              theme={(theme) => ({
+                ...theme,
+                colors: {
+                  ...theme.colors,
+                  primary: '#6366f1',
+                  primary75: '#818cf8',
+                  primary50: '#a5b4fc',
+                  primary25: '#e0e7ff',
+                },
+              })}
             />
           </div>
         </div>
@@ -184,8 +254,7 @@ const TenantTable: React.FC<TenantTableProps> = ({
           <thead className="bg-gray-50">
             <tr>
               {[
-                { field: 'name' as SortField, label: 'Name' },
-                { field: 'email' as SortField, label: 'Email' },
+                { field: 'name' as SortField, label: 'Tenant' },
                 { field: 'property' as SortField, label: 'Property' },
                 { field: 'room' as SortField, label: 'Room' },
                 { field: 'rent' as SortField, label: 'Rent' },
@@ -219,8 +288,20 @@ const TenantTable: React.FC<TenantTableProps> = ({
                 
                 return (
                   <tr key={tenant.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">{tenant.name || '-'}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">{tenant.email}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 flex-shrink-0">
+                          <img
+                            className="h-10 w-10 rounded-full object-cover"
+                            src={tenant.image || '/images/placeholder.jpg'}
+                            alt={formatFullName(tenant)}
+                          />
+                        </div>
+                        <div className="text-sm">
+                          {formatFullName(tenant)}
+                        </div>
+                      </div>
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
                       {activeLease?.listing.title || 'No active lease'}
                     </td>
@@ -237,7 +318,10 @@ const TenantTable: React.FC<TenantTableProps> = ({
                       ) : '-'}
                     </td>
                     <td className="px-6 py-4 text-end">
-                      <button className="inline-flex items-center px-3 py-1 text-sm font-medium rounded-full text-blue-700 bg-blue-50 hover:bg-blue-100">
+                      <button
+                        onClick={() => onViewDetails(tenant)}
+                        className="inline-flex items-center px-3 py-1 text-sm font-medium rounded-full text-blue-700 bg-blue-50 hover:bg-blue-100"
+                      >
                         View Details
                       </button>
                     </td>

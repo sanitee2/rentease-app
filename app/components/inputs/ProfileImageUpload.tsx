@@ -57,10 +57,6 @@ const ProfileImageUpload = React.forwardRef<HTMLDivElement, ProfileImageUploadPr
           maxFiles: 1,
           sources: ['local', 'url', 'camera'],
           resourceType: 'image',
-          cropping: true,
-          croppingAspectRatio: 1,
-          croppingShowDimensions: true,
-          croppingValidateDimensions: true,
           maxImageWidth: 800,
           maxImageHeight: 800,
         }}

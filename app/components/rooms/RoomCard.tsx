@@ -46,6 +46,7 @@ const RoomCard: React.FC<RoomCardProps> = ({
   return (
     <div
       onClick={(e) => {
+        e.preventDefault();
         e.stopPropagation();
         onClick?.();
       }}

@@ -1,4 +1,7 @@
 import { Listing, Room, User, UserRole, ListingStatus } from "@prisma/client";
+import { Server as NetServer, Socket } from 'net';
+import { NextApiResponse } from "next";
+import { Server as SocketIOServer } from 'socket.io';
 
 // SafeListing type excluding date fields, but making them a string type
 export type SafeListing = Omit<
@@ -22,6 +25,7 @@ export type SafeListing = Omit<
     title: string;
     price: number;
   }[];
+  tenants?: string[];
   pricingType: 'LISTING_BASED' | 'ROOM_BASED';
   price: number | null;
   status: ListingStatus; // Changed to use Prisma's ListingStatus enum
@@ -91,15 +95,20 @@ interface ListingInfoProps {
 
 export interface MinimalUser {
   id: string;
-  name: string | null;
-  email: string;
-  role: string;
+  firstName: string;
+  middleName?: string | null;
+  lastName: string;
+  phoneNumber: string | null;
 }
 
 export interface TenantData {
   id: string;
-  name: string | null;
+  firstName: string;
+  middleName?: string;
+  lastName: string;
+  suffix?: string;
   email: string | null;
+  image?: string | null;
   tenantProfile: {
     id: string;
     currentRoom?: {
@@ -117,4 +126,12 @@ export interface TenantData {
       title: string;
     };
   }[];
+}
+
+export interface NextApiResponseServerIO extends NextApiResponse {
+  socket: Socket & {
+    server: NetServer & {
+      io: SocketIOServer;
+    };
+  };
 }

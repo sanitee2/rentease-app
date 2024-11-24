@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation';
 import axios from 'axios';
 import Breadcrumbs from '@/app/components/Breadcrumbs';
@@ -9,6 +9,7 @@ import AddTenantModal from '@/app/components/Modals/AddTenantModal';
 import { SafeListing, TenantData } from '@/app/types';
 import toast from 'react-hot-toast';
 import LoadingState from '@/app/components/LoadingState';
+import TenantDetailsModal from '@/app/components/Modals/TenantDetailsModal';
 
 const Tenants = () => {
   const router = useRouter();
@@ -16,6 +17,8 @@ const Tenants = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [listings, setListings] = useState<SafeListing[]>([]);
   const [tenants, setTenants] = useState<TenantData[]>([]);
+  const [selectedTenant, setSelectedTenant] = useState<TenantData | null>(null);
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -39,6 +42,35 @@ const Tenants = () => {
 
     fetchData();
   }, []);
+
+  const refreshData = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      const [listingsResponse, tenantsResponse] = await Promise.all([
+        axios.get('/api/listings'),
+        axios.get('/api/tenants')
+      ]);
+
+      setListings(listingsResponse.data);
+      setTenants(tenantsResponse.data);
+    } catch (err) {
+      console.error('Error refreshing data:', err);
+      toast.error('Failed to refresh data');
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const handleTenantRemoval = useCallback(async (tenantId: string) => {
+    try {
+      await axios.delete(`/api/tenants/${tenantId}/remove`);
+      await refreshData();
+      toast.success('Tenant removed successfully');
+    } catch (error) {
+      console.error('Error removing tenant:', error);
+      toast.error('Failed to remove tenant');
+    }
+  }, [refreshData]);
 
   if (isLoading) {
     return <LoadingState />;
@@ -71,19 +103,23 @@ const Tenants = () => {
           <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
             <p className="text-sm text-gray-500 mb-1">Active Leases</p>
             <p className="text-2xl font-semibold">
-              {tenants.filter(t => 
-                t.leaseContracts.some(lc => 
-                  new Date(lc.endDate) >= new Date()
-                )
-              ).length}
+              {tenants.filter(tenant => {
+                if (!tenant?.leaseContracts) return false;
+                return tenant.leaseContracts.some(contract => 
+                  new Date(contract.endDate) >= new Date()
+                );
+              }).length}
             </p>
           </div>
           <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
             <p className="text-sm text-gray-500 mb-1">Properties with Tenants</p>
             <p className="text-2xl font-semibold">
-              {new Set(tenants.flatMap(t => 
-                t.leaseContracts.map(lc => lc.listing.id)
-              )).size}
+              {new Set(tenants
+                .filter(t => t?.leaseContracts)
+                .flatMap(t => 
+                  t.leaseContracts?.map(lc => lc.listing?.id) ?? []
+                )
+              ).size}
             </p>
           </div>
         </div>
@@ -101,16 +137,47 @@ const Tenants = () => {
             tenants={tenants}
             listings={listings}
             isLoading={isLoading}
+            onViewDetails={(tenant) => {
+              setSelectedTenant(tenant);
+              setIsDetailsModalOpen(true);
+            }}
+            onRemoveTenant={handleTenantRemoval}
           />
         </div>
 
-        <AddTenantModal 
+        <AddTenantModal
           isOpen={isAddModalOpen}
-          onClose={() => setIsAddModalOpen(false)}
-          onSuccess={() => {
-            router.refresh();
+          onClose={() => {
+            setIsAddModalOpen(false);
+            // Reset the form by forcing a remount of the modal
+            if (!isAddModalOpen) {
+              setIsAddModalOpen(false);
+            }
+          }}
+          onSuccess={async (newTenant) => {
+            try {
+              // Fetch fresh data after adding
+              await refreshData();
+              setIsAddModalOpen(false);
+              toast.success('Tenant added successfully');
+            } catch (error) {
+              console.error('Error refreshing data:', error);
+              toast.error('Failed to refresh tenant data');
+            }
           }}
         />
+
+        {selectedTenant && (
+          <TenantDetailsModal
+            isOpen={isDetailsModalOpen}
+            onClose={() => {
+              setIsDetailsModalOpen(false);
+              setSelectedTenant(null);
+            }}
+            tenant={selectedTenant}
+            onRemove={handleTenantRemoval}
+          />
+        )}
       </div> 
     </div>
   );

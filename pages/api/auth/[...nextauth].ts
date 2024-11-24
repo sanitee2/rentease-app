@@ -1,10 +1,14 @@
 import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import prisma from "@/app/libs/prismadb";
 import { AuthOptions } from "next-auth";
+import { Session } from "next-auth";
+import { JWT } from "next-auth/jwt";
 import GoogleProvider from "next-auth/providers/google";
 import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from 'bcryptjs';
 import NextAuth from "next-auth";
+
+const TWENTY_MINUTES = 20 * 60; // 20 minutes in seconds
 
 export const authOptions: AuthOptions = {
   adapter: PrismaAdapter(prisma),
@@ -46,29 +50,64 @@ export const authOptions: AuthOptions = {
     }),
   ],
   pages: {
-    signIn: '/', // Redirect to this page if user is not signed in
+    signIn: '/',
+    error: '/?error=true',
   },
-  debug: true,
+  debug: process.env.NODE_ENV === 'development',
   session: {
-    strategy: 'jwt', // Using JWT strategy for session
+    strategy: 'jwt',
+    maxAge: TWENTY_MINUTES,
+    updateAge: 60,
   },
   callbacks: {
-    // Add role to session
     async session({ session, token }) {
-      if (token) {
-        session.user.id = token.id as string;
-        session.user.role = token.role as string;
+      try {
+        if (token && session.user) {
+          session.user.id = token.id as string;
+          session.user.role = token.role as string;
+
+          // Check session expiration
+          if (session.expires) {
+            const expiryTime = new Date(session.expires).getTime();
+            const currentTime = new Date().getTime();
+            
+            if (currentTime > expiryTime) {
+              console.log('Session expired:', {
+                current: new Date(currentTime).toISOString(),
+                expiry: new Date(expiryTime).toISOString(),
+                user: session.user.email
+              });
+              throw new Error('Session expired');
+            }
+          }
+        }
+        return session;
+      } catch (error) {
+        console.error('Session callback error:', error);
+        return Promise.reject('Session expired');
       }
-      return session;
     },
 
-    // Add user role to token
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
         token.role = user.role;
       }
       return token;
+    },
+  },
+  events: {
+    async signOut({ session }) {
+      console.log('SignOut event:', {
+        timestamp: new Date().toISOString(),
+        user: session?.user?.email
+      });
+    },
+    async session({ session }) {
+      console.log('Session event:', {
+        timestamp: new Date().toISOString(),
+        user: session?.user?.email
+      });
     },
   },
   secret: process.env.NEXTAUTH_SECRET,

@@ -18,7 +18,11 @@ import RoomModal from '../rooms/RoomModal';
 import HouseRules from './HouseRules';
 import DOMPurify from 'dompurify';
 import * as FaIcons from 'react-icons/fa';
-import { getIconComponent } from '@/lib/utils';
+import { useRouter } from 'next/navigation';
+import { useCallback } from 'react';
+import { MdPhone, MdEmail } from 'react-icons/md';
+import Button from '../../components/Button';
+import useLoginModal from '@/app/hooks/useLoginModal';
 
 const Map = dynamic(() => import('../../components/Map'), {
   ssr: false,
@@ -28,17 +32,21 @@ interface ListingInfoProps {
   title: string;
   user: SafeUser;
   category: {
-    icon: IconType;
-    label: string;
-    description: string;
-  } | undefined;
+    id: string;
+    title: string;
+    icon: string;
+    desc: string;
+    needsMaxTenant: boolean;
+    pricingType: string;
+    roomTypes: string[];
+  } | null;
   description: string;
   roomCount: number;
   locationValue: number[];
   barangay: string;
   street: string;
   rooms: SafeRoom[];
-  contactNumber?: string;
+  contactNumber?: string | null;
   onRoomSelect: (roomId: string, roomTitle: string) => void;
   hasAgeRequirement: boolean;
   minimumAge?: number | null;
@@ -58,6 +66,8 @@ interface ListingInfoProps {
     };
     note: string | null;
   }[];
+  currentUser: SafeUser | null | undefined;
+  userEmail: string | null;
 }
 
 const ListingInfo: React.FC<ListingInfoProps> = ({
@@ -77,9 +87,13 @@ const ListingInfo: React.FC<ListingInfoProps> = ({
   overnightGuestsAllowed,
   rules,
   propertyAmenities,
+  currentUser,
+  userEmail,
 }) => {
   const [selectedRoom, setSelectedRoom] = useState<SafeRoom | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const router = useRouter();
+  const loginModal = useLoginModal();
 
   const handleRoomClick = (room: SafeRoom) => {
     setSelectedRoom(room);
@@ -103,6 +117,10 @@ const ListingInfo: React.FC<ListingInfoProps> = ({
       }
     }
   };
+
+  const handleLoginClick = useCallback(() => {
+    loginModal.onOpen();
+  }, [loginModal]);
 
   // Update the custom arrows
   const PrevArrow = (props: any) => {
@@ -183,11 +201,6 @@ const ListingInfo: React.FC<ListingInfoProps> = ({
     };
   };
 
-  // Function to get icon component
-  const getIcon = (iconName: string): IconType => {
-    return FaIcons[iconName as keyof typeof FaIcons] || FaIcons.FaQuestion;
-  };
-
   return (
     <div className="col-span-5 flex flex-col gap-6">
       {/* Header Section - Remove host info */}
@@ -200,8 +213,8 @@ const ListingInfo: React.FC<ListingInfoProps> = ({
             {category && (
               <ListingCategory
                 icon={category.icon}
-                label={category.label}
-                description={category.description}
+                label={category.title}
+                description={category.desc}
               />
             )}
           </div>
@@ -224,7 +237,7 @@ const ListingInfo: React.FC<ListingInfoProps> = ({
           <h2 className="text-xl font-semibold mb-4">Property Amenities</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {propertyAmenities.map((item) => {
-              const Icon = getIcon(item.amenity.icon);
+              const Icon = FaIcons[item.amenity.icon as keyof typeof FaIcons] || FaIcons.FaQuestion;
               
               return (
                 <div 
@@ -306,46 +319,136 @@ const ListingInfo: React.FC<ListingInfoProps> = ({
         </div>
       </section>
 
-      {/* Host Information - New Section */}
-      <section className="bg-white rounded-lg p-6 shadow-sm">
-        <h2 className="text-xl font-semibold mb-4">Host Information</h2>
-        <div className="flex flex-col gap-4">
-          <div className="flex items-center gap-4">
-            <Avatar src={user?.image} />
-            <div>
-              <h3 className="font-medium text-gray-900">{user?.name}</h3>
-              <p className="text-sm text-gray-500">Property Host</p>
-            </div>
-          </div>
+      {/* Updated Host Information Section with Modern UI */}
+      <section className="bg-white rounded-xl border border-neutral-100 overflow-hidden shadow-sm">
+        <div className="p-6">
+          <h2 className="text-xl font-semibold text-gray-900 mb-6">Host Information</h2>
           
-          {contactNumber && (
-            <div className="mt-2">
-              <h4 className="text-sm font-medium text-gray-700 mb-1">Contact Number</h4>
-              <div className="flex items-center gap-2 text-gray-600">
-                <svg 
-                  xmlns="http://www.w3.org/2000/svg" 
-                  className="h-5 w-5" 
-                  fill="none" 
-                  viewBox="0 0 24 24" 
-                  stroke="currentColor"
-                >
-                  <path 
-                    strokeLinecap="round" 
-                    strokeLinejoin="round" 
-                    strokeWidth={2} 
-                    d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" 
-                  />
-                </svg>
-                <span>{contactNumber}</span>
+          {/* Host Profile Card */}
+          <div className="flex flex-col gap-4">
+            {/* Profile Header */}
+            <div className="flex items-center gap-4">
+              <div className="relative">
+                <Avatar 
+                  src={user?.image} 
+                />
+                <div className="absolute -bottom-1 -right-1 h-4 w-4 rounded-full bg-green-500 border-2 border-white" />
+              </div>
+              <div>
+                <h3 className="text-lg font-medium text-gray-900">
+                  {user?.firstName} {user?.lastName}
+                </h3>
+                <div className="flex items-center gap-2 mt-1">
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-50 text-indigo-700">
+                    Property Host
+                  </span>
+                  <span className="text-sm text-gray-500">
+                    Member since {new Date(user?.createdAt).getFullYear()}
+                  </span>
+                </div>
               </div>
             </div>
-          )}
 
-          <div className="mt-2 p-4 bg-gray-50 rounded-lg">
-            <h4 className="text-sm font-medium text-gray-700 mb-2">About the Host</h4>
-            <p className="text-sm text-gray-600">
-              Member since {new Date(user?.createdAt).getFullYear()}
-            </p>
+            {/* Contact Information */}
+            <div className="space-y-4">
+              {currentUser ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {contactNumber && (
+                    <div className="flex items-center gap-3 p-3 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors">
+                      <div className="flex-shrink-0 w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center">
+                        <MdPhone className="h-5 w-5 text-indigo-600" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">Phone</p>
+                        <p className="text-sm text-gray-600">{contactNumber}</p>
+                      </div>
+                    </div>
+                  )}
+                  {userEmail && (
+                    <div className="flex items-center gap-3 p-3 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors">
+                      <div className="flex-shrink-0 w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center">
+                        <MdEmail className="h-5 w-5 text-indigo-600" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">Email</p>
+                        <p className="text-sm text-gray-600">{userEmail}</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {contactNumber && (
+                      <div className="flex items-center gap-3 p-3 rounded-lg bg-gray-50">
+                        <div className="flex-shrink-0 w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center">
+                          <MdPhone className="h-5 w-5 text-gray-400" />
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-sm font-medium text-gray-900">Phone</p>
+                          <div className="h-4 w-32 bg-gray-200 blur-sm rounded mt-1" />
+                        </div>
+                      </div>
+                    )}
+                    {userEmail && (
+                      <div className="flex items-center gap-3 p-3 rounded-lg bg-gray-50">
+                        <div className="flex-shrink-0 w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center">
+                          <MdEmail className="h-5 w-5 text-gray-400" />
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-sm font-medium text-gray-900">Email</p>
+                          <div className="h-4 w-40 bg-gray-200 blur-sm rounded mt-1" />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  <button
+                    onClick={handleLoginClick}
+                    className="w-full bg-indigo-600 text-white py-3 px-4 rounded-lg hover:bg-indigo-700 transition-colors duration-200 font-medium text-sm flex items-center justify-center gap-2"
+                  >
+                    <svg 
+                      xmlns="http://www.w3.org/2000/svg"  
+                      className="h-5 w-5" 
+                      viewBox="0 0 24 24" 
+                      fill="none" 
+                      stroke="currentColor" 
+                      strokeWidth="2" 
+                      strokeLinecap="round" 
+                      strokeLinejoin="round"
+                    >
+                      <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
+                      <polyline points="10 17 15 12 10 7" />
+                      <line x1="15" y1="12" x2="3" y2="12" />
+                    </svg>
+                    Login to view host credentials
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Additional Host Info */}
+            <div className="p-4 rounded-lg bg-gradient-to-br from-indigo-50 to-purple-50">
+              <div className="flex items-center gap-2 mb-2">
+                <svg 
+                  xmlns="http://www.w3.org/2000/svg" 
+                  className="h-5 w-5 text-indigo-600" 
+                  viewBox="0 0 24 24" 
+                  fill="none" 
+                  stroke="currentColor" 
+                  strokeWidth="2" 
+                  strokeLinecap="round" 
+                  strokeLinejoin="round"
+                >
+                  <circle cx="12" cy="12" r="10" />
+                  <path d="M12 16v-4" />
+                  <path d="M12 8h.01" />
+                </svg>
+                <h4 className="text-sm font-medium text-gray-900">About the Host</h4>
+              </div>
+              <p className="text-sm text-gray-600">
+                Joined the platform in {new Date(user?.createdAt).getFullYear()} • Verified host
+              </p>
+            </div>
           </div>
         </div>
       </section>

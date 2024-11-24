@@ -14,72 +14,113 @@ interface ListingHeadProps {
 
 const ListingHead: React.FC<ListingHeadProps> = ({ imageSrc, id, currentUser }) => {
   const [isFullScreen, setIsFullScreen] = useState(false);
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
 
-  const handleImageClick = () => {
+  const handleImageClick = (index: number) => {
+    setSelectedImageIndex(index);
     setIsFullScreen(true);
-  };
-
-  const handleCloseFullScreen = () => {
-    setIsFullScreen(false);
   };
 
   return (
     <>
-      {isFullScreen ? (
-        <FullScreenGallery images={imageSrc} onClose={handleCloseFullScreen} />
-      ) : (
-        <div className="relative">
-          {/* Grid Layout for Main Image and Two Smaller Images */}
-          <div className="grid grid-cols-3 gap-2 mt-4 relative">
-
-            {/* Heart Button */}
-            <div className="absolute top-5 right-5 z-10">
-              <HeartButton listingId={id} currentUser={currentUser} />
-            </div>
-
-            {/* Main Large Image (Spanning 2 rows) */}
-            {imageSrc[0] && (
-              <div className="relative col-span-2 row-span-2 h-[49vh] overflow-hidden rounded-lg">
-                <Image
-                  alt="main-image"
-                  src={imageSrc[0]}
-                  fill
-                  className="object-cover cursor-pointer"
-                  onClick={handleImageClick}
-                />
-              </div>
-            )}
-
-            {/* Two Smaller Images */}
-            {imageSrc.slice(1, 3).map((src, index) => (
-              <div
-                key={index}
-                className={`relative h-[24vh] overflow-hidden rounded-lg ${index === 0 ? 'col-span-1' : 'col-span-1'}`}
-              >
-                <Image
-                  alt={`image-${index + 1}`}
-                  src={src}
-                  fill
-                  className="object-cover w-full h-full cursor-pointer"
-                  onClick={handleImageClick}
-                />
-              </div>
-            ))}
-
-            {/* Show All Photos Button */}
-            {imageSrc.length > 3 && (
-              <div className="absolute bottom-5 right-5">
-                <button
-                  className="bg-white text-black font-semibold p-2 rounded-md shadow-md cursor-pointer"
-                  onClick={handleImageClick}
-                >
-                  Show all photos
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
+      {isFullScreen && (
+        <FullScreenGallery 
+          images={imageSrc} 
+          onClose={() => setIsFullScreen(false)}
+          initialIndex={selectedImageIndex}
+        />
       )}
+
+      <div className="relative">
+        {imageSrc.length === 1 ? (
+          // Single image layout
+          <div className="relative h-[60vh] overflow-hidden rounded-xl">
+            <Image
+              alt="property"
+              src={imageSrc[0]}
+              fill
+              className="object-cover w-full cursor-pointer"
+              onClick={() => handleImageClick(0)}
+            />
+          </div>
+        ) : imageSrc.length === 2 ? (
+          // Two images layout - first image takes 2 columns
+          <div className="grid grid-cols-3 gap-4 h-[60vh]">
+            <div className="col-span-2 relative overflow-hidden rounded-xl">
+              <Image
+                alt="main-image"
+                src={imageSrc[0]}
+                fill
+                className="object-cover w-full cursor-pointer hover:scale-105 transition"
+                onClick={() => handleImageClick(0)}
+              />
+            </div>
+            <div className="relative overflow-hidden rounded-xl">
+              <Image
+                alt="second-image"
+                src={imageSrc[1]}
+                fill
+                className="object-cover w-full cursor-pointer hover:scale-105 transition"
+                onClick={() => handleImageClick(1)}
+              />
+            </div>
+          </div>
+        ) : (
+          // Three or more images layout
+          <div className="grid grid-cols-3 gap-4 h-[60vh]">
+            <div className="col-span-2 relative overflow-hidden rounded-xl">
+              <Image
+                alt="main-image"
+                src={imageSrc[0]}
+                fill
+                className="object-cover w-full cursor-pointer hover:scale-105 transition"
+                onClick={() => handleImageClick(0)}
+              />
+            </div>
+            
+            <div className="flex flex-col gap-4">
+              {imageSrc.slice(1, 3).map((src, index) => (
+                <div
+                  key={index}
+                  className="relative h-1/2 overflow-hidden rounded-xl"
+                >
+                  <Image
+                    alt={`image-${index + 1}`}
+                    src={src}
+                    fill
+                    className="object-cover w-full cursor-pointer hover:scale-105 transition"
+                    onClick={() => handleImageClick(index + 1)}
+                  />
+                  {index === 1 && imageSrc.length > 3 && (
+                    <div 
+                      className="absolute inset-0 bg-black bg-opacity-40 
+                        flex flex-col items-center justify-center cursor-pointer
+                        hover:bg-opacity-30 transition gap-2"
+                      onClick={() => handleImageClick(2)}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="text-white text-2xl font-medium">
+                          +{imageSrc.length - 3}
+                        </span>
+                      </div>
+                      <button 
+                        className="px-4 py-2 bg-white text-gray-900 rounded-full
+                          text-sm font-semibold hover:bg-gray-100 transition"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setIsFullScreen(true);
+                        }}
+                      >
+                        View all pictures
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
     </>
   );
 };

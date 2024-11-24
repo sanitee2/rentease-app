@@ -6,6 +6,7 @@ import { AiFillGithub } from "react-icons/ai";
 import { FcGoogle } from "react-icons/fc";
 import { BiErrorCircle } from "react-icons/bi";
 import { useCallback, useState } from "react";
+import Link from 'next/link';
 
 import {
   FieldValues,
@@ -148,9 +149,13 @@ const LoginModal = () => {
             <div>
               First time using RentEase?
             </div>
-            <div className="text-neutral-800 cursor-pointer hover:underline" onClick={toggle}>
+            <Link 
+              href="/register" 
+              className="text-neutral-800 cursor-pointer hover:underline"
+              onClick={() => loginModal.onClose()}
+            >
               Create an account
-            </div>      
+            </Link>      
           </div>
         </div>
     </div>
