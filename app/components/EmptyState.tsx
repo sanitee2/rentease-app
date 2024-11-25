@@ -10,28 +10,26 @@ interface EmptyState {
   title?: string;
   subtitle?: string;
   showReset?: boolean;
+  onReset?: () => void;
 }
 
 const EmptyState: React.FC<EmptyState> = ({
   title = "No exact matches",
   subtitle = "Try changing the search or filter",
-  showReset
+  showReset,
+  onReset
 }) => {
   const router = useRouter();
-  const params = useSearchParams();
 
   const handleReset = () => {
-    const path = window.location.pathname;
-    if (path === '/listings') {
-      router.push('/listings');
-    } else {
-      router.push('/');
+    if (onReset) {
+      onReset();
     }
+    router.push('/listings');
   };
 
   return (
     <div className="
-      min-h-[400px]
       w-full
       flex
       flex-col

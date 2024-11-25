@@ -11,12 +11,49 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { GOOGLE_MAPS_LIBRARIES } from '@/lib/constants/google-maps';
+import { GOOGLE_MAPS_LIBRARIES, GOOGLE_MAPS_OPTIONS } from '@/lib/constants/google-maps';
 
 interface LocationFilterProps {
   onLocationChange: (location: { lat: number; lng: number; radius: number } | null) => void;
   isReset?: boolean;
 }
+
+// Add these styles for the Google Places Autocomplete dropdown
+const googlePlacesStyles = `
+  .pac-container {
+    border-radius: 8px;
+    border: 1px solid #e5e7eb;
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    margin-top: 4px;
+    font-family: inherit;
+    padding: 8px 0;
+  }
+
+  .pac-item {
+    padding: 8px 16px;
+    cursor: pointer;
+    font-size: 14px;
+    line-height: 1.5;
+    border: none;
+  }
+
+  .pac-item:hover {
+    background-color: #f3f4f6;
+  }
+
+  .pac-item-query {
+    font-size: 14px;
+    color: #111827;
+  }
+
+  .pac-matched {
+    font-weight: 500;
+  }
+
+  .pac-icon {
+    display: none;
+  }
+`;
 
 const LocationFilter: React.FC<LocationFilterProps> = ({ 
   onLocationChange,
@@ -31,11 +68,28 @@ const LocationFilter: React.FC<LocationFilterProps> = ({
   const [radius, setRadius] = useState<number>(1);
   const [mapKey, setMapKey] = useState<number>(0);
   const searchBoxRef = useRef<google.maps.places.SearchBox | null>(null);
+  const [searchBoxOptions, setSearchBoxOptions] = useState<any>(null);
 
   const { isLoaded } = useLoadScript({
     googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY as string,
     libraries: GOOGLE_MAPS_LIBRARIES
   });
+
+  // Initialize searchBoxOptions after Google Maps is loaded
+  useEffect(() => {
+    if (isLoaded && window.google) {
+      const { north, south, east, west } = GOOGLE_MAPS_OPTIONS.bounds;
+      const bounds = new window.google.maps.LatLngBounds(
+        new window.google.maps.LatLng(south, west), // SW corner
+        new window.google.maps.LatLng(north, east)  // NE corner
+      );
+
+      setSearchBoxOptions({
+        ...GOOGLE_MAPS_OPTIONS,
+        bounds,
+      });
+    }
+  }, [isLoaded]);
 
   const handleClearLocation = useCallback(() => {
     setLocation(null);
@@ -105,7 +159,18 @@ const LocationFilter: React.FC<LocationFilterProps> = ({
     return 10;
   };
 
-  if (!isLoaded) {
+  // Add style injection effect
+  useEffect(() => {
+    const styleElement = document.createElement('style');
+    styleElement.textContent = googlePlacesStyles;
+    document.head.appendChild(styleElement);
+
+    return () => {
+      document.head.removeChild(styleElement);
+    };
+  }, []);
+
+  if (!isLoaded || !searchBoxOptions) {
     return <div className="h-[300px] w-full flex items-center justify-center bg-neutral-100 rounded-lg">
       Loading Maps...
     </div>;
@@ -113,41 +178,22 @@ const LocationFilter: React.FC<LocationFilterProps> = ({
 
   return (
     <div className="space-y-4">
-      {/* Location Search */}
-      <div className="space-y-2">
-        <Label>Search Location</Label>
-        <div className="relative">
-          <StandaloneSearchBox
-            onLoad={ref => searchBoxRef.current = ref}
-            onPlacesChanged={handlePlacesChanged}
-          >
-            <Input
-              type="text"
-              placeholder="Enter a location"
-              className="w-full pr-8"
-              value={searchValue}
-              onChange={(e) => setSearchValue(e.target.value)}
-            />
-          </StandaloneSearchBox>
-          {location && (
-            <button
-              onClick={handleClearLocation}
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-              type="button"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          )}
-        </div>
-        {/* Show place details if available
-        {placeDetails && (
-          <div className="text-sm text-gray-500">
-            {placeDetails.name && <div className="font-medium">{placeDetails.name}</div>}
-            {placeDetails.address && <div>{placeDetails.address}</div>}
-          </div>
-        )} */}
+      <div className='space-y-2'>
+        <Label className="text-sm font-medium text-neutral-700 mb-1.5 ">
+          Search location
+        </Label>
+        <StandaloneSearchBox
+          onLoad={ref => searchBoxRef.current = ref}
+          onPlacesChanged={handlePlacesChanged}
+          options={searchBoxOptions}
+        >
+          <Input
+            placeholder="Enter a location in Surigao City..."
+            value={searchValue}
+            onChange={(e) => setSearchValue(e.target.value)}
+            className="  focus-visible:ring-indigo-600"
+          />
+        </StandaloneSearchBox>
       </div>
 
       {/* Radius Selector */}

@@ -10,6 +10,7 @@ interface GetListingsParams {
 export default async function getListings(params: GetListingsParams) {
   try {
     const {
+      search,
       category,
       minPrice,
       maxPrice,
@@ -17,7 +18,8 @@ export default async function getListings(params: GetListingsParams) {
       genderRestriction,
       lat,
       lng,
-      radius
+      radius,
+      amenities
     } = params;
 
     const query: Prisma.ListingFindManyArgs = {
@@ -72,7 +74,35 @@ export default async function getListings(params: GetListingsParams) {
         rules: true
       },
       where: {
-        status: 'ACTIVE'
+        status: 'ACTIVE',
+        ...(search ? {
+          OR: [
+            { 
+              title: { 
+                contains: search,
+                mode: 'insensitive'
+              } 
+            },
+            { 
+              description: { 
+                contains: search,
+                mode: 'insensitive'
+              } 
+            },
+            {
+              street: {
+                contains: search,
+                mode: 'insensitive'
+              }
+            },
+            {
+              barangay: {
+                contains: search,
+                mode: 'insensitive'
+              }
+            }
+          ]
+        } : {})
       }
     };
 
@@ -126,6 +156,20 @@ export default async function getListings(params: GetListingsParams) {
       query.where = {
         ...query.where,
         genderRestriction
+      };
+    }
+
+    if (amenities) {
+      const amenityIds = amenities.split(',');
+      query.where = {
+        ...query.where,
+        propertyAmenities: {
+          some: {
+            amenityId: {
+              in: amenityIds
+            }
+          }
+        }
       };
     }
 

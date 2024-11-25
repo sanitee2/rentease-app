@@ -1,0 +1,27 @@
+.slick-dots {
+  bottom: 8px;
+  z-index: 20;
+}
+
+.slick-dots li {
+  margin: 0 2px;
+}
+
+.slick-dots li.slick-active div {
+  background-color: rgb(79 70 229);
+  transform: scale(1.2);
+}
+
+.slick-list {
+  border-radius: 0.75rem;
+  overflow: hidden;
+}
+
+.slick-slide > div {
+  border-radius: 0.75rem;
+  overflow: hidden;
+}
+
+.slick-slide img {
+  border-radius: 0.75rem;
+}
