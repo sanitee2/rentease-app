@@ -50,6 +50,7 @@ const ListingModal: React.FC<ListingModalProps> = ({
             />
           </div>
           <ListingInfo
+            genderRestriction={listing.genderRestriction}
             title={listing.title}
             user={currentUser!}
             category={category}
