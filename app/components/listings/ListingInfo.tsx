@@ -24,6 +24,7 @@ import { MdPhone, MdEmail } from 'react-icons/md';
 import Button from '../../components/Button';
 import useLoginModal from '@/app/hooks/useLoginModal';
 import { FaMars, FaVenus, FaVenusMars } from 'react-icons/fa';
+import { FaUserClock, FaUserCheck } from 'react-icons/fa';
 
 const Map = dynamic(() => import('../../components/Map'), {
   ssr: false,
@@ -235,20 +236,28 @@ const ListingInfo: React.FC<ListingInfoProps> = ({
 
   return (
     <div className="col-span-5 flex flex-col gap-6">
-      {/* Header Section - Remove host info */}
+      {/* Header Section with Key Requirements */}
       <section className="bg-white rounded-lg p-6 shadow-sm">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-          <div className="flex-1">
-            <Heading title={title} subtitle={`${street}, Barangay ${barangay}, Surigao City`} />
+        <div className="flex flex-col gap-4">
+          {/* Title and Location */}
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div className="flex-1">
+              <Heading title={title} subtitle={`${street}, Barangay ${barangay}, Surigao City`} />
+            </div>
+            <div className="flex items-center gap-3">
+              {category && (
+                <ListingCategory
+                  icon={category.icon}
+                  label={category.title}
+                  description={category.desc}
+                />
+              )}
+            </div>
           </div>
-          <div className="flex items-center gap-3">
-            {category && (
-              <ListingCategory
-                icon={category.icon}
-                label={category.title}
-                description={category.desc}
-              />
-            )}
+
+          {/* Key Requirements Banner */}
+          <div className="flex flex-wrap gap-3">
+            {/* Gender Restriction */}
             {genderRestriction && (
               <div className="flex items-center gap-2">
                 {(() => {
@@ -268,6 +277,50 @@ const ListingInfo: React.FC<ListingInfoProps> = ({
                 })()}
               </div>
             )}
+
+            {/* Age Requirement - Updated with React Icons */}
+            <div className={`
+              flex items-center gap-1.5 
+              px-3 py-1.5 
+              rounded-full 
+              text-sm font-medium
+              ${hasAgeRequirement ? 'bg-amber-50 text-amber-700' : 'bg-gray-50 text-gray-600'}
+            `}>
+              {hasAgeRequirement ? (
+                <FaUserClock size={14} className="flex-shrink-0" />
+              ) : (
+                <FaUserCheck size={14} className="flex-shrink-0" />
+              )}
+              <span>
+                {hasAgeRequirement && minimumAge 
+                  ? `${minimumAge}+ years old required`
+                  : 'No age requirement'
+                }
+              </span>
+            </div>
+
+            {/* Overnight Guests Status */}
+            <div className={`
+              flex items-center gap-1.5 
+              px-3 py-1.5 
+              rounded-full 
+              text-sm font-medium
+              ${overnightGuestsAllowed ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}
+            `}>
+              <svg 
+                xmlns="http://www.w3.org/2000/svg" 
+                viewBox="0 0 24 24" 
+                fill="none" 
+                stroke="currentColor" 
+                className="w-4 h-4"
+                strokeWidth="2" 
+                strokeLinecap="round" 
+                strokeLinejoin="round"
+              >
+                <path d="M2 12h20M12 2v20" />
+              </svg>
+              <span>{overnightGuestsAllowed ? 'Overnight guests allowed' : 'No overnight guests'}</span>
+            </div>
           </div>
         </div>
       </section>

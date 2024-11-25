@@ -32,6 +32,13 @@ const ListingHead: React.FC<ListingHeadProps> = ({ imageSrc, id, currentUser }) 
       )}
 
       <div className="relative">
+        <div className="absolute top-4 right-4 z-10">
+          <HeartButton 
+            listingId={id}
+            currentUser={currentUser}
+          />
+        </div>
+
         {imageSrc.length === 1 ? (
           // Single image layout
           <div className="relative h-[60vh] overflow-hidden rounded-xl">

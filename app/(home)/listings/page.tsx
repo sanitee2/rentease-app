@@ -22,6 +22,8 @@ const ListingsPage = async ({
       getListingCategories().catch(() => [])
     ]);
 
+    console.log(listings)
+
     if (!listings) {
       return (
         <EmptyState

@@ -22,9 +22,6 @@ const CategoryListing: React.FC<CategoryListingProps> = ({
       shadow-sm
       transition-all 
       duration-300
-      hover:bg-indigo-50
-      hover:border-indigo-200
-      hover:scale-105
     ">
       {category}
     </div>

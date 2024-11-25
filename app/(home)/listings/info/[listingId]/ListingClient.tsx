@@ -68,7 +68,7 @@ const ListingClient: React.FC<ListingClientProps> = ({
   console.log(currentUser)
 
   return (
-      <div className="max-w-screen-xl mx-auto pt-14 pb-14">
+      <div className="max-w-screen-xl mx-auto">
         <div className="flex flex-col gap-6">
           <ListingHead
             imageSrc={listing.imageSrc.images}

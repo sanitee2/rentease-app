@@ -27,11 +27,13 @@ const ListingsContent: React.FC<ListingsContentProps> = ({
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const hasActiveFilters = Object.keys(searchParams).length > 0;
 
+  console.log(listings)
+
   return (
     <Container>
-      <div className="relative pt-4 lg:pt-8">
+      <div className="relative">
         {/* Mobile Filter Button - Only visible on small screens */}
-        <div className="lg:hidden sticky top-[80px] z-10 bg-white border-b pb-4">
+        <div className="lg:hidden sticky top-[90px] z-10 bg-white border-b pb-4">
           <Button
             onClick={() => setIsFilterOpen(true)}
             variant="outline"
