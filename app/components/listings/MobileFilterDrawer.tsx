@@ -1,35 +1,33 @@
 'use client';
 
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Sheet, SheetContent } from "@/components/ui/sheet";
 import ListingsFilter from "./ListingsFilter";
 
 interface MobileFilterDrawerProps {
   isOpen: boolean;
   onClose: () => void;
   categories: any[];
+  propertyAmenities: any[];
 }
 
 const MobileFilterDrawer: React.FC<MobileFilterDrawerProps> = ({
   isOpen,
   onClose,
-  categories
+  categories,
+  propertyAmenities
 }) => {
   return (
     <Sheet open={isOpen} onOpenChange={onClose}>
       <SheetContent 
         side="left" 
-        className="w-full sm:w-[380px] p-0 flex flex-col h-full"
+        className="w-full max-w-[100vw] sm:max-w-[540px] p-0 h-full overflow-hidden"
       >
-        <SheetHeader className="p-4 border-b">
-          <SheetTitle className="text-left">Filters</SheetTitle>
-        </SheetHeader>
-        
-        {/* Make the content area scrollable but keep the button fixed */}
-        <div className="flex-1 overflow-y-auto">
-          <ListingsFilter 
+        <div className="h-full flex flex-col">
+          <ListingsFilter
             categories={categories}
+            propertyAmenities={propertyAmenities}
             onClose={onClose}
-            isMobile
+            isMobile={true}
           />
         </div>
       </SheetContent>

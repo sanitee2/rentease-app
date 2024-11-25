@@ -15,6 +15,10 @@ import 'slick-carousel/slick/slick-theme.css';
 import { MdArrowBackIos, MdArrowForwardIos } from 'react-icons/md';
 import { FaPesoSign } from 'react-icons/fa6';
 import ListingFeatures from './ListingFeatures';
+import '@/app/styles/slick-carousel.css';
+import 'slick-carousel/slick/slick.css';
+import 'slick-carousel/slick/slick-theme.css';
+import { cn } from '@/lib/utils';
 
 interface Room {
   id: string;
@@ -90,31 +94,6 @@ interface ListingCardProps {
   actionId?: string;
 }
 
-const getGenderRestrictionInfo = (restriction: string) => {
-  switch (restriction?.toUpperCase()) {
-    case 'MEN_ONLY':
-      return {
-        icon: FaMars,
-        label: 'Male tenants only',
-        iconClass: 'text-blue-600 hover:text-blue-700',
-        bgClass: 'bg-blue-50 hover:bg-blue-100'
-      };
-    case 'LADIES_ONLY':
-      return {
-        icon: FaVenus,
-        label: 'Female tenants only',
-        iconClass: 'text-pink-600 hover:text-pink-700',
-        bgClass: 'bg-pink-50 hover:bg-pink-100'
-      };
-    default: // BOTH
-      return {
-        icon: FaVenusMars,
-        label: 'All genders welcome',
-        iconClass: 'text-purple-600 hover:text-purple-700',
-        bgClass: 'bg-purple-50 hover:bg-purple-100'
-      };
-  }
-};
 
 
 
@@ -128,7 +107,6 @@ const ListingCard: React.FC<ListingCardProps> = ({
 }) => {
   const router = useRouter();
 
-  const { getByValue } = useCountries();
   
 console.log(data.propertyAmenities)
 
@@ -178,7 +156,14 @@ console.log(data.propertyAmenities)
           e.stopPropagation();
           onClick();
         }}
-        className="absolute left-2 top-1/2 -translate-y-1/2 z-10 w-8 h-8 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-md hover:bg-indigo-50 transition-colors opacity-0 group-hover:opacity-100"
+        className={cn(
+          "absolute left-2 top-1/2 -translate-y-1/2 z-10 w-8 h-8",
+          "bg-white/90 backdrop-blur-sm rounded-full",
+          "flex items-center justify-center shadow-md",
+          "hover:bg-indigo-50 transition-colors",
+          // Show on mobile, hide on desktop until hover
+          "md:opacity-0 md:group-hover:opacity-100"
+        )}
         aria-label="Previous slide"
       >
         <MdArrowBackIos size={16} className="text-indigo-600 ml-1.5" />
@@ -194,7 +179,14 @@ console.log(data.propertyAmenities)
           e.stopPropagation();
           onClick();
         }}
-        className="absolute right-2 top-1/2 -translate-y-1/2 z-10 w-8 h-8 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-md hover:bg-indigo-50 transition-colors opacity-0 group-hover:opacity-100"
+        className={cn(
+          "absolute right-2 top-1/2 -translate-y-1/2 z-10 w-8 h-8",
+          "bg-white/90 backdrop-blur-sm rounded-full",
+          "flex items-center justify-center shadow-md",
+          "hover:bg-indigo-50 transition-colors",
+          // Show on mobile, hide on desktop until hover
+          "md:opacity-0 md:group-hover:opacity-100"
+        )}
         aria-label="Next slide"
       >
         <MdArrowForwardIos size={16} className="text-indigo-600" />
@@ -215,31 +207,6 @@ console.log(data.propertyAmenities)
     ),
   };
 
-  const sliderStyles = `
-    .slick-dots {
-      bottom: 8px;
-      z-index: 20;
-    }
-    .slick-dots li {
-      margin: 0 2px;
-    }
-    .slick-dots li.slick-active div {
-      background-color: rgb(79 70 229);
-      transform: scale(1.2);
-    }
-    .slick-list {
-      border-radius: 0.75rem;
-      overflow: hidden;
-    }
-    .slick-slide > div {
-      border-radius: 0.75rem;
-      overflow: hidden;
-    }
-    .slick-slide img {
-      border-radius: 0.75rem;
-    }
-  `;
-
   return (
     <div 
       onClick={() => router.push(`/listings/info/${data.id}`)} 
@@ -247,7 +214,6 @@ console.log(data.propertyAmenities)
     >
       {/* Image Slider Container */}
       <div className="h-56 w-full relative overflow-hidden">
-        <style>{sliderStyles}</style>
         <Slider {...settings}>
           {data.imageSrc.images.map((image, index) => (
             <div key={index} className="h-56 w-full relative rounded-md">

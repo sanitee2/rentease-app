@@ -1,15 +1,25 @@
 import getCurrentUser from "@/app/actions/getCurrentUser";
 import Navbar from "@/app/components/navbar/Navbar";
-import Footer from "@/app/components/Footer";
 import ClientOnly from "@/app/components/ClientOnly";
-import Container from "@/app/components/Container";
 
-export default async function layout({ children }: { children: React.ReactNode }) {
+export default async function ListingsLayout({ 
+  children 
+}: { 
+  children: React.ReactNode 
+}) {
+  const currentUser = await getCurrentUser();
+
   return (
-    <div className="flex flex-col min-h-screen py-12">
-      <main className="flex-grow">
-          {children}
-      </main>
-    </div>
+    <>
+
+      {/* Main Content */}
+      <div className="">
+        <main>
+          <div className="">
+            {children}
+          </div>
+        </main>
+      </div>
+    </>
   );
 }

@@ -8,16 +8,16 @@ export default async function HomeLayout({ children }: { children: React.ReactNo
 
   return (
     <>
-      <div className="fixed top-0 w-full bg-white z-30 shadow-sm">
+      <div className="fixed z-50 top-0 w-full bg-white shadow-sm box-border">
         <ClientOnly>
           <Navbar currentUser={currentUser} />
         </ClientOnly>
       </div>
       <div className="flex flex-col min-h-screen">
-        <main className="flex-grow pt-[80px]">
+        <main className="flex-grow pt-[88px]">
           {children}
         </main>
-        <Footer />
+        {/* <Footer /> */}
       </div>
     </>
   );
