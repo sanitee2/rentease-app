@@ -1,7 +1,13 @@
 import { NextResponse } from "next/server";
 import prisma from "@/app/libs/prismadb";
+import { Prisma, PricingType } from "@prisma/client";
 
-export default async function getListings(params: { [key: string]: string | undefined }) {
+// Define the params interface
+interface GetListingsParams {
+  [key: string]: string | undefined;
+}
+
+export default async function getListings(params: GetListingsParams) {
   try {
     const {
       category,
@@ -14,7 +20,7 @@ export default async function getListings(params: { [key: string]: string | unde
       radius
     } = params;
 
-    let query: any = {
+    const query: Prisma.ListingFindManyArgs = {
       select: {
         id: true,
         title: true,
@@ -39,6 +45,18 @@ export default async function getListings(params: { [key: string]: string | unde
         hasMaxTenantCount: true,
         maxTenantCount: true,
         user: true,
+        propertyAmenities: {
+          include: {
+            amenity: {
+              select: {
+                id: true,
+                title: true,
+                icon: true,
+                desc: true
+              }
+            }
+          }
+        },
         rooms: {
           select: {
             id: true,
@@ -59,44 +77,56 @@ export default async function getListings(params: { [key: string]: string | unde
     };
 
     if (category) {
-      query.where.category = category;
+      query.where = {
+        ...query.where,
+        category
+      };
     }
 
     if (minPrice || maxPrice) {
-      query.where.OR = [
-        // For listing-based pricing
-        {
-          AND: [
-            { pricingType: 'LISTING_BASED' },
-            ...(minPrice ? [{ price: { gte: parseInt(minPrice) } }] : []),
-            ...(maxPrice ? [{ price: { lte: parseInt(maxPrice) } }] : [])
-          ]
-        },
-        // For room-based pricing
-        {
-          AND: [
-            { pricingType: 'ROOM_BASED' },
-            {
-              rooms: {
-                some: {
-                  AND: [
-                    ...(minPrice ? [{ price: { gte: parseInt(minPrice) } }] : []),
-                    ...(maxPrice ? [{ price: { lte: parseInt(maxPrice) } }] : [])
-                  ]
+      query.where = {
+        ...query.where,
+        OR: [
+          // For listing-based pricing
+          {
+            AND: [
+              { pricingType: PricingType.LISTING_BASED },
+              ...(minPrice ? [{ price: { gte: parseInt(minPrice) } }] : []),
+              ...(maxPrice ? [{ price: { lte: parseInt(maxPrice) } }] : [])
+            ]
+          },
+          // For room-based pricing
+          {
+            AND: [
+              { pricingType: PricingType.ROOM_BASED },
+              {
+                rooms: {
+                  some: {
+                    AND: [
+                      ...(minPrice ? [{ price: { gte: parseInt(minPrice) } }] : []),
+                      ...(maxPrice ? [{ price: { lte: parseInt(maxPrice) } }] : [])
+                    ]
+                  }
                 }
               }
-            }
-          ]
-        }
-      ];
+            ]
+          }
+        ]
+      };
     }
 
     if (pricingType) {
-      query.where.pricingType = pricingType;
+      query.where = {
+        ...query.where,
+        pricingType: pricingType as PricingType
+      };
     }
 
     if (genderRestriction) {
-      query.where.genderRestriction = genderRestriction;
+      query.where = {
+        ...query.where,
+        genderRestriction
+      };
     }
 
     const listings = await prisma.listing.findMany(query);
@@ -126,7 +156,7 @@ export default async function getListings(params: { [key: string]: string | unde
 
 // Helper function to calculate distance
 function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number) {
-  const R = 6371; // Radius of the Earth in kilometers
+  const R = 6371;
   const dLat = (lat2 - lat1) * Math.PI / 180;
   const dLon = (lon2 - lon1) * Math.PI / 180;
   const a = 
