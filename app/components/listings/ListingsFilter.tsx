@@ -49,8 +49,8 @@ type RuleKey = keyof HouseRules;
 interface FilterState {
   category: string;
   priceRange: {
-    min: string;
-    max: string;
+    min: number | '';
+    max: number | '';
   };
   pricingType: string;
   genderRestriction: string;
@@ -82,8 +82,8 @@ const ListingsFilter: React.FC<ListingsFilterProps> = ({
   const [filters, setFilters] = useState<FilterState>({
     category: params?.get('category') || '',
     priceRange: {
-      min: params?.get('minPrice') || '',
-      max: params?.get('maxPrice') || ''
+      min: params?.get('minPrice') ? parseInt(params.get('minPrice')!) : '',
+      max: params?.get('maxPrice') ? parseInt(params.get('maxPrice')!) : ''
     },
     pricingType: params?.get('pricingType') || '',
     genderRestriction: params?.get('genderRestriction') || 'BOTH',
@@ -135,27 +135,58 @@ const ListingsFilter: React.FC<ListingsFilterProps> = ({
   }, []);
 
   const applyFilters = useCallback(() => {
-    const query = {
-      ...(filters.category && { category: filters.category }),
-      ...(filters.priceRange.min && { minPrice: filters.priceRange.min }),
-      ...(filters.priceRange.max && { maxPrice: filters.priceRange.max }),
-      ...(filters.pricingType && { pricingType: filters.pricingType }),
-      ...(filters.genderRestriction && { genderRestriction: filters.genderRestriction }),
-      ...Object.entries(filters.rules)
-        .reduce((acc, [key, value]) => value ? { ...acc, [key]: value } : acc, {}),
-      ...Object.entries(filters.requirements)
-        .reduce((acc, [key, value]) => value ? { ...acc, [key]: value } : acc, {}),
-      ...(filters.location && {
-        lat: filters.location.lat,
-        lng: filters.location.lng,
-        radius: filters.location.radius
-      })
-    };
+    const query: Record<string, any> = {};
 
+    // Add category if exists
+    if (filters.category) {
+      query.category = filters.category;
+    }
+
+    // Handle price range - ensure we're using proper number values
+    if (filters.priceRange.min !== '') {
+      // Convert to number and ensure it's a valid value
+      const minPrice = Number(filters.priceRange.min);
+      if (!isNaN(minPrice) && minPrice >= 0) {
+        query.minPrice = minPrice;
+      }
+    }
+
+    if (filters.priceRange.max !== '') {
+      // Convert to number and ensure it's a valid value
+      const maxPrice = Number(filters.priceRange.max);
+      if (!isNaN(maxPrice) && maxPrice >= 0) {
+        query.maxPrice = maxPrice;
+      }
+    }
+
+    // Add other filters
+    if (filters.pricingType) query.pricingType = filters.pricingType;
+    if (filters.genderRestriction) query.genderRestriction = filters.genderRestriction;
+
+    // Add rules and requirements
+    Object.entries(filters.rules).forEach(([key, value]) => {
+      if (value) query[key] = value;
+    });
+
+    Object.entries(filters.requirements).forEach(([key, value]) => {
+      if (value) query[key] = value;
+    });
+
+    // Add location if exists
+    if (filters.location) {
+      query.lat = filters.location.lat;
+      query.lng = filters.location.lng;
+      query.radius = filters.location.radius;
+    }
+
+    // Build the URL with explicit string conversion for numbers
     const url = qs.stringifyUrl({
       url: '/listings',
       query
-    }, { skipNull: true, skipEmptyString: true });
+    }, { 
+      skipNull: true, 
+      skipEmptyString: true 
+    });
 
     router.push(url);
     if (onClose) onClose();
@@ -176,12 +207,12 @@ const ListingsFilter: React.FC<ListingsFilterProps> = ({
       icon: BsGenderAmbiguous
     },
     {
-      value: 'MALE',
+      value: 'MEN_ONLY',
       label: 'Male Only',
       icon: BsGenderMale
     },
     {
-      value: 'FEMALE',
+      value: 'LADIES_ONLY',
       label: 'Female Only',
       icon: BsGenderFemale
     }
@@ -236,6 +267,29 @@ const ListingsFilter: React.FC<ListingsFilterProps> = ({
   const handleApplyFilters = () => {
     applyFilters();
     onClose?.();
+  };
+
+  // Update price validation helper
+  const validatePriceInput = (value: string): number | '' => {
+    // Remove any non-numeric characters
+    const cleanValue = value.replace(/[^\d]/g, '');
+    const numValue = Number(cleanValue);
+    
+    if (cleanValue === '' || isNaN(numValue)) return '';
+    return numValue; // Return the actual number
+  };
+
+  // Update price change handler
+  const handlePriceChange = (type: 'min' | 'max', value: string) => {
+    const validatedValue = validatePriceInput(value);
+    
+    setFilters(prev => ({
+      ...prev,
+      priceRange: {
+        ...prev.priceRange,
+        [type]: validatedValue
+      }
+    }));
   };
 
   return (
@@ -348,20 +402,30 @@ const ListingsFilter: React.FC<ListingsFilterProps> = ({
                     <Label className="text-sm font-medium text-neutral-700 mb-1.5">Min Price</Label>
                     <Input
                       type="number"
+                      min={0}
+                      step={100}
                       placeholder="₱"
                       value={filters.priceRange.min}
-                      onChange={(e) => handleFilterChange('priceRange', 'min', e.target.value)}
+                      onChange={(e) => handlePriceChange('min', e.target.value)}
                       className="focus:ring-indigo-500 focus:border-indigo-500 text-neutral-800"
+                      onBlur={(e) => {
+                        if (e.target.value === '') handlePriceChange('min', '0');
+                      }}
                     />
                   </div>
                   <div className="flex-1">
                     <Label className="text-sm font-medium text-neutral-700 mb-1.5">Max Price</Label>
                     <Input
                       type="number"
+                      min={0}
+                      step={100}
                       placeholder="₱"
                       value={filters.priceRange.max}
-                      onChange={(e) => handleFilterChange('priceRange', 'max', e.target.value)}
+                      onChange={(e) => handlePriceChange('max', e.target.value)}
                       className="focus:ring-indigo-500 focus:border-indigo-500 text-neutral-800"
+                      onBlur={(e) => {
+                        if (e.target.value === '') handlePriceChange('max', '0');
+                      }}
                     />
                   </div>
                 </div>

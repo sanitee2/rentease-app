@@ -267,7 +267,14 @@ export async function GET(request: Request) {
             title: true,
             description: true,
             imageSrc: true,
-            price: true,
+            price: {
+              select: {
+                price: true,
+                _conditional: {
+                  pricingType: 'ROOM_BASED'
+                }
+              }
+            },
             roomCategory: true,
             maxTenantCount: true,
             currentTenants: true,
@@ -290,21 +297,43 @@ export async function GET(request: Request) {
         updatedAt: true
       },
       where: {
-        AND: []
+        AND: [
+          { status: 'ACTIVE' },
+          {
+            OR: [
+              // For listing-based pricing
+              {
+                AND: [
+                  { pricingType: 'LISTING_BASED' },
+                  ...(minPrice ? [{ price: { gte: parseInt(minPrice) } }] : []),
+                  ...(maxPrice ? [{ price: { lte: parseInt(maxPrice) } }] : [])
+                ]
+              },
+              // For room-based pricing
+              {
+                AND: [
+                  { pricingType: 'ROOM_BASED' },
+                  {
+                    rooms: {
+                      some: {
+                        AND: [
+                          ...(minPrice ? [{ price: { gte: parseInt(minPrice) } }] : []),
+                          ...(maxPrice ? [{ price: { lte: parseInt(maxPrice) } }] : [])
+                        ]
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
       }
     };
 
-    // Add existing filters
+    // Add other filters
     if (category) {
       query.where.AND.push({ category });
-    }
-
-    if (minPrice) {
-      query.where.AND.push({ price: { gte: parseInt(minPrice) } });
-    }
-
-    if (maxPrice) {
-      query.where.AND.push({ price: { lte: parseInt(maxPrice) } });
     }
 
     if (pricingType) {
@@ -315,16 +344,15 @@ export async function GET(request: Request) {
       query.where.AND.push({ genderRestriction });
     }
 
-    // Get all listings that match the basic filters
+    // Get listings
     let listings = await prisma.listing.findMany(query);
 
-    // If location filtering is requested, filter the results
+    // Handle location filtering if needed
     if (lat && lng && radius) {
       const centerLat = parseFloat(lat);
       const centerLng = parseFloat(lng);
       const radiusKm = parseFloat(radius);
 
-      // Filter listings by distance
       listings = listings.filter(listing => {
         const distance = calculateDistance(
           centerLat,

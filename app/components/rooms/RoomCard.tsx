@@ -70,11 +70,14 @@ const RoomCard: React.FC<RoomCardProps> = ({
         <h3 className="text-lg font-semibold line-clamp-1">{data.title}</h3>
         
         <div className="mt-2 flex items-center justify-between">
-          <div className="flex items-center gap-1 text-lg font-semibold text-indigo-600">
-            <FaPesoSign size={14} />
-            <span>{data.price.toLocaleString('en-US')}</span>
-            <span className="text-sm text-gray-500">/month</span>
-          </div>
+          {/* Only show price if it's a room AND the listing is not listing-based pricing */}
+          {data.pricingType !== 'LISTING_BASED' && data.price && (
+            <div className="flex items-center gap-1 text-lg font-semibold text-indigo-600">
+              <FaPesoSign size={14} />
+              <span>{data.price.toLocaleString('en-US')}</span>
+              <span className="text-sm text-gray-500">/month</span>
+            </div>
+          )}
           
           {data.maxTenantCount && (
             <div className="flex items-center gap-1 text-gray-500">

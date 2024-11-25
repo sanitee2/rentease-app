@@ -23,10 +23,17 @@ import { useCallback } from 'react';
 import { MdPhone, MdEmail } from 'react-icons/md';
 import Button from '../../components/Button';
 import useLoginModal from '@/app/hooks/useLoginModal';
+import { FaMars, FaVenus, FaVenusMars } from 'react-icons/fa';
 
 const Map = dynamic(() => import('../../components/Map'), {
   ssr: false,
 });
+
+interface GenderRestrictionInfo {
+  icon: IconType;
+  label: string;
+  className: string;
+}
 
 interface ListingInfoProps {
   title: string;
@@ -68,6 +75,7 @@ interface ListingInfoProps {
   }[];
   currentUser: SafeUser | null | undefined;
   userEmail: string | null | undefined;
+  genderRestriction: string;
 }
 
 const ListingInfo: React.FC<ListingInfoProps> = ({
@@ -89,6 +97,7 @@ const ListingInfo: React.FC<ListingInfoProps> = ({
   propertyAmenities,
   currentUser,
   userEmail,
+  genderRestriction,
 }) => {
   const [selectedRoom, setSelectedRoom] = useState<SafeRoom | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -201,6 +210,29 @@ const ListingInfo: React.FC<ListingInfoProps> = ({
     };
   };
 
+  const getGenderRestrictionInfo = (restriction: string): GenderRestrictionInfo => {
+    switch (restriction.toUpperCase()) {
+      case 'MEN_ONLY':
+        return {
+          icon: FaMars,
+          label: 'Male only',
+          className: 'bg-blue-50 text-blue-700'
+        };
+      case 'LADIES_ONLY':
+        return {
+          icon: FaVenus,
+          label: 'Female only',
+          className: 'bg-pink-50 text-pink-700'
+        };
+      default: // BOTH
+        return {
+          icon: FaVenusMars,
+          label: 'All genders welcome',
+          className: 'bg-purple-50 text-purple-700'
+        };
+    }
+  };
+
   return (
     <div className="col-span-5 flex flex-col gap-6">
       {/* Header Section - Remove host info */}
@@ -209,13 +241,32 @@ const ListingInfo: React.FC<ListingInfoProps> = ({
           <div className="flex-1">
             <Heading title={title} subtitle={`${street}, Barangay ${barangay}, Surigao City`} />
           </div>
-          <div>
+          <div className="flex items-center gap-3">
             {category && (
               <ListingCategory
                 icon={category.icon}
                 label={category.title}
                 description={category.desc}
               />
+            )}
+            {genderRestriction && (
+              <div className="flex items-center gap-2">
+                {(() => {
+                  const { icon: Icon, label, className } = getGenderRestrictionInfo(genderRestriction);
+                  return (
+                    <div className={`
+                      flex items-center gap-1.5 
+                      px-3 py-1.5 
+                      rounded-full 
+                      text-sm font-medium
+                      ${className}
+                    `}>
+                      <Icon size={16} />
+                      <span>{label}</span>
+                    </div>
+                  );
+                })()}
+              </div>
             )}
           </div>
         </div>

@@ -119,12 +119,14 @@ const RoomModal: React.FC<RoomModalProps> = ({ isOpen, onClose, roomData, onRequ
             <span className="text-gray-600">Category</span>
             <span className="font-medium">{roomData.roomCategory}</span>
           </div>
-          <div className="flex items-center justify-between">
-            <span className="text-gray-600">Price</span>
-            <span className="font-medium text-indigo-600">
-              ₱{roomData.price.toLocaleString('en-US')}/month
-            </span>
-          </div>
+          {roomData.pricingType !== 'LISTING_BASED' && roomData.price && (
+            <div className="flex items-center justify-between">
+              <span className="text-gray-600">Price</span>
+              <span className="font-medium text-indigo-600">
+                ₱{roomData.price.toLocaleString('en-US')}/month
+              </span>
+            </div>
+          )}
           {roomData.maxTenantCount && (
             <div className="flex items-center justify-between">
               <span className="text-gray-600">Max Tenants</span>

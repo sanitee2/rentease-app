@@ -89,6 +89,7 @@ const ListingClient: React.FC<ListingClientProps> = ({
               barangay={listing.barangay}
               street={listing.street}
               rooms={rooms}
+              genderRestriction={listing.genderRestriction}
               onRoomSelect={handleRoomSelect}
               rules={listing.rules || {
                 petsAllowed: false,
