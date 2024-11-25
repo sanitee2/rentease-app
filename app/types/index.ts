@@ -43,6 +43,7 @@ export type SafeRoom = {
   price: number;
   maxTenantCount?: number;
   currentTenants: string[];
+  pricingType: 'LISTING_BASED' | 'ROOM_BASED';
   listingId: string;
   amenities: {
     amenity: {
