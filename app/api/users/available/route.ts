@@ -10,7 +10,6 @@ export async function GET(req: NextRequest) {
     }
 
     const searchQuery = req.nextUrl.searchParams.get('search');
-    console.log('Search query:', searchQuery);
     
     if (!searchQuery || searchQuery.length < 3) {
       return NextResponse.json([]);
@@ -34,7 +33,6 @@ export async function GET(req: NextRequest) {
       take: 10,
     });
 
-    console.log('Found users:', availableUsers);
     return NextResponse.json(availableUsers);
   } catch (error) {
     console.error('API Error:', error);

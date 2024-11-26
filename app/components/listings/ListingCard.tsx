@@ -108,7 +108,6 @@ const ListingCard: React.FC<ListingCardProps> = ({
   const router = useRouter();
 
   
-console.log(data.propertyAmenities)
 
   const handleCancel = useCallback(
     (e: React.MouseEvent<HTMLButtonElement>) => {

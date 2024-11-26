@@ -6,7 +6,6 @@ export async function GET(
   { params }: { params: { categoryId: string } }
 ) {
   try {
-    console.log("Fetching category with title:", params.categoryId);
 
     const category = await prisma.listingCategories.findFirst({
       where: {
@@ -19,7 +18,6 @@ export async function GET(
       return new NextResponse("Category not found", { status: 404 });
     }
 
-    console.log("Found category:", category);
     return NextResponse.json(category);
   } catch (error) {
     console.error("Error fetching category:", error);

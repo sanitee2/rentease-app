@@ -5,6 +5,9 @@ import { Prisma, PricingType } from "@prisma/client";
 // Define the params interface
 interface GetListingsParams {
   [key: string]: string | undefined;
+  petsAllowed?: string;
+  childrenAllowed?: string;
+  smokingAllowed?: string;
 }
 
 export default async function getListings(params: GetListingsParams) {
@@ -19,7 +22,10 @@ export default async function getListings(params: GetListingsParams) {
       lat,
       lng,
       radius,
-      amenities
+      amenities,
+      petsAllowed,
+      childrenAllowed,
+      smokingAllowed
     } = params;
 
     const query: Prisma.ListingFindManyArgs = {
@@ -169,6 +175,19 @@ export default async function getListings(params: GetListingsParams) {
               in: amenityIds
             }
           }
+        }
+      };
+    }
+
+    if (petsAllowed === 'true' || childrenAllowed === 'true' || smokingAllowed === 'true') {
+      query.where = {
+        ...query.where,
+        rules: {
+          OR: [
+            ...(petsAllowed === 'true' ? [{ petsAllowed: true }] : []),
+            ...(childrenAllowed === 'true' ? [{ childrenAllowed: true }] : []),
+            ...(smokingAllowed === 'true' ? [{ smokingAllowed: true }] : [])
+          ]
         }
       };
     }

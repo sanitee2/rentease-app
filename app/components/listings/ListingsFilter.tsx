@@ -29,7 +29,7 @@ import {
 } from 'react-icons/bs';
 import { IconType } from 'react-icons';
 import * as FaIcons from 'react-icons/fa';
-import { BiReset } from 'react-icons/bi';  // Import reset icon
+import { BiReset, BiFilterAlt } from 'react-icons/bi';  // Import reset icon
 import LocationFilter from './LocationFilter';
 import { IoOptionsOutline } from 'react-icons/io5';
 import { Badge } from "@/components/ui/badge";
@@ -56,9 +56,9 @@ interface ListingsFilterProps {
 
 // Define specific types for rules
 type HouseRules = {
-  petsAllowed: boolean;
-  childrenAllowed: boolean;
-  smokingAllowed: boolean;
+  petsAllowed?: boolean;
+  childrenAllowed?: boolean;
+  smokingAllowed?: boolean;
 };
 
 type RuleKey = keyof HouseRules;
@@ -195,9 +195,11 @@ const ListingsFilter: React.FC<ListingsFilterProps> = ({
     // Add other filters
     if (filters.genderRestriction) query.genderRestriction = filters.genderRestriction;
 
-    // Add rules and requirements
+    // Only add house rules that are explicitly true
     Object.entries(filters.rules).forEach(([key, value]) => {
-      if (value) query[key] = value;
+      if (value === true) {  // Only add to query if explicitly true
+        query[key] = 'true';
+      }
     });
 
     Object.entries(filters.requirements).forEach(([key, value]) => {
@@ -266,47 +268,36 @@ const ListingsFilter: React.FC<ListingsFilterProps> = ({
     
     setFilters(prev => ({
       ...prev,
-      [section]: section === 'search'
-        ? ''
-        : section === 'priceRange'
-        ? { min: '', max: '' }
-        : section === 'rules'
-        ? { petsAllowed: false, childrenAllowed: false, smokingAllowed: false }
-        : section === 'requirements'
-        ? { hasAgeRequirement: false, minimumAge: '', overnightGuestsAllowed: false }
-        : section === 'amenities'
-        ? []
+      [section]: section === 'rules' 
+        ? { petsAllowed: undefined, childrenAllowed: undefined, smokingAllowed: undefined }
         : section === 'location'
         ? null
+        : section === 'priceRange'
+        ? { min: '', max: '' }
+        : section === 'amenities'
+        ? []
         : ''
     }));
   }, []);
 
   const handleResetAllFilters = useCallback(() => {
-    // First set location reset flag
     setIsLocationReset(true);
     
-    // Reset all filters
     setFilters({
       search: '',
       category: '',
       priceRange: { min: '', max: '' },
       genderRestriction: '',
-      rules: {
-        petsAllowed: false,
-        childrenAllowed: false,
-        smokingAllowed: false
-      },
+      rules: { petsAllowed: undefined, childrenAllowed: undefined, smokingAllowed: undefined },
       requirements: {
         hasAgeRequirement: false,
         minimumAge: '',
         overnightGuestsAllowed: false
       },
-      location: null,  // Ensure location is reset to null
+      location: null,
       amenities: []
     });
     
-    // Reset location flag after a short delay
     setTimeout(() => setIsLocationReset(false), 100);
     
     onResetFilters?.();
@@ -382,7 +373,10 @@ const ListingsFilter: React.FC<ListingsFilterProps> = ({
       {isMobile ? (
         // Mobile Header
         <div className="flex items-center justify-between p-4 border-b bg-white">
-          <h2 className="text-lg font-semibold">Filters</h2>
+          <h2 className="text-lg font-semibold flex items-center gap-2">
+            <BiFilterAlt className="text-neutral-500" size={18} />
+            Filters
+          </h2>
           <Button
             onClick={onClose}
             variant="ghost"
@@ -395,7 +389,8 @@ const ListingsFilter: React.FC<ListingsFilterProps> = ({
         // Desktop Header
         <div className="flex flex-col gap-2 p-4 border-b bg-white">
           <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-neutral-900">
+            <h3 className="text-lg font-semibold text-neutral-900 flex items-center gap-2">
+              <BiFilterAlt className="text-neutral-500" size={18} />
               Filters
             </h3>
             {getActiveFilterCount(filters) > 0 && (
@@ -720,10 +715,16 @@ const ListingsFilter: React.FC<ListingsFilterProps> = ({
                   <div key={key} className="flex items-center space-x-2">
                     <Checkbox
                       id={key}
-                      checked={filters.rules[key]}
-                      onCheckedChange={(checked) => 
-                        handleFilterChange('rules', key, !!checked)
-                      }
+                      checked={!!filters.rules[key]}
+                      onCheckedChange={(checked) => {
+                        setFilters(prev => ({
+                          ...prev,
+                          rules: {
+                            ...prev.rules,
+                            [key]: checked ? true : undefined
+                          }
+                        }));
+                      }}
                       className="border-indigo-300 data-[state=checked]:bg-indigo-600 data-[state=checked]:border-indigo-600"
                     />
                     <Label 

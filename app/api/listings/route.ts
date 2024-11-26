@@ -228,145 +228,92 @@ export async function DELETE(request: Request) {
 }
 
 export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url);
-  
   try {
-    const category = searchParams.get('category');
+    const { searchParams } = new URL(request.url);
+    
+    // Build where clause
+    let where: any = {
+      status: 'ACTIVE'
+    };
+
+    // Handle category filter
+    if (searchParams.has('category')) {
+      where.category = searchParams.get('category');
+    }
+
+    // Handle price range
     const minPrice = searchParams.get('minPrice');
     const maxPrice = searchParams.get('maxPrice');
-    const pricingType = searchParams.get('pricingType');
-    const genderRestriction = searchParams.get('genderRestriction');
+    if (minPrice || maxPrice) {
+      where.price = {};
+      if (minPrice) where.price.gte = parseInt(minPrice);
+      if (maxPrice) where.price.lte = parseInt(maxPrice);
+    }
+
+    // Handle gender restriction
+    if (searchParams.has('genderRestriction')) {
+      where.genderRestriction = searchParams.get('genderRestriction');
+    }
+
+    // Handle house rules
+    const rulesFields = ['petsAllowed', 'childrenAllowed', 'smokingAllowed'];
+    const rulesWhere: any = {};
+    
+    rulesFields.forEach(field => {
+      if (searchParams.has(field)) {
+        rulesWhere[field] = searchParams.get(field) === 'true';
+      }
+    });
+
+    if (Object.keys(rulesWhere).length > 0) {
+      where.rules = {
+        some: rulesWhere
+      };
+    }
+
+    // Handle location
     const lat = searchParams.get('lat');
     const lng = searchParams.get('lng');
     const radius = searchParams.get('radius');
+    
+    if (lat && lng) {
+      where.locationValue = {
+        latlng: {
+          equals: [parseFloat(lat), parseFloat(lng)]
+        }
+      };
+    }
 
-    let query: any = {
-      select: {
-        id: true,
-        title: true,
-        description: true,
-        imageSrc: true,
-        category: true,
-        roomCount: true,
-        locationValue: true,
-        street: true,
-        barangay: true,
-        status: true,
-        price: true,
-        pricingType: true,
-        maxGuests: true,
-        hasAgeRequirement: true,
-        minimumAge: true,
-        genderRestriction: true,
-        overnightGuestsAllowed: true,
-        hasMaxTenantCount: true,
-        maxTenantCount: true,
-        rooms: {
-          select: {
-            id: true,
-            title: true,
-            description: true,
-            imageSrc: true,
-            price: {
-              select: {
-                price: true,
-                _conditional: {
-                  pricingType: 'ROOM_BASED'
-                }
-              }
-            },
-            roomCategory: true,
-            maxTenantCount: true,
-            currentTenants: true,
-            amenities: {
-              select: {
-                amenity: {
-                  select: {
-                    id: true,
-                    title: true,
-                    icon: true,
-                    desc: true
-                  }
-                }
-              }
-            }
+    // Handle amenities
+    const amenities = searchParams.get('amenities');
+    if (amenities) {
+      const amenityIds = amenities.split(',');
+      where.propertyAmenities = {
+        some: {
+          amenityId: {
+            in: amenityIds
+          }
+        }
+      };
+    }
+
+    // Execute query
+    const listings = await prisma.listing.findMany({
+      where,
+      include: {
+        user: true,
+        propertyAmenities: {
+          include: {
+            amenity: true
           }
         },
-        rules: true,
-        createdAt: true,
-        updatedAt: true
-      },
-      where: {
-        AND: [
-          { status: 'ACTIVE' },
-          {
-            OR: [
-              // For listing-based pricing
-              {
-                AND: [
-                  { pricingType: 'LISTING_BASED' },
-                  ...(minPrice ? [{ price: { gte: parseInt(minPrice) } }] : []),
-                  ...(maxPrice ? [{ price: { lte: parseInt(maxPrice) } }] : [])
-                ]
-              },
-              // For room-based pricing
-              {
-                AND: [
-                  { pricingType: 'ROOM_BASED' },
-                  {
-                    rooms: {
-                      some: {
-                        AND: [
-                          ...(minPrice ? [{ price: { gte: parseInt(minPrice) } }] : []),
-                          ...(maxPrice ? [{ price: { lte: parseInt(maxPrice) } }] : [])
-                        ]
-                      }
-                    }
-                  }
-                ]
-              }
-            ]
-          }
-        ]
+        rules: true
       }
-    };
-
-    // Add other filters
-    if (category) {
-      query.where.AND.push({ category });
-    }
-
-    if (pricingType) {
-      query.where.AND.push({ pricingType });
-    }
-
-    if (genderRestriction) {
-      query.where.AND.push({ genderRestriction });
-    }
-
-    // Get listings
-    let listings = await prisma.listing.findMany(query);
-
-    // Handle location filtering if needed
-    if (lat && lng && radius) {
-      const centerLat = parseFloat(lat);
-      const centerLng = parseFloat(lng);
-      const radiusKm = parseFloat(radius);
-
-      listings = listings.filter(listing => {
-        const distance = calculateDistance(
-          centerLat,
-          centerLng,
-          listing.locationValue.latlng[0],
-          listing.locationValue.latlng[1]
-        );
-        return distance <= radiusKm;
-      });
-    }
+    });
 
     return NextResponse.json(listings);
   } catch (error) {
-    console.error('Error:', error);
+    console.error('[LISTINGS_GET]', error);
     return new NextResponse('Internal Error', { status: 500 });
   }
 }

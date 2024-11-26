@@ -3,6 +3,8 @@ import { Server as NetServer, Socket } from 'net';
 import { NextApiResponse } from "next";
 import { Server as SocketIOServer } from 'socket.io';
 
+
+
 // SafeListing type excluding date fields, but making them a string type
 export type SafeListing = Omit<
   Listing,
@@ -29,6 +31,7 @@ export type SafeListing = Omit<
   pricingType: 'LISTING_BASED' | 'ROOM_BASED';
   price: number | null;
   status: ListingStatus; // Changed to use Prisma's ListingStatus enum
+  user?: SafeUser;
 };
 
 // SafeRoom type excluding date fields, but making them a string type

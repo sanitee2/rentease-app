@@ -62,13 +62,14 @@ const UserMenu: React.FC<UserMenuProps> = ({
       >
         <div className="flex items-center gap-3">
           {currentUser?.image ? (
-            <Image
-              src={currentUser.image}
-              alt="Avatar"
-              width={30}
-              height={30}
-              className="rounded-full"
-            />
+            <div className="relative aspect-square w-8 h-8">
+              <Image
+                src={currentUser.image}
+                alt="Avatar"
+                fill
+                className="rounded-full object-cover"
+              />
+            </div>
           ) : (
             <div className="h-8 w-8 rounded-full bg-gray-100 flex items-center justify-center border border-gray-200">
               <span className="text-sm font-medium text-gray-600">
@@ -76,7 +77,7 @@ const UserMenu: React.FC<UserMenuProps> = ({
               </span>
             </div>
           )}
-          <div className="flex flex-col -space-y-0.5">
+          <div className="hidden md:flex flex-col -space-y-0.5">
             <span className="text-sm font-medium text-gray-900">
               {currentUser?.firstName || 'Guest'}
             </span>

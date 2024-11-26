@@ -15,71 +15,51 @@ export async function middleware(req: NextRequest) {
     });
 
     // Handle expired token
-    if (token?.exp) {
-      const expiryTime = Number(token.exp) * 1000; // Convert to number explicitly
-      const currentTime = Date.now();
+    // if (token?.exp) {
+    //   const expiryTime = Number(token.exp) * 1000;
+    //   const currentTime = Date.now();
       
-      if (currentTime > expiryTime) {
-        console.log('Token expired in middleware:', {
-          current: new Date(currentTime).toISOString(),
-          expiry: new Date(expiryTime).toISOString(),
-          timeLeft: Math.floor((expiryTime - currentTime) / 1000),
-        });
-        
-        // Clear any existing cookies
-        const response = NextResponse.redirect(new URL('/?sessionExpired=true', req.url));
-        response.cookies.delete('next-auth.session-token');
-        response.cookies.delete('next-auth.csrf-token');
-        response.cookies.delete('next-auth.callback-url');
-        return response;
+    //   if (currentTime > expiryTime) {
+    //     const response = NextResponse.redirect(new URL('/?sessionExpired=true', req.url));
+    //     response.cookies.delete('next-auth.session-token');
+    //     response.cookies.delete('next-auth.csrf-token');
+    //     response.cookies.delete('next-auth.callback-url');
+    //     return response;
+    //   }
+    // }
+
+    // If no token and trying to access protected route, redirect to home
+    if (!token && !isPublicRoute) {
+      return NextResponse.redirect(new URL('/', req.url));
+    }
+
+    // If token exists, handle role-based routing
+    if (token) {
+      const userRole = token.role as 'ADMIN' | 'LANDLORD' | 'USER' | 'TENANT';
+      const dashboardRoutes = {
+        ADMIN: '/admin/dashboard',
+        LANDLORD: '/landlord/dashboard',
+        USER: '/listings',
+        TENANT: '/dashboard'
+      };
+
+      // Redirect to appropriate dashboard if on root or login page
+      if (pathname === '/' || pathname === '/login') {
+        return NextResponse.redirect(new URL(dashboardRoutes[userRole], req.url));
       }
-    }
 
-    if (!token) {
-      if (!isPublicRoute) {
-        return NextResponse.redirect(new URL('/', req.url));
+      // Check if user is accessing correct role-based routes
+      const isCorrectRoute = (
+        (userRole === 'ADMIN' && pathname.startsWith('/admin')) ||
+        (userRole === 'LANDLORD' && pathname.startsWith('/landlord')) ||
+        (userRole === 'USER' && (pathname.startsWith('/dashboard') || pathname.startsWith('/listings'))) ||
+        (userRole === 'TENANT' && pathname.startsWith('/dashboard')) ||
+        isPublicRoute
+      );
+
+      if (!isCorrectRoute) {
+        return NextResponse.redirect(new URL(dashboardRoutes[userRole], req.url));
       }
-      return NextResponse.next();
-    }
-
-    const userRole = token.role as 'ADMIN' | 'LANDLORD' | 'USER' | 'TENANT';
-    const dashboardRoutes = {
-      ADMIN: '/admin/dashboard',
-      LANDLORD: '/landlord/dashboard',
-      USER: '/listings',
-      TENANT: '/dashboard'
-    };
-
-    // Redirect from landing page
-    if (pathname === '/') {
-      return NextResponse.redirect(new URL(dashboardRoutes[userRole], req.url));
-    }
-
-    // Role-based access control
-    switch (userRole) {
-      case 'ADMIN':
-        if (!pathname.startsWith('/admin')) {
-          return NextResponse.redirect(new URL(dashboardRoutes.ADMIN, req.url));
-        }
-        break;
-        
-      case 'LANDLORD':
-        if (!pathname.startsWith('/landlord') && !isPublicRoute) {
-          return NextResponse.redirect(new URL(dashboardRoutes.LANDLORD, req.url));
-        }
-        break;
-        
-      case 'TENANT':
-        if (!pathname.startsWith('/dashboard') && !isPublicRoute) {
-          return NextResponse.redirect(new URL(dashboardRoutes.TENANT, req.url));
-        }
-        break;
-        
-      case 'USER':
-        if (!isPublicRoute) {
-          return NextResponse.redirect(new URL(dashboardRoutes.USER, req.url));
-        }
-        break;
     }
 
     return NextResponse.next();
@@ -90,5 +70,5 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/', '/login', '/admin/:path*', '/landlord/:path*', '/listings/:path*', '/tenant/:path*', '/dashboard'],
+  matcher: ['/', '/listings', '/admin/:path*', '/landlord/:path*', '/listings/:path*', '/tenant/:path*', '/dashboard'],
 };

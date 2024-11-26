@@ -21,20 +21,25 @@ interface LocationFilterProps {
 // Add these styles for the Google Places Autocomplete dropdown
 const googlePlacesStyles = `
   .pac-container {
-    border-radius: 8px;
+    border-radius: 6px;
     border: 1px solid #e5e7eb;
-    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    box-shadow: 0 2px 4px -1px rgb(0 0 0 / 0.05);
     margin-top: 4px;
     font-family: inherit;
-    padding: 8px 0;
+    padding: 4px 0;
+    z-index: 1100 !important;
+    position: fixed !important;
   }
 
   .pac-item {
-    padding: 8px 16px;
+    padding: 6px 12px;
     cursor: pointer;
     font-size: 14px;
-    line-height: 1.5;
+    line-height: 1.4;
     border: none;
+    min-height: 36px;
+    display: flex;
+    align-items: center;
   }
 
   .pac-item:hover {
@@ -87,6 +92,7 @@ const LocationFilter: React.FC<LocationFilterProps> = ({
       setSearchBoxOptions({
         ...GOOGLE_MAPS_OPTIONS,
         bounds,
+        fields: ['formatted_address', 'geometry', 'name'],
       });
     }
   }, [isLoaded]);
@@ -191,7 +197,14 @@ const LocationFilter: React.FC<LocationFilterProps> = ({
             placeholder="Enter a location in Surigao City..."
             value={searchValue}
             onChange={(e) => setSearchValue(e.target.value)}
-            className="  focus-visible:ring-indigo-600"
+            className="focus-visible:ring-indigo-600"
+            autoComplete="off"
+            role="combobox"
+            aria-autocomplete="list"
+            aria-expanded="true"
+            onTouchStart={(e) => {
+              e.currentTarget.focus();
+            }}
           />
         </StandaloneSearchBox>
       </div>
