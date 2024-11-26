@@ -158,7 +158,6 @@ const AddTenantModal = ({
   );
 
   const handleUserSearch = useCallback((inputValue: string) => {
-    console.log('Search input:', inputValue);
     debouncedSearch(inputValue);
   }, [debouncedSearch]);
 

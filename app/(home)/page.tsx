@@ -14,9 +14,11 @@ import {
   FaArrowRight
 } from 'react-icons/fa';
 import { MdManageAccounts } from 'react-icons/md';
+import Footer from '../components/Footer';
 
 export default function LandingPage() {
   return (
+    <>
     <div className="min-h-screen">
       {/* Optimized Hero Section */}
       <section 
@@ -166,6 +168,8 @@ export default function LandingPage() {
         </div>
       </section>
     </div>
+    <Footer />
+    </>
   );
 }
 
@@ -202,4 +206,5 @@ const SolutionCard = ({ icon, title, features }: { icon: React.ReactNode; title:
       ))}
     </ul>
   </div>
+  
 ); 

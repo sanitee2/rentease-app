@@ -75,7 +75,6 @@ const AddRoomModal: React.FC = () => {
     setIsLoading(true);
     data.imageSrc = images[0]; // Assuming you're handling only one image for now
 
-    console.log('Room data being sent:', data); // Log the data to ensure correctness
 
     try {
       const response = await axios.post('/api/add-room', data);

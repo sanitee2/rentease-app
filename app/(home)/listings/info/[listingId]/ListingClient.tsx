@@ -44,7 +44,6 @@ const ListingClient: React.FC<ListingClientProps> = ({
         // Fetch category data using the category title
         if (listing.category) {
           const categoryResponse = await axios.get(`/api/categories/${encodeURIComponent(listing.category)}`);
-          console.log("Category response:", categoryResponse.data);
           setCategoryData(categoryResponse.data);
         }
       } catch (error) {

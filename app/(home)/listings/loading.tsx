@@ -4,38 +4,39 @@ import { Button } from '@/components/ui/button';
 
 const LoadingState = () => {
   return (
-    <Container>
-      <div className="relative">
-        {/* Mobile Filter Button Skeleton */}
-        <div className="lg:hidden sticky top-[90px] z-10 bg-white border-b pb-4">
-          <Button
-            disabled
-            variant="outline"
-            className="w-full flex items-center justify-between text-sm animate-pulse"
-          >
-            <div className="flex items-center gap-2">
-              <BiFilter size={18} className="text-gray-400" />
-              <span>Filters</span>
-            </div>
-          </Button>
+    <div className="h-full bg-white">
+      <div className="flex w-full">
+        {/* Desktop Filter Sidebar Skeleton */}
+        <div className="hidden md:block w-[360px] fixed left-0 top-[88px] h-[calc(100vh-88px)] bg-white border-r overflow-hidden">
+          <div className="p-6 space-y-6">
+            {/* Filter Section Headers */}
+            {Array.from({ length: 4 }, (_, i) => (
+              <div key={i} className="space-y-4">
+                <div className="h-6 w-24 bg-gray-200 rounded animate-pulse" />
+                <div className="h-10 w-full bg-gray-200 rounded animate-pulse" />
+              </div>
+            ))}
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 lg:gap-8">
-          {/* Filter Sidebar Skeleton */}
-          <aside className="hidden lg:block col-span-1">
-            <div className="sticky top-[96px] bg-white rounded-lg p-4 space-y-6">
-              {/* Filter Section Headers */}
-              {Array.from({ length: 4 }, (_, i) => (
-                <div key={i} className="space-y-4">
-                  <div className="h-6 w-24 bg-gray-200 rounded animate-pulse" />
-                  <div className="h-10 w-full bg-gray-200 rounded animate-pulse" />
-                </div>
-              ))}
-            </div>
-          </aside>
+        {/* Main Content Area */}
+        <div className="flex-1 min-h-[calc(100vh-64px)] md:ml-[360px]">
+          {/* Mobile Filter Button Skeleton */}
+          <div className="md:hidden sticky top-[90px] z-10 bg-white border-b pb-4 px-4">
+            <Button
+              disabled
+              variant="outline"
+              className="w-full flex items-center justify-between text-sm animate-pulse"
+            >
+              <div className="flex items-center gap-2">
+                <BiFilter size={18} className="text-gray-400" />
+                <span>Filters</span>
+              </div>
+            </Button>
+          </div>
 
           {/* Listings Grid Skeleton */}
-          <div className="col-span-1 lg:col-span-3">
+          <div className="p-4 md:p-6">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
               {Array.from({ length: 9 }, (_, i) => (
                 <div 
@@ -75,7 +76,7 @@ const LoadingState = () => {
           </div>
         </div>
       </div>
-    </Container>
+    </div>
   );
 };
 

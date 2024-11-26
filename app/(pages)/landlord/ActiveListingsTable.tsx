@@ -104,11 +104,9 @@ const ActiveListingsTable: React.FC<ActiveListingsTableProps> = ({
   // Handle archive action - simplified version without socket
   const handleArchive = async (listingId: string) => {
     try {
-      console.log('Before Archive - Listings:', listings);
       const response = await axios.patch(`/api/listings/${listingId}/status`, {
         status: 'ARCHIVED' as ListingStatus
       });
-      console.log('Archive Response:', response.data);
 
       if (response.status === 200) {
         setListings(prev => {
@@ -117,7 +115,6 @@ const ActiveListingsTable: React.FC<ActiveListingsTableProps> = ({
               ? { ...listing, status: 'ARCHIVED' as ListingStatus }
               : listing
           );
-          console.log('After Archive - Updated Listings:', updated);
           return updated;
         });
         
@@ -132,7 +129,6 @@ const ActiveListingsTable: React.FC<ActiveListingsTableProps> = ({
         toast.success('Listing archived successfully');
       }
     } catch (error) {
-      console.error('Archive error:', error);
       toast.error('Failed to archive listing');
     }
   };

@@ -139,7 +139,7 @@ const RoomDetailsDrawer: React.FC<RoomDetailsDrawerProps> = ({
   useEffect(() => {
     const subscription = watch((value, { name }) => {
       if (name === 'description') {
-        console.log('Description changed:', value.description);
+        // console.log('Description changed:', value.description);
       }
     });
     return () => subscription.unsubscribe();
@@ -221,7 +221,6 @@ const RoomDetailsDrawer: React.FC<RoomDetailsDrawerProps> = ({
     };
 
     
-    console.log(formData)
 
     onChange(false);
     onSave(formData);

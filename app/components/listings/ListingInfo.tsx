@@ -38,7 +38,7 @@ interface GenderRestrictionInfo {
 
 interface ListingInfoProps {
   title: string;
-  user: SafeUser;
+  user: SafeUser | null;
   category: {
     id: string;
     title: string;
@@ -55,7 +55,7 @@ interface ListingInfoProps {
   street: string;
   rooms: SafeRoom[];
   contactNumber?: string | null;
-  onRoomSelect: (roomId: string, roomTitle: string) => void;
+  onRoomSelect?: (roomId: string, roomTitle: string) => void;
   hasAgeRequirement: boolean;
   minimumAge?: number | null;
   overnightGuestsAllowed: boolean;
@@ -74,7 +74,7 @@ interface ListingInfoProps {
     };
     note: string | null;
   }[];
-  currentUser: SafeUser | null | undefined;
+  currentUser?: SafeUser | null | undefined;
   userEmail: string | null | undefined;
   genderRestriction: string;
 }
@@ -118,8 +118,9 @@ const ListingInfo: React.FC<ListingInfoProps> = ({
   const handleRequestViewing = (roomId: string) => {
     const selectedRoom = rooms.find(room => room.id === roomId);
     if (selectedRoom) {
+      if (onRoomSelect) {
       onRoomSelect(roomId, selectedRoom.title);
-      
+      }
       // Scroll to the booking section
       const bookingSection = document.querySelector('#booking-section');
       if (bookingSection) {
@@ -131,6 +132,7 @@ const ListingInfo: React.FC<ListingInfoProps> = ({
   const handleLoginClick = useCallback(() => {
     loginModal.onOpen();
   }, [loginModal]);
+
 
   // Update the custom arrows
   const PrevArrow = (props: any) => {
@@ -447,7 +449,7 @@ const ListingInfo: React.FC<ListingInfoProps> = ({
                     Property Host
                   </span>
                   <span className="text-sm text-gray-500">
-                    Member since {new Date(user?.createdAt).getFullYear()}
+                    Member since {user?.createdAt ? new Date(user.createdAt).getFullYear() : 'N/A'}
                   </span>
                 </div>
               </div>
@@ -550,7 +552,7 @@ const ListingInfo: React.FC<ListingInfoProps> = ({
                 <h4 className="text-sm font-medium text-gray-900">About the Host</h4>
               </div>
               <p className="text-sm text-gray-600">
-                Joined the platform in {new Date(user?.createdAt).getFullYear()} • Verified host
+                Joined the platform in {user?.createdAt ? new Date(user.createdAt).getFullYear() : 'N/A'} • Verified host
               </p>
             </div>
           </div>

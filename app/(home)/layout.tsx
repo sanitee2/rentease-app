@@ -8,7 +8,7 @@ export default async function HomeLayout({ children }: { children: React.ReactNo
 
   return (
     <>
-      <div className="fixed z-50 top-0 w-full bg-white shadow-sm box-border">
+      <div className="fixed z-40 top-0 w-full bg-white shadow-sm box-border">
         <ClientOnly>
           <Navbar currentUser={currentUser} />
         </ClientOnly>
