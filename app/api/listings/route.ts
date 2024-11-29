@@ -3,12 +3,7 @@ import prisma from "@/app/libs/prismadb";
 import getCurrentUser from "@/app/actions/getCurrentUser";
 import getUserListings from '@/app/actions/getUserListings';
 // import { getIO } from '@/app/lib/socket';  // Commented out socket import
-import { 
-  AdminNotification, 
-  NotificationStatus, 
-  NotificationType,
-  AdminNewListingData 
-} from '@/app/types/notifications';
+
 
 export async function POST(request: Request) {
   try {

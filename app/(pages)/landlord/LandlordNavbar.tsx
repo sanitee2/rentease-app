@@ -5,8 +5,8 @@ import { SafeUser } from '@/app/types'
 import { LuMenu } from "react-icons/lu";
 import { Button } from "@/components/ui/button";
 import Logo from '@/app/components/navbar/Logo';
-import NotificationsDropdown from '@/app/components/notifications/NotificationsDropdown';
-import { useNotifications } from '@/app/contexts/NotificationsContext';
+// import NotificationsDropdown from '@/app/components/notifications/NotificationsDropdown';
+// import { useNotifications } from '@/app/contexts/NotificationsContext';
 import { Badge } from "@/components/ui/badge";
 import { IoNotificationsOutline } from 'react-icons/io5';
 
@@ -21,8 +21,8 @@ const LandlordNavbar: React.FC<LandlordNavbarProps> = ({
   onMenuClick,
   expanded,
 }) => {
-  const { notifications } = useNotifications();
-  const unreadCount = notifications.filter(n => !n.isRead).length;
+  // const { notifications } = useNotifications();
+  // const unreadCount = notifications.filter(n => !n.isRead).length;
 
   return (
     <div className="fixed top-0 left-0 right-0 h-[70px] bg-white border-b border-gray-200 z-40">

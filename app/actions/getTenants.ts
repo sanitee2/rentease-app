@@ -1,6 +1,7 @@
 import prisma from "@/app/libs/prismadb";
+import { TenantData } from "@/app/types";
 
-export default async function getTenants(userId: string) {
+export default async function getTenants(userId: string): Promise<TenantData[]> {
   try {
     const tenants = await prisma.user.findMany({
       where: {
@@ -41,12 +42,22 @@ export default async function getTenants(userId: string) {
           select: {
             id: true,
             startDate: true,
-            endDate: true,
+            endedAt: true,
             rentAmount: true,
+            isActive: true,
+            monthlyDueDate: true,
             listing: {
               select: {
                 id: true,
                 title: true
+              }
+            },
+            payments: {
+              select: {
+                id: true,
+                status: true,
+                dueDate: true,
+                amount: true
               }
             }
           }
@@ -54,26 +65,31 @@ export default async function getTenants(userId: string) {
       }
     });
 
-    return tenants.map(tenant => ({
+    const mappedTenants: TenantData[] = tenants.map(tenant => ({
       id: tenant.id,
       firstName: tenant.firstName,
-      middleName: tenant.middleName || undefined,
+      middleName: tenant.middleName,
       lastName: tenant.lastName,
-      suffix: tenant.suffix || undefined,
+      suffix: tenant.suffix,
       email: tenant.email,
-      image: tenant.image || undefined,
-      tenantProfile: tenant.tenant ? {
+      image: tenant.image,
+      tenant: tenant.tenant ? {
         id: tenant.tenant.id,
         currentRoom: tenant.tenant.currentRoom
       } : null,
       leaseContracts: tenant.leaseContracts.map(contract => ({
         id: contract.id,
         startDate: contract.startDate,
-        endDate: contract.endDate,
+        endedAt: contract.endedAt,
         rentAmount: contract.rentAmount,
-        listing: contract.listing
+        monthlyDueDate: contract.monthlyDueDate,
+        isActive: contract.isActive,
+        listing: contract.listing,
+        payments: contract.payments
       }))
     }));
+
+    return mappedTenants;
   } catch (error: any) {
     throw new Error(error);
   }

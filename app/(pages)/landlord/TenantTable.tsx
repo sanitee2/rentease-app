@@ -303,7 +303,9 @@ const TenantTable: React.FC<TenantTableProps> = ({
           <tbody className="divide-y divide-gray-200 bg-white">
             {currentData.map((tenant) => {
               const activeLease = tenant.leaseContracts?.[0];
-              const nextPayment = activeLease?.nextPayment;
+              const nextPayment = activeLease?.payments
+                ?.sort((a, b) => new Date(b.dueDate || 0).getTime() - new Date(a.dueDate || 0).getTime())
+                ?.find(payment => payment.status === 'PENDING');
               
               return (
                 <tr key={tenant.id} className="hover:bg-gray-50">
@@ -330,7 +332,7 @@ const TenantTable: React.FC<TenantTableProps> = ({
                     {activeLease?.listing.title || '-'}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {tenant.currentRoom?.title || '-'}
+                    {tenant.tenant?.currentRoom?.title || '-'}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {activeLease?.rentAmount 

@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import prisma from "@/app/libs/prismadb";
-import { getIO } from '@/app/lib/socket';
 
 export async function GET(
   request: Request,
@@ -97,7 +96,6 @@ export async function PUT(
 
     // Emit socket event for update
     try {
-      const io = getIO();
       const safeListing = {
         ...updatedListing,
         createdAt: updatedListing.createdAt.toISOString(),
@@ -121,7 +119,6 @@ export async function PUT(
         } : null
       };
       
-      io.emit('listing-updated', safeListing);
     } catch (socketError) {
       console.error('Socket emission error:', socketError);
     }

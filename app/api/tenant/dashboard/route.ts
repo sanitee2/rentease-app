@@ -69,7 +69,7 @@ export async function GET() {
 
     // Count active leases (not expired)
     const activeLeaseCount = tenantProfile.leases.filter(lease => 
-      new Date(lease.endDate) >= new Date()
+      lease.endedAt && new Date(lease.endedAt) >= new Date()
     ).length;
 
     // Get host information from the current lease
@@ -86,7 +86,7 @@ export async function GET() {
       leases: tenantProfile.leases.map(lease => ({
         ...lease,
         startDate: lease.startDate.toISOString(),
-        endDate: lease.endDate.toISOString(),
+        endDate: lease.endedAt ? lease.endedAt.toISOString() : null,
         createdAt: lease.createdAt.toISOString(),
       })),
       payments: tenantProfile.payments.map(payment => ({
@@ -100,7 +100,7 @@ export async function GET() {
       currentLease: currentLease ? {
         ...currentLease,
         startDate: currentLease.startDate.toISOString(),
-        endDate: currentLease.endDate.toISOString(),
+        endDate: currentLease.endedAt ? currentLease.endedAt.toISOString() : null,
         createdAt: currentLease.createdAt.toISOString(),
       } : null,
       currentRoom: tenantProfile.currentRoom,

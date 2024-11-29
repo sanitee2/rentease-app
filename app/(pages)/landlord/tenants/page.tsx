@@ -106,7 +106,7 @@ const Tenants = () => {
               {tenants.filter(tenant => {
                 if (!tenant?.leaseContracts) return false;
                 return tenant.leaseContracts.some(contract => 
-                  new Date(contract.endDate) >= new Date()
+                  contract.endedAt ? new Date(contract.endedAt) >= new Date() : false
                 );
               }).length}
             </p>
