@@ -30,9 +30,10 @@ const TenantDetailsModal: React.FC<TenantDetailsModalProps> = ({
   const sortedLeases = tenant.leaseContracts
     .sort((a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime());
 
-  // Find the active lease (end date is after or equal to current date)
+  // Find the active lease (endedAt is after or equal to current date)
   const activeLease = sortedLeases.find(lease => {
-    const endDate = new Date(lease.endDate);
+    if (!lease.endedAt) return false;
+    const endDate = new Date(lease.endedAt);
     endDate.setHours(0, 0, 0, 0);
     return endDate >= currentDate;
   });
@@ -111,7 +112,7 @@ const TenantDetailsModal: React.FC<TenantDetailsModalProps> = ({
                         <div className="mt-2 space-y-2">
                           <p><span className="text-gray-500">Name:</span> {formatFullName(tenant)}</p>
                           <p><span className="text-gray-500">Email:</span> {tenant.email}</p>
-                          <p><span className="text-gray-500">Current Room:</span> {tenant.tenantProfile?.currentRoom?.title || 'N/A'}</p>
+                          <p><span className="text-gray-500">Current Room:</span> {tenant.tenant?.currentRoom?.title || 'N/A'}</p>
                         </div>
                       </div>
 
@@ -120,10 +121,17 @@ const TenantDetailsModal: React.FC<TenantDetailsModalProps> = ({
                         {activeLease ? (
                           <div className="mt-2 space-y-2">
                             <p><span className="text-gray-500">Property:</span> {activeLease.listing.title}</p>
-                            <p><span className="text-gray-500">Rent:</span> ₱{activeLease.rentAmount.toLocaleString()}</p>
+                            <p>
+                              <span className="text-gray-500">Rent:</span>{' '}
+                              ₱{activeLease.rentAmount?.toLocaleString() ?? 'Not set'}
+                            </p>
                             <p>
                               <span className="text-gray-500">Duration:</span>{' '}
-                              {new Date(activeLease.startDate).toLocaleDateString()} - {new Date(activeLease.endDate).toLocaleDateString()}
+                              {new Date(activeLease.startDate).toLocaleDateString()} - {
+                                activeLease.endedAt 
+                                  ? new Date(activeLease.endedAt).toLocaleDateString() 
+                                  : 'Ongoing'
+                              }
                             </p>
                             <p>
                               <span className="text-gray-500">Status:</span>{' '}
@@ -144,12 +152,24 @@ const TenantDetailsModal: React.FC<TenantDetailsModalProps> = ({
                           <div key={lease.id} className="p-4 border rounded-lg">
                             <h4 className="font-medium">{lease.listing.title}</h4>
                             <div className="mt-2 space-y-1">
-                              <p><span className="text-gray-500">Rent:</span> ₱{lease.rentAmount.toLocaleString()}</p>
-                              <p><span className="text-gray-500">Period:</span> {new Date(lease.startDate).toLocaleDateString()} - {new Date(lease.endDate).toLocaleDateString()}</p>
+                              <p>
+                                <span className="text-gray-500">Rent:</span>{' '}
+                                ₱{lease.rentAmount?.toLocaleString() ?? 'Not set'}
+                                <span className="text-gray-500">Period:</span>{' '}
+                                {new Date(lease.startDate).toLocaleDateString()} - {
+                                  lease.endedAt 
+                                    ? new Date(lease.endedAt).toLocaleDateString() 
+                                    : 'Ongoing'
+                                }
+                              </p>
                               <p>
                                 <span className="text-gray-500">Status:</span>{' '}
-                                <span className={`${new Date(lease.endDate) >= new Date() ? 'text-green-600' : 'text-gray-600'}`}>
-                                  {new Date(lease.endDate) >= new Date() ? 'Active' : 'Expired'}
+                                <span className={`${
+                                  lease.endedAt && new Date(lease.endedAt) >= new Date() 
+                                    ? 'text-green-600' 
+                                    : 'text-gray-600'
+                                }`}>
+                                  {lease.endedAt && new Date(lease.endedAt) >= new Date() ? 'Active' : 'Expired'}
                                 </span>
                               </p>
                             </div>

@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/app/libs/prismadb';
 import getCurrentUser from '@/app/actions/getCurrentUser';
-import { getIO } from '@/app/lib/socket';
 
 export async function PATCH(req: NextRequest) {
   try {
@@ -32,14 +31,6 @@ export async function PATCH(req: NextRequest) {
       where: { id },
       data: { status: 'ARCHIVED' }
     });
-
-    // After successful update
-    const io = getIO();
-    const updatedListings = await prisma.listing.findMany({
-      where: { userId: currentUser.id }
-    });
-    
-    io.to(`listings-${currentUser.id}`).emit('listings-update', updatedListings);
 
     return NextResponse.json({ 
       message: 'Listing archived successfully',

@@ -50,7 +50,6 @@ export async function GET(
     };
 
     return NextResponse.json({
-      businessName: landlordProfile.businessName,
       phoneNumber: landlordProfile.phoneNumber,
       user: safeUser
     });

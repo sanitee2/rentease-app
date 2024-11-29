@@ -1,7 +1,6 @@
 'use client';
 
 import { SessionProvider } from 'next-auth/react';
-import NotificationsProvider from './NotificationsProvider';
 import ToasterProvider from './ToasterProviders';
 import SessionExpiryProvider from '../components/SessionExpiryProvider';
 import RegisterModal from '../components/Modals/RegisterModal';
@@ -16,7 +15,7 @@ interface ProvidersProps {
 export default function Providers({ children }: ProvidersProps) {
   return (
     <SessionProvider>
-      <NotificationsProvider>
+      
         <ToasterProvider />
         <RegisterModal />
         <LoginModal />
@@ -25,7 +24,6 @@ export default function Providers({ children }: ProvidersProps) {
         <SessionExpiryProvider>
           {children}
         </SessionExpiryProvider>
-      </NotificationsProvider>
     </SessionProvider>
   );
 } 

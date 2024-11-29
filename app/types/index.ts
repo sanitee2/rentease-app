@@ -108,24 +108,24 @@ export interface MinimalUser {
 export interface TenantData {
   id: string;
   firstName: string;
-  middleName?: string;
+  middleName?: string | null;
   lastName: string;
-  suffix?: string;
-  email?: string;
-  image?: string;
-  tenant?: {
+  suffix?: string | null;
+  email: string | null;
+  image?: string | null;
+  tenant: {
     id: string;
-    currentRoom?: {
+    currentRoom: {
       id: string;
       title: string;
     } | null;
-  };
+  } | null;
   leaseContracts: {
     id: string;
     startDate: Date;
-    endDate?: Date;
-    rentAmount: number;
-    monthlyDueDate?: number;
+    endedAt?: Date | null;
+    rentAmount: number | null;
+    monthlyDueDate?: number | null;
     isActive: boolean;
     listing: {
       id: string;
@@ -133,11 +133,9 @@ export interface TenantData {
     };
     payments: {
       id: string;
+      status: string;
+      dueDate: Date | null;
       amount: number;
-      totalAmount: number;
-      status: PaymentStatus;
-      dueDate?: Date;
-      paymentType: PaymentType;
     }[];
   }[];
 }

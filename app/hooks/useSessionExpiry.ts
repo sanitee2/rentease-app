@@ -1,12 +1,12 @@
 'use client';
 
 import { useSession, signOut } from 'next-auth/react';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useMemo } from 'react';
 
 export const useSessionExpiry = () => {
   const { data: session, update } = useSession();
   const lastActivityRef = useRef(Date.now());
-  const ONE_HOUR_MS = 60 * 60 * 1000; // 1 hour in milliseconds (3600000 ms)
+  const ONE_HOUR_MS = useMemo(() => 60 * 60 * 1000, []); // 1 hour in milliseconds
 
   useEffect(() => {
     // Track user activity
@@ -62,5 +62,5 @@ export const useSessionExpiry = () => {
       window.removeEventListener('touchstart', updateLastActivity);
       clearInterval(checkInterval);
     };
-  }, [session, update]);
+  }, [session, update, ONE_HOUR_MS]);
 }; 

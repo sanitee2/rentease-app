@@ -5,8 +5,8 @@ import { Button } from "@/components/ui/button";
 import UserMenu from "@/app/components/navbar/UserMenu";
 import Logo from "@/app/components/navbar/Logo";
 import { IoNotificationsOutline } from "react-icons/io5";
-import NotificationsDropdown from "@/app/components/notifications/NotificationsDropdown";
-import { useNotifications } from "@/app/contexts/NotificationsContext";
+// import NotificationsDropdown from "@/app/components/notifications/NotificationsDropdown";
+// import { useNotifications } from "@/app/contexts/NotificationsContext";
 import { Badge } from "@/components/ui/badge";
 import { IoMdNotifications } from "react-icons/io";
 
@@ -16,8 +16,8 @@ interface AdminNavbarProps {
 }
 
 const AdminNavbar: React.FC<AdminNavbarProps> = ({ currentUser, onMenuClick }) => {
-  const { notifications } = useNotifications();
-  const unreadCount = notifications.filter(n => !n.isRead).length;
+  // const { notifications } = useNotifications();
+  // const unreadCount = notifications.filter(n => !n.isRead).length;
 
   if (!currentUser) return null;
 
