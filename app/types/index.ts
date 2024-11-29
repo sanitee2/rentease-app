@@ -1,4 +1,4 @@
-import { Listing, Room, User, UserRole, ListingStatus } from "@prisma/client";
+import { Listing, Room, User, UserRole, ListingStatus, PaymentType, PaymentStatus } from "@prisma/client";
 import { Server as NetServer, Socket } from 'net';
 import { NextApiResponse } from "next";
 import { Server as SocketIOServer } from 'socket.io';
@@ -111,24 +111,34 @@ export interface TenantData {
   middleName?: string;
   lastName: string;
   suffix?: string;
-  email: string | null;
-  image?: string | null;
-  tenantProfile: {
+  email?: string;
+  image?: string;
+  tenant?: {
     id: string;
     currentRoom?: {
       id: string;
       title: string;
     } | null;
-  } | null;
+  };
   leaseContracts: {
     id: string;
     startDate: Date;
-    endDate: Date;
+    endDate?: Date;
     rentAmount: number;
+    monthlyDueDate?: number;
+    isActive: boolean;
     listing: {
       id: string;
       title: string;
     };
+    payments: {
+      id: string;
+      amount: number;
+      totalAmount: number;
+      status: PaymentStatus;
+      dueDate?: Date;
+      paymentType: PaymentType;
+    }[];
   }[];
 }
 

@@ -1,7 +1,7 @@
 'use client';
 import React, { createContext, useState, useEffect } from 'react';
 import { SafeUser } from '@/app/types';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 
 interface AdminSidebarProps {
   currentUser?: SafeUser | null;
@@ -13,11 +13,13 @@ interface AdminSidebarProps {
 interface AdminSidebarContextProps {
   expanded: boolean;
   setExpanded: (expanded: boolean) => void;
+  activePath: string;
 }
 
 export const AdminSidebarContext = createContext<AdminSidebarContextProps>({
   expanded: true,
-  setExpanded: () => {}
+  setExpanded: () => {},
+  activePath: '/admin/dashboard'
 });
 
 const AdminSidebar: React.FC<AdminSidebarProps> = ({ 
@@ -27,7 +29,13 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({
   setExpanded 
 }) => {
   const router = useRouter();
+  const pathname = usePathname();
   const [isMobile, setIsMobile] = useState(false);
+  const [activePath, setActivePath] = useState('/admin/dashboard');
+
+  useEffect(() => {
+    setActivePath(pathname || '/admin/dashboard');
+  }, [pathname]);
 
   useEffect(() => {
     const handleResize = () => {
@@ -64,7 +72,7 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({
         <nav className="h-full flex flex-col">
           <div className="flex-1">
             <div className={`py-4 ${expanded ? 'px-3' : 'px-2'}`}>
-              <AdminSidebarContext.Provider value={{ expanded, setExpanded }}>
+              <AdminSidebarContext.Provider value={{ expanded, setExpanded, activePath }}>
                 <ul className="space-y-1">{children}</ul>
               </AdminSidebarContext.Provider>
             </div>

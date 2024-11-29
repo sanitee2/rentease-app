@@ -6,56 +6,52 @@ import { NextResponse } from 'next/server';
 export async function POST(
   request: Request
 ) {
-  const body = await request.json();
-  const {
-    email,
-    firstName,
-    middleName,
-    lastName,
-    suffix,
-    password,
-    role,
-    phoneNumber,
-    image
-  } = body;
-
-  const hashedPassword = await bcrypt.hash(password, 12);
-
-  const user = await prisma.user.create({
-    data: {
+  try {
+    const body = await request.json();
+    const {
       email,
       firstName,
       middleName,
       lastName,
       suffix,
-      hashedPassword,
-      role,
-      image,
+      password,
       phoneNumber,
-      ...(role === 'TENANT' && {
-        tenant: {
-          create: {}
-        }
-      }),
-      ...(role === 'LANDLORD' && {
-        landlord: {
-          create: {
-            phoneNumber
-          }
-        }
-      }),
-      ...(role === 'ADMIN' && {
-        admin: {
-          create: {}
-        }
-      })
-    },
-    include: {
-      tenant: true,
-      landlord: true,
-      admin: true
+      image,
+      role = 'USER'
+    } = body;
+
+    const hashedPassword = await bcrypt.hash(password, 12);
+
+    const user = await prisma.user.create({
+      data: {
+        email,
+        firstName,
+        middleName,
+        lastName,
+        suffix,
+        hashedPassword,
+        phoneNumber,
+        image,
+        role,
+      }
+    });
+
+    return NextResponse.json(user);
+  } catch (error: any) {
+    console.error('REGISTRATION_ERROR:', error);
+    
+    if (error.code === 'P2002') {
+      if (error.meta?.target?.includes('email')) {
+        return NextResponse.json(
+          { error: 'Email already exists' },
+          { status: 400 }
+        );
+      }
     }
-  });
-  
-  return NextResponse.json(user);
+    
+    return NextResponse.json(
+      { error: 'Failed to create account' },
+      { status: 500 }
+    );
+  }
 }

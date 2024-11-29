@@ -1,9 +1,7 @@
 'use client';
 import React, { createContext, useState, useEffect } from 'react';
-import { LuMoreVertical } from "react-icons/lu";
-import Avatar from '../Avatar';
 import { SafeUser } from '@/app/types';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 
 interface SidebarProps {
   currentUser?: SafeUser | null;
@@ -15,11 +13,13 @@ interface SidebarProps {
 interface SidebarContextProps {
   expanded: boolean;
   setExpanded: (expanded: boolean) => void;
+  activePath: string;
 }
 
 export const SidebarContext = createContext<SidebarContextProps>({
   expanded: true,
-  setExpanded: () => {}
+  setExpanded: () => {},
+  activePath: '/'
 });
 
 const Sidebar: React.FC<SidebarProps> = ({ 
@@ -29,7 +29,13 @@ const Sidebar: React.FC<SidebarProps> = ({
   setExpanded 
 }) => {
   const router = useRouter();
+  const pathname = usePathname();
   const [isMobile, setIsMobile] = useState(false);
+  const [activePath, setActivePath] = useState('/');
+
+  useEffect(() => {
+    setActivePath(pathname || '/');
+  }, [pathname]);
 
   useEffect(() => {
     const handleResize = () => {
@@ -57,19 +63,20 @@ const Sidebar: React.FC<SidebarProps> = ({
         className={`
           fixed z-30 top-[70px] bottom-0 left-0
           transition-all duration-300 ease-in-out
+          bg-white border-r border-gray-200 
+          shadow-[0_8px_30px_rgb(0,0,0,0.04)]
           ${expanded ? 'w-64' : 'w-16'}
           ${isMobile && !expanded ? '-translate-x-full' : 'translate-x-0'}
         `}
       >
-        <nav className="h-full flex flex-col bg-white border-r border-gray-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
+        <nav className="h-full flex flex-col">
           <div className="flex-1">
             <div className={`py-4 ${expanded ? 'px-3' : 'px-2'}`}>
-              <SidebarContext.Provider value={{ expanded, setExpanded }}>
+              <SidebarContext.Provider value={{ expanded, setExpanded, activePath }}>
                 <ul className="space-y-1">{children}</ul>
               </SidebarContext.Provider>
             </div>
           </div>
-
         </nav>
       </aside>
     </div>

@@ -38,7 +38,8 @@ const LoginModal = () => {
     handleSubmit,
     formState:{
       errors,
-    }
+    },
+    reset
   } = useForm<FieldValues> ({
     defaultValues: {
       email: '',
@@ -62,6 +63,7 @@ const LoginModal = () => {
         toast.success('Logged in');
         router.refresh();
         loginModal.onClose();
+        reset();
       }
 
       if(callback?.error){

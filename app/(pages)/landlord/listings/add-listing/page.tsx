@@ -441,13 +441,14 @@ const AddListing = () => {
   if (!isLoaded) return <LoadingState />;
 
   return (
-    <div className="w-full bg-gray-50 p-6">
-      <div className='text-3xl font-semibold mb-2'>Add Listing</div>
+    <div className="w-full bg-gray-50 p-3 md:p-6">
+      <div className='text-2xl md:text-3xl font-semibold mb-2'>Add Listing</div>
       <Breadcrumbs />
-      {/* Progress Bar Container */}
-      <div className="mb-16 mt-8 max-w-full px-5">
+      
+      {/* Progress Bar Container - Optimized for mobile */}
+      <div className="mb-8 md:mb-16 mt-4 md:mt-8 max-w-full px-2 md:px-5">
         <div className="relative">
-          {/* Main Progress Bar - Centered with step indicators */}
+          {/* Main Progress Bar */}
           <div className="absolute top-1/2 -translate-y-1/2 w-full h-1 bg-gray-200 rounded-full">
             <div 
               className="h-full bg-indigo-600 transition-all duration-500 ease-in-out rounded-full"
@@ -455,7 +456,7 @@ const AddListing = () => {
             />
           </div>
 
-          {/* Step Indicators */}
+          {/* Step Indicators - Optimized for mobile */}
           <div className="relative flex justify-between">
             {stepTitles.map((title, index) => {
               const stepNumber = index + 1;
@@ -469,7 +470,7 @@ const AddListing = () => {
                     onClick={() => canNavigate && setStep(stepNumber)}
                     disabled={!canNavigate}
                     className={`
-                      w-4 h-4 rounded-full
+                      w-3 h-3 md:w-4 md:h-4 rounded-full
                       transition-all duration-200
                       ${isActive ? 'ring-4 ring-indigo-100' : ''}
                       ${isCompleted ? 'bg-indigo-600' : 
@@ -481,7 +482,7 @@ const AddListing = () => {
                   >
                     {isCompleted && (
                       <svg 
-                        className="w-2.5 h-2.5 text-white" 
+                        className="w-2 h-2 md:w-2.5 md:h-2.5 text-white" 
                         fill="none" 
                         viewBox="0 0 24 24" 
                         stroke="currentColor"
@@ -495,16 +496,16 @@ const AddListing = () => {
                       </svg>
                     )}
                     {isActive && (
-                      <div className="w-1.5 h-1.5 bg-white rounded-full" />
+                      <div className="w-1 h-1 md:w-1.5 md:h-1.5 bg-white rounded-full" />
                     )}
                   </button>
 
-                  {/* Step Title */}
+                  {/* Step Title - Optimized for mobile */}
                   <div className={`
                     absolute -bottom-6
                     left-1/2 -translate-x-1/2
                     whitespace-nowrap
-                    text-xs font-medium
+                    text-[10px] md:text-xs font-medium
                     transition-colors duration-200
                     ${isActive ? 'text-indigo-600 font-semibold' :
                       isCompleted ? 'text-indigo-600' :
@@ -518,32 +519,31 @@ const AddListing = () => {
           </div>
         </div>
       </div>
+
       <form onSubmit={handleSubmit(onSubmit)}>
-        <div className="flex flex-row gap-6">
-          <div className="flex-grow-[3]">
+        <div className="flex flex-col md:flex-row gap-4 md:gap-6">
+          <div className="flex-grow w-full md:flex-grow-[3]">
             {step === 1 && (
-              // CATEGORY STEP
-              <div className="bg-white shadow rounded-lg p-6 mb-6 flex flex-col gap-6">
+              <div className="bg-white shadow rounded-lg p-4 md:p-6 mb-4 md:mb-6 flex flex-col gap-4 md:gap-6">
                 <Heading title="Which of these best describes your place?" subtitle="Pick a category" />
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-3 max-h-[50vh] overflow-y-auto">
-                {categories.map((item: ListingCategory) => (
-                  <CategoryInput
-                    key={item.id}
-                    onClick={(category) => setCustomValue('category', category)}
-                    selected={category === item.title}
-                    label={item.title}
-                    icon={getIconComponent(item.icon)} // Dynamically set the icon
-                  />
-                ))}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-3 max-h-[60vh] md:max-h-[50vh] overflow-y-auto">
+                  {categories.map((item: ListingCategory) => (
+                    <CategoryInput
+                      key={item.id}
+                      onClick={(category) => setCustomValue('category', category)}
+                      selected={category === item.title}
+                      label={item.title}
+                      icon={getIconComponent(item.icon)}
+                    />
+                  ))}
                 </div>
               </div>
             )}
 
             {step === 2 && (
-              // LOCATION STEP
-              <div className="bg-white shadow rounded-lg p-6 mb-6 flex flex-col gap-6">
+              <div className="bg-white shadow rounded-lg p-4 md:p-6 mb-4 md:mb-6 flex flex-col gap-4 md:gap-6">
                 <Heading title="Where is your place located?" subtitle="Help guests find you!" />
-                <div className='grid grid-cols-1 md:grid-cols-2 gap-3'>
+                <div className='grid grid-cols-1 gap-3'>
                   {isLoaded && (
                     <StandaloneSearchBox
                       onLoad={ref => searchBoxRef.current = ref}
@@ -614,54 +614,59 @@ const AddListing = () => {
                 </div>
                 
                 {location && (
-                  <div>
+                  <div className="flex flex-col gap-4">
                     <button
                       type="button"
-                      className="bg-indigo-500 hover:bg-indigo-900 text-white font-bold py-2 px-4 rounded mb-4 transition duration-200 ease-in-out"
+                      className="bg-indigo-500 hover:bg-indigo-900 text-white font-bold py-2 px-4 rounded mb-2 md:mb-4 transition duration-200 ease-in-out"
                       onClick={handleUseCurrentLocation}
                     >
                       Use Current Location
                     </button>
-                  <div className="flex flex-row gap-4">
-                    <GoogleMap
-                      zoom={15}
-                      center={location}
-                      mapContainerStyle={{ width: '50%', height: '400px' }}
-                      options={{
-                        disableDefaultUI: true,
-                        zoomControl: true,
-                      }}
-                    >
-                      <Marker 
-                        position={location}
-                        draggable={true}
-                        onDragEnd={handleMarkerDragEnd}
-                      />
-                    </GoogleMap>
-                    <GoogleMap
-                      zoom={15}
-                      center={location}
-                      mapContainerStyle={{ width: '50%', height: '400px' }}
-                      options={{
-                        disableDefaultUI: true,
-                        zoomControl: true,
-                      }}
-                    >
-                      <StreetViewPanorama
-                        options={{
-                          position: location,
-                          visible: true,
-                          pov: { heading: 100, pitch: 0 },
-                          zoom: 1,
-                          disableDefaultUI: true,
-                          disableDoubleClickZoom: true,
-                          clickToGo: false,
-                          showRoadLabels: false,
-                          enableCloseButton: false,
-                        }}
-                      />
-                    </GoogleMap>
-                  </div>
+                    <div className="flex flex-col md:flex-row gap-4">
+                      <div className="w-full relative z-10">
+                        <GoogleMap
+                          zoom={15}
+                          center={location}
+                          mapContainerStyle={{ width: '100%', height: '300px' }}
+                          options={{
+                            disableDefaultUI: true,
+                            zoomControl: true,
+                          }}
+                        >
+                          <Marker 
+                            position={location}
+                            draggable={true}
+                            onDragEnd={handleMarkerDragEnd}
+                          />
+                        </GoogleMap>
+                      </div>
+
+                      <div className="w-full relative z-10">
+                        <GoogleMap
+                          zoom={15}
+                          center={location}
+                          mapContainerStyle={{ width: '100%', height: '300px' }}
+                          options={{
+                            disableDefaultUI: true,
+                            zoomControl: true,
+                          }}
+                        >
+                          <StreetViewPanorama
+                            options={{
+                              position: location,
+                              visible: true,
+                              pov: { heading: 100, pitch: 0 },
+                              zoom: 1,
+                              disableDefaultUI: true,
+                              disableDoubleClickZoom: true,
+                              clickToGo: false,
+                              showRoadLabels: false,
+                              enableCloseButton: false,
+                            }}
+                          />
+                        </GoogleMap>
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>
@@ -1253,32 +1258,24 @@ const AddListing = () => {
             )}
           </div>
         </div>
-        {/* Navigation Buttons */}
-        <div className="flex flex-row items-center gap-4 w-full">
-          {step > 1 && (
+
+        {/* Navigation Buttons - Optimized for mobile */}
+        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 md:relative md:bg-transparent md:border-0 md:p-0 md:mt-6">
+          <div className="flex justify-between gap-4 max-w-screen-xl mx-auto">
             <Button
               outline
               label="Back"
-              onClick={(e) => handlePreviousStep(e)}
-              disabled={isLoading}
+              onClick={handlePreviousStep}
+              disabled={step === 1}
               icon={IoArrowBack}
             />
-          )}
-          {step < 8 && (
             <Button
-              label="Next"
-              onClick={(e) => handleNextStep(e)}
-              disabled={isLoading || !isStepComplete(step)}
-              rightIcon={IoArrowForward}  // Changed from icon to rightIcon
+              label={step === stepTitles.length ? 'Create' : 'Next'}
+              onClick={step === stepTitles.length ? handleSubmit(onSubmit) : handleNextStep}
+              disabled={!isStepComplete(step)}
+              icon={step === stepTitles.length ? IoCheckmarkCircle : IoArrowForward}
             />
-          )}
-          {step === 8 && (
-            <Button
-              label="Create Listing"
-              onClick={handleSubmit(onSubmit)}
-              disabled={isLoading}
-            />
-          )}
+          </div>
         </div>
       </form>
     </div>

@@ -50,7 +50,6 @@ const ListingsClient = ({
   const [selectedListing, setSelectedListing] = useState<SafeListing | null>(null);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
 
-  console.log(currentUser);
 
 
   const initialTab = searchParams?.get('status') || 'ALL';

@@ -1,19 +1,14 @@
 {
+  "extends": "./tsconfig.json",
   "compilerOptions": {
-    "target": "ES2020",
     "module": "ESNext",
     "moduleResolution": "node",
-    "lib": ["ES2020"],
-    "strict": true,
-    "esModuleInterop": true,
-    "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true,
+    "target": "ESNext",
     "outDir": "dist",
-    "rootDir": ".",
-    "baseUrl": ".",
-    "paths": {
-      "@/*": ["./*"]
-    }
+    "noEmit": false,
+    "esModuleInterop": true,
+    "allowJs": true,
+    "isolatedModules": true
   },
   "include": ["server/**/*", "app/lib/socket.ts"],
   "exclude": ["node_modules"]

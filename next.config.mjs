@@ -3,11 +3,15 @@ const nextConfig = {
   images: {
     domains: ["lh3.googleusercontent.com", "res.cloudinary.com"],
   },
-  webpack: (config) => {
-    config.module.rules.push({
-      test: /\.(woff|woff2|eot|ttf|otf)$/i,
-      type: "asset/resource",
-    });
+  webpack: (config, { isServer }) => {
+    if (!isServer) {
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+        net: false,
+        tls: false,
+      };
+    }
     return config;
   },
   async rewrites() {

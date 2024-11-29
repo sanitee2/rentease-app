@@ -98,9 +98,9 @@ const ImageUpload = React.forwardRef<HTMLDivElement, ImageUploadProps>(({
         </CldUploadWidget>
       )}
 
-      {value.length > 0 && (
+      {value?.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-5 gap-2">
-          {value.map((url, index) => (
+          {Array.isArray(value) && value.map((url, index) => (
             <div
               key={`${url}-${index}`}
               className="relative aspect-square rounded-md overflow-hidden group"

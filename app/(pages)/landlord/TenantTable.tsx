@@ -6,6 +6,8 @@ import axios from 'axios';
 import Select from 'react-select';
 import toast from 'react-hot-toast';
 import Image from 'next/image';
+import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
 
 interface TenantTableProps {
   currentUserId: string | undefined;
@@ -57,8 +59,8 @@ const TenantTable: React.FC<TenantTableProps> = ({
 
     if (selectedListing !== 'all') {
       filtered = filtered.filter(tenant =>
-        tenant.leaseContracts.some(contract =>
-          contract.listing.id === selectedListing.id
+        tenant.leaseContracts?.some(contract =>
+          contract.listing?.id === selectedListing.id
         )
       );
     }
@@ -72,28 +74,24 @@ const TenantTable: React.FC<TenantTableProps> = ({
     }
 
     filtered = [...filtered].sort((a, b) => {
-      const activeLease_a = a.leaseContracts
-        .sort((x, y) => new Date(y.startDate).getTime() - new Date(x.startDate).getTime())[0];
-      const activeLease_b = b.leaseContracts
-        .sort((x, y) => new Date(y.startDate).getTime() - new Date(x.startDate).getTime())[0];
+      const activeLease_a = a.leaseContracts?.[0];
+      const activeLease_b = b.leaseContracts?.[0];
 
       const multiplier = sortOrder === 'asc' ? 1 : -1;
 
       switch (sortField) {
         case 'name':
-          const nameA = formatFullName(a);
-          const nameB = formatFullName(b);
-          return multiplier * nameA.localeCompare(nameB);
+          return multiplier * formatFullName(a).localeCompare(formatFullName(b));
         case 'email':
           return multiplier * ((a.email || '').localeCompare(b.email || ''));
         case 'property':
-          const propertyA = activeLease_a?.listing?.title || '';
-          const propertyB = activeLease_b?.listing?.title || '';
-          return multiplier * propertyA.localeCompare(propertyB);
+          return multiplier * (
+            (activeLease_a?.listing?.title || '').localeCompare(activeLease_b?.listing?.title || '')
+          );
         case 'room':
-          const roomA = a.tenantProfile?.currentRoom?.title || '';
-          const roomB = b.tenantProfile?.currentRoom?.title || '';
-          return multiplier * roomA.localeCompare(roomB);
+          return multiplier * (
+            (activeLease_a?.listing?.title || '').localeCompare(activeLease_b?.listing?.title || '')
+          );
         case 'rent':
           const rentA = activeLease_a?.rentAmount || 0;
           const rentB = activeLease_b?.rentAmount || 0;
@@ -254,98 +252,143 @@ const TenantTable: React.FC<TenantTableProps> = ({
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
-              {[
-                { field: 'name' as SortField, label: 'Tenant' },
-                { field: 'property' as SortField, label: 'Property' },
-                { field: 'room' as SortField, label: 'Room' },
-                { field: 'rent' as SortField, label: 'Rent' },
-                { field: 'leaseStart' as SortField, label: 'Lease Period' },
-              ].map(({ field, label }) => (
-                <th 
-                  key={field}
-                  onClick={() => handleSort(field)}
-                  className="px-6 py-3 text-start text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100"
-                >
-                  <div className="flex items-center gap-2">
-                    {label}
-                    {sortField === field && (
-                      <span className="text-gray-400">
-                        {sortOrder === 'asc' ? '↑' : '↓'}
-                      </span>
-                    )}
-                  </div>
-                </th>
-              ))}
+              <th className="px-6 py-3 text-start text-xs font-medium text-gray-500 uppercase">
+                <div className="flex items-center gap-2 cursor-pointer" onClick={() => handleSort('name')}>
+                  Tenant
+                  {sortField === 'name' && (
+                    <span className="text-gray-400">{sortOrder === 'asc' ? '↑' : '↓'}</span>
+                  )}
+                </div>
+              </th>
+              <th className="px-6 py-3 text-start text-xs font-medium text-gray-500 uppercase">
+                <div className="flex items-center gap-2 cursor-pointer" onClick={() => handleSort('property')}>
+                  Property
+                  {sortField === 'property' && (
+                    <span className="text-gray-400">{sortOrder === 'asc' ? '↑' : '↓'}</span>
+                  )}
+                </div>
+              </th>
+              <th className="px-6 py-3 text-start text-xs font-medium text-gray-500 uppercase">
+                <div className="flex items-center gap-2 cursor-pointer" onClick={() => handleSort('room')}>
+                  Room
+                  {sortField === 'room' && (
+                    <span className="text-gray-400">{sortOrder === 'asc' ? '↑' : '↓'}</span>
+                  )}
+                </div>
+              </th>
+              <th className="px-6 py-3 text-start text-xs font-medium text-gray-500 uppercase">
+                <div className="flex items-center gap-2 cursor-pointer" onClick={() => handleSort('rent')}>
+                  Rent
+                  {sortField === 'rent' && (
+                    <span className="text-gray-400">{sortOrder === 'asc' ? '↑' : '↓'}</span>
+                  )}
+                </div>
+              </th>
+              <th className="px-6 py-3 text-start text-xs font-medium text-gray-500 uppercase">
+                Payment Status
+              </th>
+              <th className="px-6 py-3 text-start text-xs font-medium text-gray-500 uppercase">
+                <div className="flex items-center gap-2 cursor-pointer" onClick={() => handleSort('leaseStart')}>
+                  Lease Period
+                  {sortField === 'leaseStart' && (
+                    <span className="text-gray-400">{sortOrder === 'asc' ? '↑' : '↓'}</span>
+                  )}
+                </div>
+              </th>
               <th className="px-6 py-3 text-end text-xs font-medium text-gray-500 uppercase">
                 Actions
               </th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100 bg-white">
-            {currentData.length > 0 ? (
-              currentData.map((tenant: TenantData) => {
-                const activeLease = tenant.leaseContracts
-                  .sort((a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime())[0];
-                
-                return (
-                  <tr key={tenant.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 flex-shrink-0">
-                          <Image
-                            src={tenant.image || '/images/placeholder.jpg'}
-                            alt={formatFullName(tenant)}
-                            width={40}
-                            height={40}
-                            className="h-10 w-10 rounded-full object-cover"
-                          />
-                        </div>
-                        <div className="text-sm">
-                          {formatFullName(tenant)}
-                        </div>
+          <tbody className="divide-y divide-gray-200 bg-white">
+            {currentData.map((tenant) => {
+              const activeLease = tenant.leaseContracts?.[0];
+              const nextPayment = activeLease?.nextPayment;
+              
+              return (
+                <tr key={tenant.id} className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-center gap-3">
+                      <div className="h-10 w-10 flex-shrink-0">
+                        <Image
+                          className="h-10 w-10 rounded-full object-cover"
+                          src={tenant.image || '/images/placeholder.jpg'}
+                          alt={formatFullName(tenant)}
+                          width={40}
+                          height={40}
+                        />
                       </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">
-                      {activeLease?.listing.title || 'No active lease'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">
-                      {tenant.tenantProfile?.currentRoom?.title || 'N/A'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">
-                      {activeLease ? `₱${activeLease.rentAmount.toLocaleString()}` : '-'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">
-                      {activeLease ? (
-                        `${new Date(activeLease.startDate).toLocaleDateString()} - 
-                         ${new Date(activeLease.endDate).toLocaleDateString()}`
-                      ) : '-'}
-                    </td>
-                    <td className="px-6 py-4 text-end">
-                      <button
-                        onClick={() => onViewDetails(tenant)}
-                        className="inline-flex items-center px-3 py-1 text-sm font-medium rounded-full text-blue-700 bg-blue-50 hover:bg-blue-100"
-                      >
-                        View Details
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })
-            ) : (
+                      <div className="flex flex-col">
+                        <span className="text-sm font-medium text-gray-900">
+                          {formatFullName(tenant)}
+                        </span>
+                        <span className="text-sm text-gray-500">{tenant.email}</span>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {activeLease?.listing.title || '-'}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {tenant.currentRoom?.title || '-'}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {activeLease?.rentAmount 
+                      ? new Intl.NumberFormat('en-PH', {
+                          style: 'currency',
+                          currency: 'PHP'
+                        }).format(activeLease.rentAmount)
+                      : '-'}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    {nextPayment ? (
+                      <div className="flex flex-col">
+                        <span className={cn(
+                          "inline-flex rounded-full px-2 text-xs font-semibold leading-5",
+                          {
+                            'bg-yellow-100 text-yellow-800': nextPayment.status === 'PENDING',
+                            'bg-green-100 text-green-800': nextPayment.status === 'COMPLETED',
+                            'bg-red-100 text-red-800': nextPayment.status === 'FAILED'
+                          }
+                        )}>
+                          {nextPayment.status}
+                        </span>
+                        {nextPayment.dueDate && (
+                          <span className="text-xs text-gray-500 mt-1">
+                            Due: {format(new Date(nextPayment.dueDate), 'MMM d, yyyy')}
+                          </span>
+                        )}
+                      </div>
+                    ) : '-'}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {activeLease ? (
+                      <div className="flex flex-col">
+                        <span>From: {format(new Date(activeLease.startDate), 'MMM d, yyyy')}</span>
+                        <span className="text-xs text-gray-400">
+                          Due every: {activeLease.monthlyDueDate || '-'}
+                        </span>
+                      </div>
+                    ) : '-'}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-end text-sm font-medium">
+                    <button
+                      onClick={() => onViewDetails(tenant)}
+                      className="text-indigo-600 hover:text-indigo-900"
+                    >
+                      View Details
+                    </button>
+                  </td>
+                </tr>
+              );
+            })}
+            {emptyRowsCount > 0 && (
               <tr>
-                <td colSpan={6} className="px-6 py-8 text-center text-sm text-gray-500">
-                  No tenants found
+                <td colSpan={7} className="px-6 py-4 text-center text-sm text-gray-500">
+                  No more tenants to display
                 </td>
               </tr>
             )}
-
-            {emptyRowsCount > 0 && Array.from({ length: emptyRowsCount }).map((_, idx) => (
-              <tr key={`empty-${idx}`} className="h-16 bg-gray-50">
-                {Array.from({ length: 6 }).map((_, cellIdx) => (
-                  <td key={cellIdx} className="px-6 py-4">&nbsp;</td>
-                ))}
-              </tr>
-            ))}
           </tbody>
         </table>
       </div>

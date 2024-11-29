@@ -64,7 +64,6 @@ const ListingClient: React.FC<ListingClientProps> = ({
     setSelectedRoomOption(option);
   };
 
-  console.log(currentUser)
 
   return (
       <div className="max-w-screen-xl mx-auto">

@@ -36,7 +36,6 @@ const useAmenities = create<AmenitiesStore>((set) => ({
       const propertyData = await propertyRes.json();
       const roomData = await roomRes.json();
 
-      console.log('Fetched room amenities:', roomData);
 
       set({ 
         propertyAmenities: propertyData,
