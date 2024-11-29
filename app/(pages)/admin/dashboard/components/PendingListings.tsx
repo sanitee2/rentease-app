@@ -68,46 +68,53 @@ export default function PendingListings() {
           No pending listings to verify
         </div>
       ) : (
-        <Table>
-          <TableHeader>
-            <TableRow className="hover:bg-gray-50/50">
-              <TableHead>Title</TableHead>
-              <TableHead>Category</TableHead>
-              <TableHead>Landlord</TableHead>
-              <TableHead>Submitted</TableHead>
-              <TableHead>Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {listings.map((listing) => (
-              <TableRow key={listing.id} className="hover:bg-gray-50/50">
-                <TableCell className="font-medium text-indigo-900">{listing.title}</TableCell>
-                <TableCell>{listing.category}</TableCell>
-                <TableCell>{`${listing.user.firstName} ${listing.user.lastName}`}</TableCell>
-                <TableCell>{new Date(listing.createdAt).toLocaleDateString()}</TableCell>
-                <TableCell>
-                  <div className="flex gap-2">
-                    <Button 
-                      size="sm" 
-                      className="bg-indigo-600 hover:bg-indigo-700"
-                      onClick={() => handleAction(listing.id, 'approve')}
-                    >
-                      Approve
-                    </Button>
-                    <Button 
-                      size="sm" 
-                      variant="destructive"
-                      className="hover:bg-red-700"
-                      onClick={() => handleAction(listing.id, 'decline')}
-                    >
-                      Decline
-                    </Button>
-                  </div>
-                </TableCell>
+        <>
+          <Table>
+            <TableHeader>
+              <TableRow className="hover:bg-gray-50/50">
+                <TableHead>Title</TableHead>
+                <TableHead>Category</TableHead>
+                <TableHead>Landlord</TableHead>
+                <TableHead>Submitted</TableHead>
+                <TableHead>Actions</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {listings.slice(0, 6).map((listing) => (
+                <TableRow key={listing.id} className="hover:bg-gray-50/50">
+                  <TableCell className="font-medium text-indigo-900">{listing.title}</TableCell>
+                  <TableCell>{listing.category}</TableCell>
+                  <TableCell>{`${listing.user.firstName} ${listing.user.lastName}`}</TableCell>
+                  <TableCell>{new Date(listing.createdAt).toLocaleDateString()}</TableCell>
+                  <TableCell>
+                    <div className="flex gap-2">
+                      <Button 
+                        size="sm" 
+                        className="bg-indigo-600 hover:bg-indigo-700"
+                        onClick={() => handleAction(listing.id, 'approve')}
+                      >
+                        Approve
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        variant="destructive"
+                        className="hover:bg-red-700"
+                        onClick={() => handleAction(listing.id, 'decline')}
+                      >
+                        Decline
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+          {listings.length > 6 && (
+            <div className="text-sm text-gray-500 text-center pt-2">
+              Showing 6 of {listings.length} pending listings
+            </div>
+          )}
+        </>
       )}
     </div>
   );

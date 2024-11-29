@@ -18,3 +18,12 @@ const allIcons = {
 export const getIconComponent = (iconName: string) => {
   return allIcons[iconName as keyof typeof allIcons] || faIcons.FaQuestionCircle; // Default icon if not found
 };
+
+export const formatPrice = (price: number) => {
+  return new Intl.NumberFormat('en-PH', {
+    style: 'currency',
+    currency: 'PHP',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(price);
+};

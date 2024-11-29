@@ -12,6 +12,16 @@ import { useAvailableUsers } from '@/app/hooks/useAvailableUsers';
 import { useUserListings } from '@/app/hooks/useUserListings';
 import Input from '@/app/components/inputs/Input';
 import debounce from 'lodash/debounce';
+import { Calendar } from "@/components/ui/calendar";
+import { Button } from "@/components/ui/button";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { CalendarIcon } from "lucide-react";
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
 
 interface AddTenantModalProps {
   isOpen: boolean;
@@ -45,9 +55,9 @@ interface FormData extends FieldValues {
   listingId: string;
   roomId: string;
   startDate: string;
-  endDate: string;
   rentAmount: number;
   terms: string;
+  monthlyDueDate: number;
 }
 
 const getOccupancyLabel = (currentCount: number, maxCount: number | null) => {
@@ -58,6 +68,39 @@ const getOccupancyLabel = (currentCount: number, maxCount: number | null) => {
 const isAtCapacity = (currentCount: number, maxCount: number | null) => {
   if (!maxCount) return false;
   return currentCount >= maxCount;
+};
+
+const DurationButton = ({ 
+  months, 
+  startDate, 
+  onClick, 
+  isSelected 
+}: { 
+  months: number, 
+  startDate: Date | undefined, 
+  onClick: (endDate: Date) => void,
+  isSelected: boolean
+}) => {
+  const handleClick = () => {
+    if (!startDate) return;
+    const end = new Date(startDate);
+    end.setMonth(startDate.getMonth() + months);
+    onClick(end);
+  };
+
+  return (
+    <Button
+      type="button"
+      onClick={handleClick}
+      variant={isSelected ? "default" : "outline"}
+      className={cn(
+        "w-full sm:w-auto",
+        isSelected ? "bg-indigo-600 text-white hover:bg-indigo-700" : "hover:bg-indigo-100 text-gray-800"
+      )}
+    >
+      {months} {months === 1 ? 'Month' : 'Months'}
+    </Button>
+  );
 };
 
 const AddTenantModal = ({
@@ -97,14 +140,96 @@ const AddTenantModal = ({
       listingId: '',
       roomId: '',
       startDate: '',
-      endDate: '',
       rentAmount: 0,
-      terms: ''
+      terms: '',
+      monthlyDueDate: 1
     },
     mode: 'onChange'
   });
 
   const registerInput = register as unknown as UseFormRegister<FieldValues>;
+
+  const [startDate, setStartDate] = useState<Date>();
+  const [dueDate, setDueDate] = useState<Date>();
+
+  useEffect(() => {
+    if (startDate) {
+      setValue('startDate', format(startDate, 'yyyy-MM-dd'));
+    }
+  }, [startDate, setValue]);
+
+  const dateSelectionContent = (
+    <div className="space-y-4">
+      <div className="grid gap-2">
+        <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+          Start Date
+        </label>
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button
+              variant={"outline"}
+              className={cn(
+                "w-full justify-start text-left font-normal",
+                !startDate && "text-muted-foreground"
+              )}
+            >
+              <CalendarIcon className="mr-2 h-4 w-4" />
+              {startDate ? format(startDate, "PPP") : <span>Pick a date</span>}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="start">
+            <Calendar
+              mode="single"
+              selected={startDate}
+              onSelect={setStartDate}
+              initialFocus
+              disabled={(date) => date < new Date()}
+            />
+          </PopoverContent>
+        </Popover>
+      </div>
+
+      <div className="grid gap-2">
+        <label className="text-sm font-medium leading-none">
+          Monthly Due Date
+        </label>
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button
+              variant={"outline"}
+              className={cn(
+                "w-full justify-start text-left font-normal",
+                !dueDate && "text-muted-foreground"
+              )}
+            >
+              <CalendarIcon className="mr-2 h-4 w-4" />
+              {dueDate ? format(dueDate, "d") : <span>Pick a due date</span>}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="start">
+            <Calendar
+              mode="single"
+              selected={dueDate}
+              onSelect={(date) => {
+                setDueDate(date);
+                if (date) {
+                  setValue('monthlyDueDate', date.getDate());
+                }
+              }}
+              initialFocus
+              fromDate={new Date(2024, 0, 1)}
+              toDate={new Date(2024, 0, 31)}
+            />
+          </PopoverContent>
+        </Popover>
+        {errors.monthlyDueDate && (
+          <span className="text-red-500 text-sm">
+            {errors.monthlyDueDate.message}
+          </span>
+        )}
+      </div>
+    </div>
+  );
 
   useEffect(() => {
     if (selectedListingOption?.listing) {
@@ -194,19 +319,9 @@ const AddTenantModal = ({
       };
     }) ?? [];
 
-  const validateDates = (endDate: string) => {
-    const start = new Date(watch('startDate'));
-    const end = new Date(endDate);
-    
-    start.setHours(0, 0, 0, 0);
-    end.setHours(0, 0, 0, 0);
-    
-    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
-      return "Please enter valid dates";
-    }
-    
-    if (end < start) {
-      return "End date must be after start date";
+  const validateDates = () => {
+    if (!startDate) {
+      return "Start date is required";
     }
     
     return true;
@@ -231,6 +346,12 @@ const AddTenantModal = ({
   };
 
   const onSubmit = async (data: FormData) => {
+    const dateValidation = validateDates();
+    if (dateValidation !== true) {
+      toast.error(dateValidation);
+      return;
+    }
+
     try {
       setIsLoading(true);
       
@@ -242,15 +363,36 @@ const AddTenantModal = ({
         return;
       }
 
+      let tenantProfileId;
+      try {
+        const tenantProfileResponse = await axios.get(`/api/users/${data.userId}/tenant-profile`);
+        tenantProfileId = tenantProfileResponse.data.id;
+      } catch (error) {
+        console.error('Error getting tenant profile:', error);
+        toast.error('Failed to get tenant profile');
+        return;
+      }
+
+      if (!tenantProfileId) {
+        toast.error('Failed to get tenant profile ID');
+        return;
+      }
+
       const response = await axios.post('/api/tenants', {
         userId: data.userId,
         listingId: data.listingId,
+        tenantProfileId,
         ...roomData,
         leaseContract: {
           startDate: data.startDate,
-          endDate: data.endDate,
           rentAmount: Number(data.rentAmount),
-          terms: data.terms
+          terms: data.terms,
+          monthlyDueDate: Number(data.monthlyDueDate),
+          payment: {
+            status: 'PENDING',
+            amount: Number(data.rentAmount),
+            totalAmount: Number(data.rentAmount)
+          }
         }
       });
 
@@ -258,6 +400,7 @@ const AddTenantModal = ({
       reset();
       onClose();
     } catch (error: any) {
+      console.error('Error in onSubmit:', error);
       toast.error(error.response?.data?.error || 'Something went wrong');
     } finally {
       setIsLoading(false);
@@ -358,7 +501,6 @@ const AddTenantModal = ({
                 isLoading={isLoadingUsers}
                 loadingMessage={() => "Searching users..."}
                 noOptionsMessage={({ inputValue }) => {
-                  console.log('No options message, input:', inputValue, 'Loading:', isLoadingUsers, 'Options:', userOptions);
                   if (!inputValue) return "Start typing to search...";
                   if (inputValue.length < 3) return "Type at least 3 characters...";
                   if (isLoadingUsers) return "Searching...";
@@ -541,31 +683,11 @@ const AddTenantModal = ({
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-4">
-        <Input
-          id="startDate"
-          label="Start Date"
-          type="date"
-          disabled={isLoading}
-          register={registerInput}
-          errors={errors}
-          required
-        />
-        <Input
-          id="endDate"
-          label="End Date"
-          type="date"
-          disabled={isLoading}
-          register={registerInput}
-          errors={errors}
-          required
-          validation={{ validate: validateDates }}
-        />
-      </div>
+      {dateSelectionContent}
 
       <Input
         id="rentAmount"
-        label="Rent Amount"
+        label="Rent amount per month"
         type="number"
         disabled={isLoading}
         register={registerInput}

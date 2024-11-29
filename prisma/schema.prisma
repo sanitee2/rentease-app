@@ -16,6 +16,26 @@ enum UserRole {
   USER
 }
 
+enum PropertyAmenityCategory {
+  UTILITIES
+  SECURITY
+  PARKING
+  SHARED_FACILITIES
+  RECREATION
+  BUILDING_SERVICES
+  APPLIANCES
+}
+
+enum RoomAmenityCategory {
+  ENTERTAINMENT
+  FURNITURE
+  BATHROOM
+  ACCESS
+  APPLIANCES
+  DECOR
+  ROOM_COMFORT
+}
+
 enum ListingStatus {
   PENDING
   ACTIVE
@@ -88,6 +108,7 @@ model User {
   payments            Payment[]
   maintenanceRequests MaintenanceRequest[]
   leaseContracts      LeaseContract[]
+  Notification        Notification[]
 
   @@map("users")
 }
@@ -104,8 +125,8 @@ model TenantProfile {
   payments    Payment[]
   maintenance MaintenanceRequest[]
   leases      LeaseContract[]
-  currentRoom Room?                @relation("CurrentRoom", fields: [roomId], references: [id])
   roomId      String?              @unique @db.ObjectId
+  currentRoom Room?                @relation("CurrentRoom", fields: [roomId], references: [id])
 
   @@map("tenant_profiles")
 }
@@ -119,8 +140,7 @@ model LandlordProfile {
   listings Listing[]
 
   // Landlord-specific fields
-  businessName String?
-  phoneNumber  String?
+  phoneNumber String?
 
   @@map("landlord_profiles")
 }
@@ -193,6 +213,7 @@ model Listing {
   propertyAmenities   ListingsOnAmenities[]
   LandlordProfile     LandlordProfile?      @relation(fields: [landlordProfileId], references: [id])
   landlordProfileId   String?               @db.ObjectId
+  Notification        Notification[]
 
   @@map("listings")
 }
@@ -205,8 +226,8 @@ model Room {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
   roomCategory   String
-  price          Int? // Optional: only required if listing's pricingType is ROOM_BASED
-  maxTenantCount Int? // Optional: only required based on room category settings
+  price          Int?
+  maxTenantCount Int?
   currentTenants String[] @default([]) @db.ObjectId
   listingId      String   @db.ObjectId
 
@@ -269,13 +290,30 @@ model Review {
 }
 
 model Payment {
-  id              String        @id @default(auto()) @map("_id") @db.ObjectId
-  amount          Float
-  date            DateTime      @default(now())
-  status          PaymentStatus // Change to use enum instead of String
-  userId          String        @db.ObjectId
-  leaseId         String        @db.ObjectId
-  tenantProfileId String?       @db.ObjectId
+  id               String        @id @default(auto()) @map("_id") @db.ObjectId
+  amount           Float // Actual amount paid
+  totalAmount      Float // Total amount due for this period
+  remainingBalance Float? // Added to track partial payments better
+  date             DateTime      @default(now())
+  status           PaymentStatus @default(PENDING)
+
+  // References
+  userId          String  @db.ObjectId
+  leaseId         String  @db.ObjectId
+  tenantProfileId String? @db.ObjectId
+
+  // Payment details
+  paymentType   PaymentType   @default(RENT)
+  paymentMethod PaymentMethod @default(CASH)
+  paymentPeriod DateTime? // Required: Which month this payment is for
+  dueDate       DateTime? // Required: When payment is due
+  lateFee       Float? // Optional late payment fee
+
+  // Documentation
+  description   String? // Optional notes
+  receiptNumber String? // For tracking receipts
+  imageSrc      String? // Payment proof/receipt image
+  isPartial     Boolean @default(false)
 
   // Relations
   user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -283,6 +321,26 @@ model Payment {
   tenantProfile TenantProfile? @relation(fields: [tenantProfileId], references: [id])
 
   @@map("payments")
+}
+
+// Add these new enums
+enum PaymentType {
+  RENT
+  SECURITY_DEPOSIT
+  UTILITY
+  MAINTENANCE
+  PENALTY
+  OTHER
+}
+
+enum PaymentMethod {
+  CASH
+  BANK_TRANSFER
+  GCASH
+  MAYA
+  CHECK
+  CREDIT_CARD
+  OTHER
 }
 
 model MaintenanceRequest {
@@ -303,15 +361,17 @@ model MaintenanceRequest {
 }
 
 model LeaseContract {
-  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  id              String    @id @default(auto()) @map("_id") @db.ObjectId
   startDate       DateTime
-  endDate         DateTime
-  rentAmount      Int
+  rentAmount      Float? // Changed from Int to Float for consistency
   terms           String
-  createdAt       DateTime @default(now())
-  userId          String   @db.ObjectId
-  listingId       String   @db.ObjectId
-  tenantProfileId String?  @db.ObjectId
+  createdAt       DateTime  @default(now())
+  monthlyDueDate  Int? // Day of the month when rent is due (1-31)
+  isActive        Boolean   @default(true)
+  endedAt         DateTime?
+  userId          String    @db.ObjectId
+  listingId       String    @db.ObjectId
+  tenantProfileId String?   @db.ObjectId
 
   // Relations
   user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -345,21 +405,25 @@ model RoomCategories {
 }
 
 model RoomAmenity {
-  id    String             @id @default(auto()) @map("_id") @db.ObjectId
-  title String
-  icon  String
-  desc  String
-  rooms RoomsOnAmenities[] // Relation to join table
+  id          String              @id @default(auto()) @map("_id") @db.ObjectId
+  title       String
+  icon        String
+  desc        String
+  category    RoomAmenityCategory @default(ACCESS)
+  arrangement Int                 @default(0)
+  rooms       RoomsOnAmenities[] // Relation to join table
 
   @@map("room_amenities")
 }
 
 model PropertyAmenity {
-  id       String                @id @default(auto()) @map("_id") @db.ObjectId
-  title    String
-  icon     String
-  desc     String
-  listings ListingsOnAmenities[] // Relation to join table
+  id          String                  @id @default(auto()) @map("_id") @db.ObjectId
+  title       String
+  icon        String
+  desc        String
+  category    PropertyAmenityCategory @default(UTILITIES)
+  arrangement Int                     @default(0)
+  listings    ListingsOnAmenities[] // Relation to join table
 
   @@map("property_amenities")
 }
@@ -386,4 +450,39 @@ model ListingsOnAmenities {
   note      String? // Custom note for this specific amenity
 
   @@map("listings_amenities")
+}
+
+enum NotificationType {
+  NEW_LISTING
+  REPORTED_CONTENT
+  USER_VERIFICATION
+  LISTING_APPROVED
+  LISTING_DECLINED
+}
+
+enum NotificationStatus {
+  INFO
+  WARNING
+  ERROR
+  SUCCESS
+}
+
+model Notification {
+  id         String             @id @default(auto()) @map("_id") @db.ObjectId
+  type       NotificationType
+  title      String
+  message    String
+  status     NotificationStatus @default(INFO)
+  isRead     Boolean            @default(false)
+  userId     String             @db.ObjectId
+  listingId  String?            @db.ObjectId
+  landlordId String?            @db.ObjectId
+  createdAt  DateTime           @default(now())
+  readAt     DateTime?
+  user       User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  listing    Listing?           @relation(fields: [listingId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([createdAt])
+  @@map("notifications")
 }

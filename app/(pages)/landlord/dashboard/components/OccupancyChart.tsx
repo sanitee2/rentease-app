@@ -20,6 +20,7 @@ interface OccupancyData {
 
 export default function OccupancyChart() {
   const [data, setData] = useState<OccupancyData[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const fetchOccupancyData = async () => {
@@ -28,10 +29,25 @@ export default function OccupancyChart() {
         setData(response.data);
       } catch (error) {
         console.error('Failed to fetch occupancy data:', error);
+      } finally {
+        setIsLoading(false);
       }
     };
     fetchOccupancyData();
   }, []);
+
+  if (isLoading) {
+    return <div className="text-center p-4 text-gray-500">Loading occupancy data...</div>;
+  }
+
+  if (data.length === 0) {
+    return (
+      <div className="text-center p-6 bg-gray-50 rounded-lg h-[300px] flex flex-col items-center justify-center">
+        <p className="text-gray-500">No occupancy data available</p>
+        <p className="text-sm text-gray-400 mt-1">Add properties and tenants to see occupancy trends</p>
+      </div>
+    );
+  }
 
   const CustomTooltip = ({ active, payload, label }: TooltipProps<number, string>) => {
     if (active && payload && payload.length) {

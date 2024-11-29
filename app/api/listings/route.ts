@@ -2,7 +2,13 @@ import { NextResponse } from "next/server";
 import prisma from "@/app/libs/prismadb";
 import getCurrentUser from "@/app/actions/getCurrentUser";
 import getUserListings from '@/app/actions/getUserListings';
-import { getIO } from '@/app/lib/socket';
+// import { getIO } from '@/app/lib/socket';  // Commented out socket import
+import { 
+  AdminNotification, 
+  NotificationStatus, 
+  NotificationType,
+  AdminNewListingData 
+} from '@/app/types/notifications';
 
 export async function POST(request: Request) {
   try {
@@ -135,26 +141,47 @@ export async function POST(request: Request) {
         }
       }
 
-     // After successful creation, emit socket event
+      /* Commenting out socket notification logic
       try {
-        const io = getIO();
-        if (io) {
-          io.emit('listing-created', {
-            ...newListing,
-            createdAt: newListing.createdAt.toISOString(),
-            updatedAt: newListing.updatedAt.toISOString(),
+        const socketIO = getIO();
+        if (socketIO) {
+          const socketData: AdminNewListingData = {
+            listingId: newListing.id,
+            landlordId: currentUser.id,
+            message: `New listing "${title}" submitted by ${currentUser.firstName} ${currentUser.lastName}`
+          };
+
+          const notificationData: Omit<AdminNotification, 'id'> = {
+            type: NotificationType.NEW_LISTING,
+            title: 'New Listing Submitted',
+            message: socketData.message,
+            status: NotificationStatus.INFO,
+            isRead: false,
+            createdAt: new Date().toISOString(),
+            listingId: socketData.listingId,
+            landlordId: socketData.landlordId,
+          };
+
+          const savedNotification = await prismaClient.notification.create({
+            data: {
+              ...notificationData,
+              userId: currentUser.id,
+            }
           });
+
+          socketIO.to('role:ADMIN').emit('admin:new_listing', socketData);
         }
-      } catch (socketError) {
-         // Log the error but don't fail the request
-        console.error('Socket emission error:', socketError);
+      } catch (error: any) {
+        console.error('[Listings] Socket notification error:', error);
       }
+      */
+
       return newListing;
     });
 
     return NextResponse.json(listing, { status: 201 });
   } catch (error) {
-    console.error('Error creating listing:', error);
+    console.error('[Listings] Error creating listing:', error);
     return NextResponse.json(
       { error: "Something went wrong while creating the listing and rooms." },
       { status: 500 }
@@ -176,20 +203,22 @@ export async function PUT(request: Request) {
     });
 
     // Emit socket event for update
-    try {
-      const io = getIO();
-      io.emit('listing-updated', {
-        ...updatedListing,
-        createdAt: updatedListing.createdAt.toISOString(),
-        updatedAt: updatedListing.updatedAt.toISOString(),
-      });
-    } catch (socketError) {
-      console.error('Socket emission error:', socketError);
-    }
+    // try {
+    //   const socketIO = getIO();
+    //   if (socketIO) {
+    //     socketIO.emit('listing-updated', {
+    //       ...updatedListing,
+    //       createdAt: updatedListing.createdAt.toISOString(),
+    //       updatedAt: updatedListing.updatedAt.toISOString(),
+    //     });
+    //   }
+    // } catch (socketError) {
+    //   console.error('[Listings] Socket emission error:', socketError);
+    // } 
 
     return NextResponse.json(updatedListing);
   } catch (error) {
-    console.error('Error updating listing:', error);
+    console.error('[Listings] Error updating listing:', error);
     return NextResponse.json({ error: "Failed to update listing" }, { status: 500 });
   }
 }
@@ -213,16 +242,18 @@ export async function DELETE(request: Request) {
     });
 
     // Emit socket event for deletion
-    try {
-      const io = getIO();
-      io.emit('listing-deleted', listingId);
-    } catch (socketError) {
-      console.error('Socket emission error:', socketError);
-    }
+    // try {
+    //   const socketIO = getIO();
+    //   if (socketIO) {
+    //     socketIO.emit('listing-deleted', listingId);
+    //   }
+    // } catch (socketError) {
+    //   console.error('[Listings] Socket emission error:', socketError);
+    // }
 
     return NextResponse.json(deletedListing);
   } catch (error) {
-    console.error('Error deleting listing:', error);
+    console.error('[Listings] Error deleting listing:', error);
     return NextResponse.json({ error: "Failed to delete listing" }, { status: 500 });
   }
 }

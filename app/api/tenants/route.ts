@@ -1,40 +1,8 @@
-// File: app/api/tenants/route.ts
-
 import { NextRequest, NextResponse } from 'next/server';
 import getCurrentUser from '@/app/actions/getCurrentUser';
 import getTenants from '@/app/actions/getTenants';
 import prisma from '@/app/libs/prismadb';
-
-export async function GET(req: NextRequest) {
-  try {
-    const currentUser = await getCurrentUser();
-    
-    if (!currentUser) {
-      return NextResponse.json(
-        { error: "Unauthorized" }, 
-        { status: 401 }
-      );
-    }
-
-    // Verify user is a landlord
-    if (currentUser.role !== 'LANDLORD') {
-      return NextResponse.json(
-        { error: "Unauthorized access" }, 
-        { status: 403 }
-      );
-    }
-
-    const tenants = await getTenants(currentUser.id);
-    return NextResponse.json(tenants);
-    
-  } catch (error) {
-    console.error('GET /api/tenants error:', error);
-    return NextResponse.json(
-      { error: "Internal server error" }, 
-      { status: 500 }
-    );
-  }
-}
+import { PaymentStatus } from '@prisma/client';
 
 export async function POST(request: Request) {
   try {
@@ -55,12 +23,31 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { userId, listingId, roomId, leaseContract } = body;
+    const { 
+      userId, 
+      listingId, 
+      roomId,
+      leaseContract: { 
+        startDate, 
+        rentAmount, 
+        terms,
+        monthlyDueDate,
+        payment 
+      } 
+    } = body;
 
     // Validate required fields
-    if (!userId || !listingId || !leaseContract) {
+    if (!userId || !listingId || !startDate || !rentAmount || !terms || !monthlyDueDate) {
       return NextResponse.json(
         { error: "Missing required fields" },
+        { status: 400 }
+      );
+    }
+
+    // Validate monthly due date
+    if (monthlyDueDate < 1 || monthlyDueDate > 31) {
+      return NextResponse.json(
+        { error: "Monthly due date must be between 1 and 31" },
         { status: 400 }
       );
     }
@@ -140,17 +127,38 @@ export async function POST(request: Request) {
       // 3. Create lease contract
       const lease = await tx.leaseContract.create({
         data: {
+          startDate: new Date(startDate),
+          rentAmount,
+          terms,
+          monthlyDueDate,
+          isActive: true,
           userId,
           listingId,
           tenantProfileId: tenantProfile.id,
-          startDate: new Date(leaseContract.startDate),
-          endDate: new Date(leaseContract.endDate),
-          rentAmount: leaseContract.rentAmount,
-          terms: leaseContract.terms
         }
       });
 
-      // 4. If room is specified, update room's current tenants
+      // 4. Create initial payment record (PENDING)
+      const dueDate = new Date(startDate);
+      dueDate.setDate(monthlyDueDate);
+      
+      await tx.payment.create({
+        data: {
+          amount: 0, // No payment made yet
+          totalAmount: rentAmount,
+          status: PaymentStatus.PENDING,
+          userId,
+          leaseId: lease.id,
+          tenantProfileId: tenantProfile.id,
+          date: new Date(),
+          dueDate,
+          paymentPeriod: new Date(startDate),
+          description: 'Initial rent payment',
+          isPartial: false
+        }
+      });
+
+      // 5. If room is specified, update room's current tenants
       if (roomId) {
         await tx.room.update({
           where: { id: roomId },
@@ -162,12 +170,120 @@ export async function POST(request: Request) {
         });
       }
 
-      return { tenantProfile, lease };
+      return lease;
     });
 
     return NextResponse.json(result);
   } catch (error: any) {
     console.error('POST /api/tenants error:', error);
+    return NextResponse.json(
+      { error: error.message || "Internal server error" }, 
+      { status: 500 }
+    );
+  }
+}
+
+// Add GET method to fetch tenants
+export async function GET(request: Request) {
+  try {
+    const currentUser = await getCurrentUser();
+    
+    if (!currentUser || currentUser.role !== 'LANDLORD') {
+      return NextResponse.json(
+        { error: "Unauthorized access" }, 
+        { status: 403 }
+      );
+    }
+
+    // Get tenants with their active leases and related data
+    const tenants = await prisma.tenantProfile.findMany({
+      where: {
+        leases: {
+          some: {
+            listing: {
+              userId: currentUser.id
+            },
+            isActive: true
+          }
+        }
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            firstName: true,
+            middleName: true,
+            lastName: true,
+            suffix: true,
+            email: true,
+            phoneNumber: true,
+            image: true
+          }
+        },
+        leases: {
+          where: {
+            isActive: true,
+            listing: {
+              userId: currentUser.id
+            }
+          },
+          include: {
+            listing: {
+              select: {
+                id: true,
+                title: true,
+                rooms: true
+              }
+            },
+            payments: {
+              where: {
+                status: 'PENDING'
+              },
+              orderBy: {
+                dueDate: 'asc'
+              },
+              take: 1
+            }
+          },
+          orderBy: {
+            startDate: 'desc'
+          }
+        },
+        currentRoom: {
+          select: {
+            id: true,
+            title: true,
+            price: true
+          }
+        }
+      }
+    });
+
+    // Transform the data to include computed fields
+    const transformedTenants = tenants.map(tenant => ({
+      id: tenant.user.id,
+      firstName: tenant.user.firstName,
+      middleName: tenant.user.middleName,
+      lastName: tenant.user.lastName,
+      suffix: tenant.user.suffix,
+      email: tenant.user.email,
+      phoneNumber: tenant.user.phoneNumber,
+      image: tenant.user.image,
+      currentRoom: tenant.currentRoom,
+      leaseContracts: tenant.leases.map(lease => ({
+        id: lease.id,
+        startDate: lease.startDate,
+        rentAmount: lease.rentAmount,
+        monthlyDueDate: lease.monthlyDueDate,
+        isActive: lease.isActive,
+        listing: lease.listing,
+        nextPayment: lease.payments[0] || null
+      }))
+    }));
+
+    return NextResponse.json(transformedTenants);
+  } catch (error: any) {
+    console.error('GET /api/tenants error:', error);
     return NextResponse.json(
       { error: error.message || "Internal server error" }, 
       { status: 500 }

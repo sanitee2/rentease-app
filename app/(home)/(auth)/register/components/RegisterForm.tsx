@@ -9,6 +9,7 @@ import { BsCheckCircleFill, BsXCircleFill } from 'react-icons/bs';
 import toast from "react-hot-toast";
 import useLoginModal from "@/app/hooks/useLoginModal";
 import { useRouter } from 'next/navigation';
+import { BiErrorCircle } from "react-icons/bi";
 
 import Input from "@/app/components/inputs/Input";
 import ProfileImageUpload from "@/app/components/inputs/ProfileImageUpload";
@@ -25,6 +26,7 @@ const RegisterForm = () => {
     hasNumber: false,
     hasSpecialChar: false
   });
+  const [loginError, setLoginError] = useState('');
 
   const loginModal = useLoginModal();
   const router = useRouter();
@@ -98,6 +100,7 @@ const RegisterForm = () => {
 
   const onSubmit: SubmitHandler<FieldValues> = async (data) => {
     setIsLoading(true);
+    setLoginError('');
 
     try {
       const { confirmPassword, ...submitData } = data;
@@ -106,30 +109,37 @@ const RegisterForm = () => {
       if (!submitData.middleName) delete submitData.middleName;
       if (!submitData.suffix) delete submitData.suffix;
 
+      // First create the user account
       await axios.post('/api/register', {
         ...submitData,
         image: previewImage || '',
       });
 
-      const result = await signIn('credentials', {
+      // Then attempt automatic sign in
+      const signInResult = await signIn('credentials', {
         email: data.email,
         password: data.password,
         redirect: false
       });
 
-      if (result?.error) {
-        toast.error('Failed to login automatically');
+      if (signInResult?.error) {
+        setLoginError(signInResult.error);
+        toast.error('Account created but failed to login automatically');
         return;
       }
 
-      toast.success('Account created! Redirecting...');
-      router.push('/listings');
+      if (signInResult?.ok) {
+        toast.success('Account created! Redirecting...');
+        router.refresh(); // Refresh the page to update the session
+        router.push('/listings');
+      }
     } catch (error: any) {
       if (error.response?.data?.error) {
         toast.error(error.response.data.error);
       } else {
         toast.error('Something went wrong.');
       }
+      setLoginError(error.response?.data?.error || 'Something went wrong');
     } finally {
       setIsLoading(false);
     }
@@ -145,7 +155,7 @@ const RegisterForm = () => {
       <div className="flex flex-col md:flex-row gap-8">
         {/* Left Column - Profile Picture Upload */}
         <div className="md:w-1/3">
-          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 sticky top-4">
+          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 sticky top-24">
             <h3 className="text-lg font-semibold text-gray-800 mb-4 text-center">Profile Picture</h3>
             <ProfileImageUpload
               value={previewImage}
@@ -306,6 +316,12 @@ const RegisterForm = () => {
                 label={isLoading ? 'Creating Account...' : 'Create Account'}
                 onClick={() => {}}
               />
+              {loginError && (
+                <div className="flex items-center gap-2 text-rose-500 text-sm mt-2">
+                  <BiErrorCircle size={16} />
+                  <span>{loginError}</span>
+                </div>
+              )}
             </div>
           </div>
 

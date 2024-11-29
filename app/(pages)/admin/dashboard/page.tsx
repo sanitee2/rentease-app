@@ -85,7 +85,11 @@ export default function AdminDashboard() {
                 <LuList className="text-indigo-500" />
                 Listing Categories
               </h2>
-              <DashboardActions path="/admin/categories?type=listing" />
+              <DashboardActions 
+                path="/admin/categories?type=listing" 
+                showAddButton 
+                categoryType="listing"
+              />
             </div>
             <Suspense fallback={<LoadingState />}>
               <ListingCategories />
@@ -99,7 +103,11 @@ export default function AdminDashboard() {
                 <LuBed className="text-indigo-500" />
                 Room Categories
               </h2>
-              <DashboardActions path="/admin/categories?type=room" />
+              <DashboardActions 
+                path="/admin/categories?type=room" 
+                showAddButton 
+                categoryType="room"
+              />
             </div>
             <Suspense fallback={<LoadingState />}>
               <RoomCategories />

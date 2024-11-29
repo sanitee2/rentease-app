@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import qs from 'query-string';
 import {
@@ -304,10 +304,10 @@ const ListingsFilter: React.FC<ListingsFilterProps> = ({
   }, [onResetFilters]);
 
   // Expose the reset function through a ref or effect
+  const resetFiltersRef = useRef(() => {});
+
   useEffect(() => {
-    if (onResetFilters) {
-      onResetFilters = handleResetAllFilters;
-    }
+    resetFiltersRef.current = handleResetAllFilters;
   }, [handleResetAllFilters]);
 
   const handleApplyFilters = () => {
@@ -395,7 +395,7 @@ const ListingsFilter: React.FC<ListingsFilterProps> = ({
             </h3>
             {getActiveFilterCount(filters) > 0 && (
               <Button
-                onClick={handleResetAllFilters}
+                onClick={resetFiltersRef.current}
                 variant="ghost"
                 size="sm"
                 className="text-sm text-neutral-600 hover:text-indigo-600"

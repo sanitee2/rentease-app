@@ -4,7 +4,12 @@ import Link from 'next/link';
 import { useContext } from 'react';
 import { usePathname } from 'next/navigation';
 import { SidebarContext } from './Sidebar';
-import Tooltip from '../Tooltip';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface SidebarItemProps {
   icon: React.ReactNode;
@@ -26,30 +31,41 @@ const SidebarItem: React.FC<SidebarItemProps> = ({
   return (
     <li>
       {!expanded ? (
-        <Tooltip text={text}>
-          <Link 
-            href={href}
-            className={`
-              relative flex items-center justify-center px-2 py-3 my-1
-              font-medium rounded-lg cursor-pointer
-              transition-colors group
-              ${isActive 
-                ? 'bg-indigo-50 text-indigo-600' 
-                : 'text-gray-600 hover:bg-gray-50'
-              }
-            `}
-          >
-            <div className={`
-              ${isActive ? 'text-indigo-600' : 'text-gray-500'}
-              transition-colors
-            `}>
-              {icon}
-            </div>
-            {alert && (
-              <div className="absolute top-2 right-2 w-2 h-2 rounded-full bg-indigo-600"/>
-            )}
-          </Link>
-        </Tooltip>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Link 
+                href={href}
+                className={`
+                  relative flex items-center justify-center px-2 py-3 my-1
+                  font-medium rounded-lg cursor-pointer
+                  transition-colors group
+                  ${isActive 
+                    ? 'bg-indigo-50 text-indigo-600' 
+                    : 'text-gray-600 hover:bg-gray-50'
+                  }
+                `}
+              >
+                <div className={`
+                  ${isActive ? 'text-indigo-600' : 'text-gray-500'}
+                  transition-colors
+                `}>
+                  {icon}
+                </div>
+                {alert && (
+                  <div className="absolute top-2 right-2 w-2 h-2 rounded-full bg-indigo-600"/>
+                )}
+              </Link>
+            </TooltipTrigger>
+            <TooltipContent 
+              side="right" 
+              align="center" 
+              className="bg-white text-indigo-600 border border-gray-200"
+            >
+              <p>{text}</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       ) : (
         <Link 
           href={href}

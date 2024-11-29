@@ -2,70 +2,47 @@ import { NextResponse } from 'next/server';
 import prisma from '@/app/libs/prismadb';
 import getCurrentUser from '@/app/actions/getCurrentUser';
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const currentUser = await getCurrentUser();
-    
-    if (!currentUser || currentUser.role !== 'LANDLORD') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!currentUser) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Get upcoming payments from active lease contracts
-    const upcomingPayments = await prisma.leaseContract.findMany({
+    const leases = await prisma.leaseContract.findMany({
       where: {
         listing: {
           userId: currentUser.id
         },
-        endDate: {
-          gt: new Date() // Only active leases
-        }
+        isActive: true
       },
       select: {
         id: true,
         rentAmount: true,
         startDate: true,
-        endDate: true,
+        monthlyDueDate: true,
         user: {
           select: {
             firstName: true,
-            lastName: true,
+            lastName: true
           }
         },
         listing: {
           select: {
             id: true,
-            title: true,
+            title: true
           }
         }
       },
       orderBy: {
-        startDate: 'desc'
+        startDate: "desc"
       },
-      take: 5 // Limit to 5 most recent
+      take: 5
     });
 
-    // Format the data for display
-    const formattedPayments = upcomingPayments.map(payment => ({
-      id: payment.id,
-      amount: payment.rentAmount,
-      dueDate: payment.startDate, // Using startDate as the due date
-      tenant: {
-        firstName: payment.user.firstName,
-        lastName: payment.user.lastName
-      },
-      listing: {
-        id: payment.listing.id,
-        title: payment.listing.title
-      }
-    }));
-
-    return NextResponse.json(formattedPayments);
-    
+    return NextResponse.json(leases);
   } catch (error) {
-    console.error('[UPCOMING_PAYMENTS]', error);
-    return NextResponse.json(
-      { error: 'Internal error' }, 
-      { status: 500 }
-    );
+    console.error("[UPCOMING_PAYMENTS]", error);
+    return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 } 

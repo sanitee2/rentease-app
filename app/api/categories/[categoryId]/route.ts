@@ -14,7 +14,6 @@ export async function GET(
     });
 
     if (!category) {
-      console.log("Category not found");
       return new NextResponse("Category not found", { status: 404 });
     }
 

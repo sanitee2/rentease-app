@@ -24,6 +24,7 @@ import toast from "react-hot-toast";
 import Button from "../Button";
 import { signIn } from "next-auth/react";
 import ProfileImageUpload from "../inputs/ProfileImageUpload";
+import { useRouter } from "next/navigation";
 
 const RegisterModal = () => {
   const registerModal = useRegisterModal();
@@ -84,6 +85,8 @@ const RegisterModal = () => {
     return { text: 'Strong', color: 'text-green-500' };
   };
 
+  const router = useRouter();
+
   const onSubmit: SubmitHandler<FieldValues> = async (data) => {
     setIsLoading(true);
 
@@ -91,36 +94,41 @@ const RegisterModal = () => {
       // Remove confirmPassword before sending to API
       const { confirmPassword, ...submitData } = data;
       
-      // Combine name fields
-      const fullName = `${data.firstName} ${data.middleName ? data.middleName + ' ' : ''}${data.lastName}${data.suffix ? ' ' + data.suffix : ''}`.trim();
-
       // Register the user
-      await axios.post('/api/register', {
+      const response = await axios.post('/api/register', {
         ...submitData,
-        name: fullName,
         image: previewImage || '',
-        phoneNumber: data.phoneNumber
       });
+
+      if (!response?.data) {
+        throw new Error('Failed to register');
+      }
+
+      // Add a small delay to ensure the user is created in the database
+      await new Promise(resolve => setTimeout(resolve, 500));
       
       // Automatically sign in after registration
-      const result = await signIn('credentials', {
+      const signInResult = await signIn('credentials', {
         email: data.email,
         password: data.password,
-        redirect: false
+        redirect: false,
       });
 
-      if (result?.error) {
+      if (signInResult?.error) {
         toast.error('Failed to login automatically');
-        registerModal.onClose();
-        loginModal.onOpen();
+        console.error('Sign in error:', signInResult.error);
         return;
       }
 
-      toast.success('Account created! Logging you in...');
-      registerModal.onClose();
-      window.location.reload(); // Refresh to update the session
-    } catch (error) {
-      toast.error('Something went wrong.');
+      if (signInResult?.ok) {
+        toast.success('Registered & logged in successfully!');
+        registerModal.onClose();
+        router.push('/'); // Redirect to home page
+        router.refresh(); // Refresh the session
+      }
+    } catch (error: any) {
+      console.error('Registration error:', error);
+      toast.error(error?.response?.data?.error || 'Something went wrong.');
     } finally {
       setIsLoading(false);
     }

@@ -6,7 +6,8 @@ export async function middleware(req: NextRequest) {
   
   // Define allowed public routes
   const publicRoutes = ['/', '/listings'];
-  const isPublicRoute = publicRoutes.includes(pathname) || pathname.startsWith('/listings');
+  const isPublicRoute = publicRoutes.includes(pathname) || 
+    pathname.startsWith('/listings');
   
   try {
     const token = await getToken({ 
@@ -44,7 +45,7 @@ export async function middleware(req: NextRequest) {
       };
 
       // Redirect to appropriate dashboard if on root or login page
-      if (pathname === '/' || pathname === '/login') {
+      if (pathname === '/') {
         return NextResponse.redirect(new URL(dashboardRoutes[userRole], req.url));
       }
 
@@ -70,5 +71,13 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/', '/listings', '/admin/:path*', '/landlord/:path*', '/listings/:path*', '/tenant/:path*', '/dashboard'],
+  matcher: [
+    '/', 
+    '/listings', 
+    '/listings/:path*', 
+    '/admin/:path*', 
+    '/landlord/:path*', 
+    '/tenant/:path*', 
+    '/dashboard'
+  ],
 };

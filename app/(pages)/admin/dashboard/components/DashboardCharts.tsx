@@ -65,10 +65,8 @@ type TimePeriod = 'week' | 'month' | 'year' | 'custom';
 type UserRole = 'ADMIN' | 'TENANT' | 'LANDLORD' | 'USER';
 
 const RADIAN = Math.PI / 180;
-const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, value }: any) => {
-  if (!value) return null;
-  
-  const radius = innerRadius + (outerRadius - innerRadius) * 0.7;
+const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent }: any) => {
+  const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
   const x = cx + radius * Math.cos(-midAngle * RADIAN);
   const y = cy + radius * Math.sin(-midAngle * RADIAN);
 
@@ -76,10 +74,8 @@ const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, per
     <text 
       x={x} 
       y={y} 
-      fill="white" 
-      fontSize="12"
-      fontWeight="500"
-      textAnchor={x > cx ? 'start' : 'end'} 
+      fill="#1e293b"
+      textAnchor="middle" 
       dominantBaseline="central"
     >
       {`${(percent * 100).toFixed(0)}%`}
@@ -343,9 +339,9 @@ export default function DashboardCharts({ data }: DashboardChartsProps) {
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Unfiltered Pie Chart */}
-        <Card className="p-6">
+        <Card className="p-6 lg:col-span-1">
           <div className="flex items-center gap-2 mb-4">
             <BiPieChartAlt2 className="h-5 w-5 text-indigo-500" />
             <h3 className="text-lg font-semibold">Listing Status Distribution</h3>
@@ -395,7 +391,7 @@ export default function DashboardCharts({ data }: DashboardChartsProps) {
         </Card>
 
         {/* Filtered Area Chart */}
-        <Card className="p-6">
+        <Card className="p-6 lg:col-span-2">
           <div className="space-y-4">
             {/* Period Selector */}
             <div className="flex justify-between items-center">
@@ -497,7 +493,7 @@ export default function DashboardCharts({ data }: DashboardChartsProps) {
           {/* Header with Title and Filters */}
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div className="flex items-center gap-2">
-              <FiUsers className="h-5 w-5 text-muted-foreground" />
+              <FiUsers className="h-5 w-5  text-indigo-500" />
               <h3 className="text-lg font-semibold">User Statistics</h3>
             </div>
             

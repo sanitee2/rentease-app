@@ -7,12 +7,21 @@ declare module "next-auth" {
       name: string;
       email: string;
       image: string;
-      role: string; // Ensure role is typed as string
+      role: string;
     };
   }
 
   interface User {
     id: string;
-    role: string; // Role is also typed as string
+    role: string;
+  }
+}
+
+declare module "next-auth/jwt" {
+  interface JWT {
+    id?: string;
+    role?: string;
+    exp?: number;
+    iat?: number;
   }
 }

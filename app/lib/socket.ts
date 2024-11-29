@@ -1,42 +1,44 @@
-import { Server as NetServer } from 'http';
-import { Server as SocketIOServer } from 'socket.io';
+import { io as socketIOClient, Socket } from 'socket.io-client';
+import { ServerToClientEvents, ClientToServerEvents } from '../types/socket';
 
-export const config = {
-  api: {
-    bodyParser: false,
-  },
-};
+let socket: Socket<ServerToClientEvents, ClientToServerEvents> | null = null;
 
-let io: SocketIOServer | null = null;
+export function initSocket() {
+  if (!socket) {
+    try {
+      socket = socketIOClient(process.env.NEXT_PUBLIC_SOCKET_URL!, {
+        path: process.env.NEXT_PUBLIC_SOCKET_PATH,
+        autoConnect: true,
+        reconnection: true,
+        reconnectionAttempts: 5,
+        reconnectionDelay: 1000,
+      });
 
-export function getIO(): SocketIOServer {
-  if (!io) {
-    throw new Error('Socket.IO not initialized');
+      socket.on('connect', () => {
+        console.log('[Socket] Connected:', socket?.id);
+      });
+
+      socket.on('connect_error', (error) => {
+        console.error('[Socket] Connection error:', error);
+      });
+
+      socket.on('disconnect', (reason) => {
+        console.log('[Socket] Disconnected:', reason);
+      });
+    } catch (error) {
+      console.error('[Socket] Initialization error:', error);
+      return null;
+    }
   }
-  return io;
+  return socket;
 }
 
-export function initSocketServer(server: NetServer): SocketIOServer {
-  if (!io) {
-    io = new SocketIOServer(server, {
-      path: '/api/socket',
-      addTrailingSlash: false,
-      cors: {
-        origin: process.env.NEXT_PUBLIC_APP_URL,
-        methods: ['GET', 'POST'],
-      },
-      connectionStateRecovery: {
-        maxDisconnectionDuration: 2 * 60 * 1000,
-      },
-    });
-
-    io.on('connection', (socket) => {
-      console.log('Client connected:', socket.id);
-
-      socket.on('disconnect', () => {
-        console.log('Client disconnected:', socket.id);
-      });
-    });
+export function getSocket() {
+  if (!socket) {
+    return initSocket();
   }
-  return io;
-} 
+  return socket;
+}
+
+// Export the socket instance as well
+export { socket }; 
