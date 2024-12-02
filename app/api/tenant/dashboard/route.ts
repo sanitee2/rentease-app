@@ -41,11 +41,14 @@ export async function GET() {
               select: {
                 id: true,
                 amount: true,
-                dueDate: true,
+                periodStart: true,
+                periodEnd: true,
                 status: true,
+                createdAt: true,
+                paymentMethod: true
               },
               orderBy: {
-                date: 'desc'
+                createdAt: 'desc'
               }
             }
           },
@@ -91,6 +94,7 @@ export async function GET() {
         outstandingBalance: Number(lease.outstandingBalance),
         leaseTerms: lease.leaseTerms,
         status: lease.status,
+        createdAt: lease.createdAt,
         listing: lease.listing ? {
           id: lease.listing.id,
           title: lease.listing.title,
@@ -98,8 +102,11 @@ export async function GET() {
         Payment: lease.Payment.map(payment => ({
           id: payment.id,
           amount: Number(payment.amount),
-          dueDate: payment.dueDate ? new Date(payment.dueDate) : null,
           status: payment.status,
+          createdAt: payment.createdAt,
+          paymentMethod: payment.paymentMethod || 'CASH',
+          periodStart: payment.periodStart,
+          periodEnd: payment.periodEnd
         }))
       })),
     };

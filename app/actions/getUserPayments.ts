@@ -45,7 +45,7 @@ export default async function getUserPayments(userId: string) {
         }
       },
       orderBy: {
-        date: 'desc'
+        createdAt: 'desc'
       }
     });
 

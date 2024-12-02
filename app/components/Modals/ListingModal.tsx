@@ -28,7 +28,7 @@ const ListingModal: React.FC<ListingModalProps> = ({
       icon: found.icon.toString(),
       desc: found.description,
       needsMaxTenant: false,
-      pricingType: 'default',
+      pricingType: 'LISTING_BASED' as const,
       roomTypes: []
     } : null;
   }, [listing.category]);
@@ -54,6 +54,7 @@ const ListingModal: React.FC<ListingModalProps> = ({
             title={listing.title}
             user={currentUser!}
             category={category}
+            pricingType={listing.pricingType}
             currentUser={currentUser}
             userEmail={currentUser?.email}
             description={listing.description}

@@ -104,6 +104,7 @@ const AdminListingModal: React.FC<AdminListingModalProps> = ({
           title={listing.title}
           user={user}
           category={categoryData}
+          pricingType={listing.pricingType}
           description={listing.description}
           roomCount={listing.roomCount}
           locationValue={listing.locationValue.latlng}

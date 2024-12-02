@@ -30,7 +30,7 @@ export async function DELETE(
         },
         leaseContracts: {
           where: {
-            endedAt: { gt: new Date() }
+            endDate: { gt: new Date() }
           }
         }
       }
@@ -72,8 +72,8 @@ export async function DELETE(
           await prisma.leaseContract.update({
             where: { id: lease.id },
             data: {
-              endedAt: new Date(),
-              terms: `${lease.terms}\nLease terminated early on ${new Date().toLocaleDateString()}`,
+              endDate: new Date(),
+              leaseTerms: `${lease.leaseTerms}\nLease terminated early on ${new Date().toLocaleDateString()}`,
             },
           });
         }

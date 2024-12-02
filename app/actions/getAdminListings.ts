@@ -65,6 +65,8 @@ export default async function getAdminListings(params: GetAdminListingsParams = 
               id: true,
               title: true,
               price: true,
+              maxTenantCount: true,
+              currentTenants: true,
             }
           }
         },
@@ -112,7 +114,9 @@ export default async function getAdminListings(params: GetAdminListingsParams = 
         rooms: listing.rooms.map(room => ({
           id: room.id,
           title: room.title,
-          price: room.price || 0
+          price: room.price,
+          maxTenantCount: room.maxTenantCount,
+          currentTenants: room.currentTenants
         }))
       };
     });

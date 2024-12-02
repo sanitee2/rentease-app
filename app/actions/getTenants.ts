@@ -34,30 +34,30 @@ export default async function getTenants(userId: string): Promise<TenantData[]> 
           }
         },
         leaseContracts: {
-          where: {
-            listing: {
-              userId: userId
-            }
-          },
           select: {
             id: true,
             startDate: true,
-            endedAt: true,
+            endDate: true,
             rentAmount: true,
-            isActive: true,
             monthlyDueDate: true,
+            leaseTerms: true,
+            status: true,
+            createdAt: true,
             listing: {
               select: {
                 id: true,
                 title: true
               }
             },
-            payments: {
+            Payment: {
               select: {
                 id: true,
                 status: true,
-                dueDate: true,
-                amount: true
+                amount: true,
+                periodStart: true,
+                periodEnd: true,
+                createdAt: true,
+                paymentMethod: true,
               }
             }
           }
@@ -80,12 +80,14 @@ export default async function getTenants(userId: string): Promise<TenantData[]> 
       leaseContracts: tenant.leaseContracts.map(contract => ({
         id: contract.id,
         startDate: contract.startDate,
-        endedAt: contract.endedAt,
+        endDate: contract.endDate,
         rentAmount: contract.rentAmount,
         monthlyDueDate: contract.monthlyDueDate,
-        isActive: contract.isActive,
+        leaseTerms: contract.leaseTerms,
+        status: contract.status,
+        createdAt: contract.createdAt,
         listing: contract.listing,
-        payments: contract.payments
+        Payment: contract.Payment
       }))
     }));
 

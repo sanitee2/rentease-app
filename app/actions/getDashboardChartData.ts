@@ -54,7 +54,8 @@ export default async function getDashboardChartData() {
       PENDING: '#fbbf24',
       COMPLETED: '#22c55e',
       FAILED: '#ef4444',
-    }[status],
+      CANCELLED: '#94a3b8',
+    }[status] || '#CBD5E1',
   }));
 
   // Get maintenance request status distribution
