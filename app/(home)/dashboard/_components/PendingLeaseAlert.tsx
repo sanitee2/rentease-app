@@ -30,12 +30,7 @@ interface PendingLeaseAlertProps {
     monthlyDueDate: number;
     outstandingBalance: number;
     leaseTerms: string;
-    Payment: {
-      id: string;
-      amount: number;
-      createdAt: Date;
-      status: PaymentStatus;
-    }[];
+    
     listing: {
       id: string;
       title: string;
@@ -201,39 +196,6 @@ const PendingLeaseAlert: React.FC<PendingLeaseAlertProps> = ({ lease }) => {
                 dangerouslySetInnerHTML={{ __html: lease.leaseTerms }}
               />
             </div>
-
-            {/* Payment History if any */}
-            {lease.Payment && lease.Payment.length > 0 && (
-              <div>
-                <div className="flex items-center gap-2 mb-3 text-sm font-medium text-gray-900">
-                  <LuReceipt className="h-4 w-4 text-indigo-600" />
-                  Payment History
-                </div>
-                <div className="pl-6 space-y-2">
-                  {lease.Payment.map((payment) => (
-                    <div 
-                      key={payment.id}
-                      className="flex justify-between items-center py-2 border-b border-gray-100 last:border-0"
-                    >
-                      <div>
-                        <p className="text-sm font-medium text-gray-900">
-                          ₱{payment.amount.toLocaleString()}
-                        </p>
-                      </div>
-                      <span className={`text-xs px-2 py-0.5 rounded-full ${
-                        payment.status === 'COMPLETED' 
-                          ? 'bg-green-100 text-green-700'
-                          : payment.status === 'PENDING'
-                          ? 'bg-amber-100 text-amber-700'
-                          : 'bg-red-100 text-red-700'
-                      }`}>
-                        {payment.status}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
 
           <DialogFooter className="gap-2 pt-6">

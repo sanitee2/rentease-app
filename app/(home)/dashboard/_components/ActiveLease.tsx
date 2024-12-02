@@ -71,7 +71,7 @@ const ActiveLease: React.FC<ActiveLeaseProps> = ({ lease }) => {
                   variant="ghost"
                   size="sm"
                   className="text-blue-600 hover:text-blue-700"
-                  onClick={() => router.push(`/listings/info/${lease.listing?.id}`)}
+                  onClick={() => window.open(`/listings/info/${lease.listing?.id}`, '_blank')}
                 >
                   <ExternalLink className="h-4 w-4 mr-1" />
                   View

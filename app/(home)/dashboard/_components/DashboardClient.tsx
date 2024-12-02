@@ -46,12 +46,7 @@ export interface DashboardData {
     monthlyDueDate: number;
     outstandingBalance: number;
     leaseTerms: string;
-    Payment: {
-      id: string;
-      amount: number;
-      status: PaymentStatus;
-      createdAt: Date;
-    }[];
+    
     listing: {
       id: string;
       title: string;
@@ -169,23 +164,38 @@ const DashboardClient: FC<DashboardClientProps> = ({
         totalPaid: 0,
         pendingPayments: 0,
         outstandingBalance: 0,
-        leases: []
+        leases: [],
+        paidPeriodRange: null,
+        balanceDescription: null
       };
     }
 
-    // Calculate next due date based on monthlyDueDate and completed payments
+    // Get first and last completed payments with periods
+    const completedPayments = initialData.payments
+      .filter(payment => 
+        payment.status === 'COMPLETED' && 
+        payment.periodStart &&
+        payment.periodEnd
+      )
+      .sort((a, b) => 
+        new Date(a.periodStart!).getTime() - new Date(b.periodStart!).getTime()
+      );
+
+    const firstPayment = completedPayments[0];
+    const lastPayment = completedPayments[completedPayments.length - 1];
+
+    // Create paid period range description
+    const paidPeriodRange = firstPayment && lastPayment 
+      ? `Paid period: ${format(new Date(firstPayment.periodStart!), 'MMM d, yyyy')} - ${format(new Date(lastPayment.periodEnd!), 'MMM d, yyyy')}`
+      : null;
+
+    // Calculate next due date based on latest payment period end
     const nextDueDate = initialData.currentLease?.monthlyDueDate 
       ? (() => {
-          const today = new Date();
-          const currentMonth = today.getMonth();
-          const currentYear = today.getFullYear();
-          let dueDate = new Date(currentYear, currentMonth, initialData.currentLease.monthlyDueDate);
-          
           // Get the latest completed payment with a period
           const latestPayment = initialData.payments
             .filter(payment => 
               payment.status === 'COMPLETED' && 
-              payment.periodStart && 
               payment.periodEnd
             )
             .sort((a, b) => 
@@ -193,23 +203,32 @@ const DashboardClient: FC<DashboardClientProps> = ({
             )[0];
 
           if (latestPayment?.periodEnd) {
-            // Get the due date for the month immediately after the period end
+            // Get the due date one month after the period end date
             const periodEndDate = new Date(latestPayment.periodEnd);
-            // Use the month from period end date directly (no need to add 1 since it's already the end of the period)
-            dueDate = new Date(
+            return new Date(
               periodEndDate.getFullYear(),
-              periodEndDate.getMonth(),
+              periodEndDate.getMonth() + 1, // Add one month
               initialData.currentLease.monthlyDueDate
             );
           } else {
             // If no payments found, use current month's due date
+            const today = new Date();
+            const dueDate = new Date(
+              today.getFullYear(),
+              today.getMonth(),
+              initialData.currentLease.monthlyDueDate
+            );
+            
             // If today's date is past this month's due date, get next month's due date
             if (today > dueDate) {
-              dueDate = new Date(currentYear, currentMonth + 1, initialData.currentLease.monthlyDueDate);
+              return new Date(
+                today.getFullYear(),
+                today.getMonth() + 1,
+                initialData.currentLease.monthlyDueDate
+              );
             }
+            return dueDate;
           }
-          
-          return dueDate;
         })()
       : null;
 
@@ -224,14 +243,20 @@ const DashboardClient: FC<DashboardClientProps> = ({
       .length;
 
     // Get outstanding balance from current lease
-    const outstandingBalance = initialData.currentLease?.outstandingBalance || 0;
+    const rawOutstandingBalance = initialData.currentLease?.outstandingBalance || 0;
+    const outstandingBalance = Math.max(0, rawOutstandingBalance);
+    const balanceDescription = rawOutstandingBalance < 0 
+      ? `You are advance paid until ${lastPayment ? format(new Date(lastPayment.periodEnd!), 'MMM d, yyyy') : 'your last payment period'}`
+      : undefined;
 
     return {
       nextDueDate,
       totalPaid,
       pendingPayments,
       outstandingBalance,
-      leases: [initialData.currentLease].filter(Boolean) // Only include current lease if it exists
+      leases: [initialData.currentLease].filter(Boolean),
+      paidPeriodRange,
+      balanceDescription
     };
   }, [initialData]);
 
@@ -290,6 +315,7 @@ const DashboardClient: FC<DashboardClientProps> = ({
                     icon={LuClock}
                     label="Next Due Date"
                     value={stats.nextDueDate ? format(stats.nextDueDate, 'MMM d, yyyy') : 'No active lease'}
+                    description={stats.paidPeriodRange || undefined}
                   />
                   <TenantStats
                     icon={LuWallet}
@@ -300,6 +326,7 @@ const DashboardClient: FC<DashboardClientProps> = ({
                     icon={LuAlertCircle}
                     label="Outstanding Balance"
                     value={`₱${stats.outstandingBalance.toFixed(2)}`}
+                    description={stats.balanceDescription || undefined}
                   />
                 </div>
 
@@ -402,6 +429,7 @@ const DashboardClient: FC<DashboardClientProps> = ({
         listing={initialData?.currentLease?.listing}
         room={initialData?.currentLease?.room}
         onSuccess={refreshPayments}
+        payments={initialData?.payments || []}
       />
     </Container>      
   );

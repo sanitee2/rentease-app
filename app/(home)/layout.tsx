@@ -5,6 +5,7 @@ import ClientOnly from "@/app/components/ClientOnly";
 
 export default async function HomeLayout({ children }: { children: React.ReactNode }) {
   const currentUser = await getCurrentUser();
+  const marginTop = currentUser ? 'pt-[74px]' : 'pt-[80px]';
 
   return (
     <>
@@ -14,7 +15,7 @@ export default async function HomeLayout({ children }: { children: React.ReactNo
         </ClientOnly>
       </div>
       <div className="flex flex-col min-h-screen">
-        <main className="flex-grow pt-[80px]">
+        <main className={`flex-grow ${marginTop}`}>
           {children}
         </main>
         {/* <Footer /> */}

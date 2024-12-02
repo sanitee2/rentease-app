@@ -5,12 +5,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { PaymentMode } from "@prisma/client";
+import { PaymentMode, PaymentStatus } from "@prisma/client";
 import { format, addMonths, isBefore } from "date-fns";
 import { toast } from "react-hot-toast";
 import axios from "axios";
 import PaymentProofUpload from '@/app/components/inputs/PaymentProofUpload';
 import { useRouter } from 'next/navigation';
+import { HiInformationCircle } from 'react-icons/hi2';
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip"
 
 interface PaymentPeriod {
   label: string;
@@ -39,6 +41,27 @@ interface PaymentDialogProps {
   room?: {
     title: string;
   } | null;
+  payments: {
+    id: string;
+    amount: number;
+    status: PaymentStatus;
+    createdAt: Date;
+    paymentMethod: PaymentMode;
+    description?: string;
+    image?: string;
+    periodStart?: Date;
+    periodEnd?: Date;
+    listing?: {
+      id: string;
+      title: string;
+    };
+  }[];
+}
+
+interface Payment {
+  status: string;
+  periodEnd: string | Date;
+  periodStart: string | Date;
 }
 
 export default function PaymentDialog({
@@ -52,6 +75,7 @@ export default function PaymentDialog({
   listingId,
   landlordId,
   roomId,
+  payments,
   listing,
   room
 }: PaymentDialogProps) {
@@ -116,6 +140,8 @@ export default function PaymentDialog({
     const latestPaidPeriod = Object.values(paymentsByPeriod)
       .sort((a: any, b: any) => b.periodEnd.getTime() - a.periodEnd.getTime())[0] as {
         periodEnd: Date;
+        periodStart: Date;
+        totalPaid: number;
       } | undefined;
 
     // Set current date to either the month after the latest paid period or lease start date
@@ -227,6 +253,45 @@ export default function PaymentDialog({
     };
   }, [isOpen]);
 
+  // Get the last completed payment's period end date for the message
+  const lastPaymentEndDate = payments
+    .filter((payment) => 
+      payment.status === 'COMPLETED' && 
+      payment.periodEnd
+    )
+    .sort((a, b) => 
+      new Date(b.periodEnd!).getTime() - new Date(a.periodEnd!).getTime()
+    )[0]?.periodEnd;
+
+  // Calculate display balance and message
+  const displayBalance = Math.max(0, outstandingBalance);
+  const balanceMessage = outstandingBalance < 0 
+    ? `Outstanding Balance: ₱${displayBalance.toLocaleString()}`
+    : `Outstanding Balance: ₱${outstandingBalance.toLocaleString() || "0"}`;
+
+  const tooltipMessage = lastPaymentEndDate
+    ? `You are advance paid until ${format(new Date(lastPaymentEndDate), 'MMM d, yyyy')}`
+    : 'Your previous payments cover future periods';
+
+  // Inside the component, add this helper function
+  const hasPendingPayment = (periodStart: Date, periodEnd: Date) => {
+    return payments.some(payment => 
+      payment.status === 'PENDING' &&
+      payment.periodStart &&
+      payment.periodEnd &&
+      new Date(payment.periodStart).getTime() === periodStart.getTime() &&
+      new Date(payment.periodEnd).getTime() === periodEnd.getTime()
+    );
+  };
+
+  const resetForm = () => {
+    setPaymentAmount(rentAmount?.toString() || "");
+    setPaymentMode("GCASH");
+    setProofImage([]);
+    setDescription("");
+    setSelectedPeriod(null);
+  };
+
   return (
     <>
       {isOpen && (
@@ -241,6 +306,7 @@ export default function PaymentDialog({
         open={isOpen} 
         onOpenChange={(open) => {
           if (!open) {
+            resetForm();
             document.body.style.overflow = 'unset';
             onClose();
           }
@@ -309,9 +375,26 @@ export default function PaymentDialog({
                     disabled={isLoading}
                     className="h-11"
                   />
-                  <p className="text-xs text-gray-500">
-                    Outstanding Balance: ₱{outstandingBalance?.toLocaleString() || "0"}
-                  </p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-xs text-gray-500">
+                      {balanceMessage}
+                    </p>
+                    {outstandingBalance < 0 && (
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button className="relative">
+                              <HiInformationCircle className="w-4 h-4 text-indigo-400 hover:text-indigo-600 transition-colors animate-pulse" />
+                              <span className="absolute inset-0 rounded-full animate-ping bg-indigo-400/30" />
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p className="text-sm">{tooltipMessage}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    )}
+                  </div>
                 </div>
 
                 <div className="grid gap-2 relative z-[51]">
@@ -332,13 +415,21 @@ export default function PaymentDialog({
                         <SelectItem 
                           key={period.label} 
                           value={period.label}
-                          className="flex items-center justify-between"
+                          disabled={hasPendingPayment(period.startDate, period.endDate)}
+                          className={`flex items-center justify-between ${
+                            hasPendingPayment(period.startDate, period.endDate) ? 'opacity-50 cursor-not-allowed' : ''
+                          }`}
                         >
                           <div className="flex items-center gap-2">
                             {period.label}
                             {period.isPartial && (
                               <span className="text-xs px-1.5 py-0.5 bg-yellow-100 text-yellow-800 rounded">
                                 Partial
+                              </span>
+                            )}
+                            {hasPendingPayment(period.startDate, period.endDate) && (
+                              <span className="text-xs px-1.5 py-0.5 bg-orange-100 text-orange-800 rounded">
+                                Pending
                               </span>
                             )}
                           </div>

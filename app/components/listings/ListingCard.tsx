@@ -4,7 +4,7 @@ import useCountries from '@/app/hooks/useCountries';
 import { SafeListing, SafeRoom, SafeUser } from '@/app/types';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo, useEffect, useState } from 'react';
 import HeartButton from './HeartButton';
 import { FaMars, FaVenus, FaVenusMars } from 'react-icons/fa';
 import Button from '../../components/Button';
@@ -37,8 +37,10 @@ interface Room {
   price?: number;
   roomCategory: string;
   maxTenantCount?: number;
-  currentTenants: string[];
-  tenants: { id: string }[];
+  tenants: {
+    id: string;
+    // Add other tenant fields if needed
+  }[];
   amenities: {
     amenity: {
       id: string;
@@ -47,6 +49,13 @@ interface Room {
       desc: string;
     };
   }[];
+}
+
+interface LeaseContract {
+  id: string;
+  status: 'ACTIVE' | 'PENDING' | 'DECLINED' | 'ARCHIVED';
+  roomId?: string | null;
+  listingId?: string | null;
 }
 
 interface ListingCardProps {
@@ -74,7 +83,7 @@ interface ListingCardProps {
     overnightGuestsAllowed: boolean;
     hasMaxTenantCount: boolean;
     maxTenantCount?: number;
-    rooms: Room[];
+    rooms?: Room[];
     rules?: {
       petsAllowed: boolean;
       childrenAllowed: boolean;
@@ -96,6 +105,8 @@ interface ListingCardProps {
     leaseContracts: {
       id: string;
       status: 'ACTIVE' | 'PENDING' | 'DECLINED' | 'ARCHIVED';
+      roomId: string | null;
+      listingId: string | null;
     }[];
   };
 
@@ -220,23 +231,70 @@ const ListingCard: React.FC<ListingCardProps> = ({
 
   // Add this function to check availability
   const getAvailabilityInfo = () => {
-    if (data.pricingType === 'LISTING_BASED') {
-      // Check if there are any active lease contracts
-      const isAvailable = !data.leaseContracts || data.leaseContracts.filter(
-        lease => lease.status === 'ACTIVE'
-      ).length === 0;
+    try {
+      if (data.pricingType === 'LISTING_BASED') {
+        const activeLeases = data.leaseContracts?.filter(lease => 
+          lease.status === 'ACTIVE' && lease.listingId === data.id
+        ) || [];
+        
+        const isAvailable = activeLeases.length === 0;
+        return {
+          available: isAvailable,
+          tooltip: isAvailable ? 'Available' : 'Occupied'
+        };
+      }
+
+      // For room-based listings
+      if (!data.rooms || data.rooms.length === 0) {
+        return {
+          available: false,
+          tooltip: 'No rooms available'
+        };
+      }
+
+      // Count rooms with available capacity
+      const roomAvailability = data.rooms.reduce((acc, room) => {
+        // Check if room has active lease
+        const hasActiveLease = data.leaseContracts?.some(lease => 
+          lease.status === 'ACTIVE' && lease.roomId === room.id
+        ) || false;
+
+        // Count current tenants and check capacity
+        const currentTenants = room.tenants?.length || 0;
+        const maxTenants = room.maxTenantCount || 1;
+        
+        // Room is available if it has space for more tenants
+        if (currentTenants < maxTenants) {
+          const availableSpots = maxTenants - currentTenants;
+          acc.availableRooms++;
+          acc.totalAvailableSpots += availableSpots;
+        }
+        
+        return acc;
+      }, { availableRooms: 0, totalAvailableSpots: 0 });
+
+      const { availableRooms, totalAvailableSpots } = roomAvailability;
+
+      if (availableRooms === 0) {
+        return {
+          available: false,
+          tooltip: 'No rooms available'
+        };
+      }
+
+      // Create a detailed tooltip message
+      const roomText = `${availableRooms} room${availableRooms !== 1 ? 's' : ''}`;
+      const spotText = `${totalAvailableSpots} spot${totalAvailableSpots !== 1 ? 's' : ''}`;
+      
       return {
-        available: isAvailable,
-        tooltip: isAvailable ? 'Available' : 'Occupied'
+        available: true,
+        tooltip: `${roomText} available (${spotText})`
       };
-    } else {
-      const availableRooms = data.rooms.filter(room => 
-        !room.maxTenantCount || 
-        (room.tenants?.length || 0) < room.maxTenantCount
-      ).length;
+    } catch (error) {
+      console.error('Error checking availability:', error);
       return {
-        available: availableRooms > 0,
-        tooltip: `${availableRooms} room${availableRooms !== 1 ? 's' : ''} available`
+        available: false,
+        tooltip: 'Status unavailable'
       };
     }
   };
@@ -263,29 +321,33 @@ const ListingCard: React.FC<ListingCardProps> = ({
           ))}
         </Slider>
         
-        {/* Badges Container */}
+        {/* Top Badges Container */}
         <div className="absolute top-4 left-0 right-0 px-4 z-10">
           <div className="flex items-start justify-between">
-            {/* Left side badges */}
+            <CategoryListing category={data.category} />
             <div className="flex items-center gap-2">
-              <CategoryListing category={data.category} />
-              {/* Gender Restriction Icon with Tooltip */}
-              
-            </div>
-            {/* Heart button */}
-            <div className="absolute top-3 right-3 flex items-center gap-2">
+              {/* Availability Badge */}
               <TooltipProvider>
                 <Tooltip>
-                  <TooltipTrigger>
-                    <FaCircle 
-                      size={16} 
+                  <TooltipTrigger asChild>
+                    <div 
                       className={cn(
-                        "transition-colors",
-                        availabilityInfo.available 
-                          ? "text-green-500 hover:text-green-600" 
-                          : "text-red-500 hover:text-red-600"
-                      )} 
-                    />
+                        "w-4 h-4 relative",
+                        "bg-white rounded-full shadow-md",
+                        "flex items-center justify-center",
+                        "transition hover:scale-110"
+                      )}
+                    >
+                      <FaCircle 
+                        size={8} 
+                        className={cn(
+                          "transition-colors",
+                          availabilityInfo.available 
+                            ? "text-green-500" 
+                            : "text-red-500"
+                        )} 
+                      />
+                    </div>
                   </TooltipTrigger>
                   <TooltipContent>
                     <p>{availabilityInfo.tooltip}</p>
@@ -299,7 +361,7 @@ const ListingCard: React.FC<ListingCardProps> = ({
       </div>
 
       {/* Content Container */}
-      <div className="p-4">
+      <div className="p-4 relative">
         {/* Primary Information */}
         <div className="space-y-4">
           {/* Title and Gender Restriction */}

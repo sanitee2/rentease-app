@@ -22,15 +22,17 @@ const ListingsContent: React.FC<ListingsContentProps> = ({
   currentUser,
   categories,
   propertyAmenities,
-  searchParams
+  searchParams,
 }) => {
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const hasActiveFilters = Object.keys(searchParams).length > 0;
 
+  const marginTop = currentUser ? 'top-[70px]' : 'top-[88px]';
+
   return (
     <div className="w-full">
       {/* Mobile Filter Button */}
-      <div className="md:hidden sticky top-[88px] z-10 bg-white border-b p-4">
+      <div className={`md:hidden sticky ${marginTop} z-30 bg-white border-b p-4`}>
         <Button
           onClick={() => setIsFilterOpen(true)}
           variant="outline"

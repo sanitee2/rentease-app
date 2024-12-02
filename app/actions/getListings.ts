@@ -74,10 +74,26 @@ export default async function getListings(params: GetListingsParams) {
             price: true,
             roomCategory: true,
             maxTenantCount: true,
-            currentTenants: true
+            tenants: {
+              select: {
+                id: true,
+                // Add other tenant fields if needed
+              }
+            },
           }
         },
-        rules: true
+        rules: true,
+        leaseContracts: {
+          where: {
+            status: 'ACTIVE'
+          },
+          select: {
+            id: true,
+            status: true,
+            roomId: true,
+            listingId: true
+          }
+        }
       },
       where: {
         status: 'ACTIVE',
