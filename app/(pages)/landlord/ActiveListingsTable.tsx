@@ -1,31 +1,24 @@
 'use client';
 
 import { SafeListing, SafeUser } from '@/app/types';
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import axios from 'axios';
-import { AiOutlinePlusCircle, AiOutlineEye, AiOutlineDelete, AiOutlineEdit } from 'react-icons/ai';
+import { useState, useMemo } from 'react';
+import { AiOutlineEye, AiOutlineEdit } from 'react-icons/ai';
 import { FaArchive } from 'react-icons/fa';
 import Link from 'next/link';
 import StatusBadge from './StatusBadge';
 import ListingModal from '@/app/components/Modals/ListingModal';
-import getCurrentUser from '@/app/actions/getCurrentUser';
 import { toast } from 'react-hot-toast';
-
-const truncateText = (text: string, limit: number) => {
-  if (!text) return '';
-  if (text.length <= limit) return text;
-  return text.slice(0, limit) + '...';
-};
+import axios from 'axios';
+import { Button } from "@/components/ui/button";
 
 interface ActiveListingsTableProps {
-  data: SafeListing[];  // The prop should be an array of listings
+  data: SafeListing[];
   currentUser?: SafeUser | null;
 }
 
-const ITEMS_PER_PAGE = 5; // Number of items per page
+const ITEMS_PER_PAGE = 5;
 
 type ListingStatus = 'ACTIVE' | 'PENDING' | 'ARCHIVED' | 'DECLINED';
-
 type FilterValue = ListingStatus | 'all';
 
 const FILTER_BADGES: Array<{
@@ -40,68 +33,14 @@ const FILTER_BADGES: Array<{
   { value: 'DECLINED', label: 'Declined', color: 'red' },
 ];
 
-const useClickOutside = (ref: any, callback: any) => {
-  useEffect(() => {
-    const handleClickOutside = (event: any) => {
-      if (ref.current && !ref.current.contains(event.target)) {
-        callback();
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    document.addEventListener('touchstart', handleClickOutside);
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-      document.removeEventListener('touchstart', handleClickOutside);
-    };
-  }, [ref, callback]);
-};
-
-// Add a status priority map
-const STATUS_PRIORITY: Record<ListingStatus, number> = {
-  'ACTIVE': 1,
-  'PENDING': 2,
-  'ARCHIVED': 3,
-  'DECLINED': 4,
-};
-
-// Define sortable columns type
-type SortableColumns = 'title' | 'street' | 'status' | 'createdAt';
-
-const ActiveListingsTable: React.FC<ActiveListingsTableProps> = ({ 
-  data,
-  currentUser 
-}) => {
-  const [listings, setListings] = useState<SafeListing[]>(data);
-  const [currentPage, setCurrentPage] = useState(1);
+const ActiveListingsTable = ({ data, currentUser }: ActiveListingsTableProps) => {
   const [searchQuery, setSearchQuery] = useState('');
-  const [filteredData, setFilteredData] = useState<SafeListing[]>(data);
-  const [sortColumn, setSortColumn] = useState<SortableColumns>('createdAt');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [statusFilter, setStatusFilter] = useState<FilterValue>('all');
+  const [currentPage, setCurrentPage] = useState(1);
   const [selectedListing, setSelectedListing] = useState<SafeListing | null>(null);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
-  const [statusFilter, setStatusFilter] = useState<FilterValue>('all');
 
-  const menuRef = useRef(null);
-
-  useClickOutside(menuRef, () => {
-    setIsOpen(false);
-  });
-  
-  // Update listings state when data prop changes
-  useEffect(() => {
-    if (!data) return;
-    
-    const sortedData = [...data].sort((a, b) => 
-      STATUS_PRIORITY[a.status] - STATUS_PRIORITY[b.status]
-    );
-    
-    setListings(sortedData);
-    setFilteredData(sortedData);
-  }, [data]);
-
-  // Handle archive action - simplified version without socket
+  // Handle archive action
   const handleArchive = async (listingId: string) => {
     try {
       const response = await axios.patch(`/api/listings/${listingId}/status`, {
@@ -109,23 +48,13 @@ const ActiveListingsTable: React.FC<ActiveListingsTableProps> = ({
       });
 
       if (response.status === 200) {
-        setListings(prev => {
-          const updated = prev.map(listing => 
-            listing.id === listingId 
-              ? { ...listing, status: 'ARCHIVED' as ListingStatus }
-              : listing
-          );
-          return updated;
-        });
-        
-        setFilteredData(prev => 
-          prev.map(listing => 
-            listing.id === listingId 
-              ? { ...listing, status: 'ARCHIVED' as ListingStatus }
-              : listing
-          )
+        // Update the data locally
+        const updatedData = data.map(listing =>
+          listing.id === listingId
+            ? { ...listing, status: 'ARCHIVED' as ListingStatus }
+            : listing
         );
-        
+        // Update your data state here if needed
         toast.success('Listing archived successfully');
       }
     } catch (error) {
@@ -133,11 +62,9 @@ const ActiveListingsTable: React.FC<ActiveListingsTableProps> = ({
     }
   };
 
-  // Filter listings based on search query and status filter
-  useEffect(() => {
-    if (!listings) return;
-    
-    let filtered = [...listings];
+  // Filter and sort listings
+  const filteredListings = useMemo(() => {
+    let filtered = [...data];
 
     // Apply search filter
     if (searchQuery) {
@@ -153,192 +80,193 @@ const ActiveListingsTable: React.FC<ActiveListingsTableProps> = ({
       filtered = filtered.filter((listing) => listing.status === statusFilter);
     }
 
-    // Sort by status priority and then by the selected sort column
-    filtered.sort((a, b) => {
-      // First sort by status priority
-      const statusCompare = STATUS_PRIORITY[a.status] - STATUS_PRIORITY[b.status];
-      if (statusCompare !== 0) return statusCompare;
-      
-      // Then by the selected column
-      if (sortColumn === 'title') {
-        return sortOrder === 'asc' 
-          ? a.title.localeCompare(b.title)
-          : b.title.localeCompare(a.title);
-      }
-      
-      if (sortColumn === 'street') {
-        return sortOrder === 'asc'
-          ? a.street.localeCompare(b.street)
-          : b.street.localeCompare(a.street);
-      }
-      
-      if (sortColumn === 'status') {
-        return sortOrder === 'asc'
-          ? a.status.localeCompare(b.status)
-          : b.status.localeCompare(a.status);
-      }
-      
-      if (sortColumn === 'createdAt') {
-        return sortOrder === 'asc'
-          ? new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-          : new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-      }
-      
-      return 0;
-    });
-
-    setFilteredData(filtered);
-    setCurrentPage(1);
-  }, [listings, searchQuery, statusFilter, sortColumn, sortOrder]);
-
-  // Add type-safe sort handler
-  const handleSort = (column: SortableColumns) => {
-    setSortOrder(currentOrder => 
-      sortColumn === column 
-        ? currentOrder === 'asc' ? 'desc' : 'asc'
-        : 'asc'
+    // Sort by creation date (most recent first)
+    return filtered.sort((a, b) => 
+      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
     );
-    setSortColumn(column);
-  };
+  }, [data, searchQuery, statusFilter]);
 
-  // Pagination logic
-  const totalPages = Math.ceil(filteredData.length / ITEMS_PER_PAGE);
-  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-  const endIndex = startIndex + ITEMS_PER_PAGE;
-  const currentData = filteredData.slice(startIndex, endIndex);
+  // Pagination
+  const totalPages = Math.ceil(filteredListings.length / ITEMS_PER_PAGE);
+  const paginatedListings = filteredListings.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
 
-  // Calculate how many empty rows are needed to maintain table height
-  const emptyRowsCount = ITEMS_PER_PAGE - currentData.length;
-
-  // Handle pagination clicks
-  const handlePageChange = (newPage: number) => {
-    setCurrentPage(newPage);
-  };
-
-  const handleView = useCallback((listing: SafeListing) => {
-    setSelectedListing(listing);
-    setIsViewModalOpen(true);
-  }, []);
+  // Calculate empty rows needed
+  const emptyRows = Math.max(0, 5 - paginatedListings.length);
 
   return (
-    <div className="bg-white rounded-lg shadow">
-      <div className="flex justify-between items-center p-6">
-        <div className="relative max-w-xs">
-          <label className="sr-only">Search</label>
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="py-2 px-3 ps-9 block w-full border-gray-200 shadow-sm rounded-lg text-sm focus:z-10 focus:border-blue-500 focus:ring-blue-500"
-            placeholder="Search listings..."
-          />
-          <div className="absolute inset-y-0 start-0 flex items-center pointer-events-none ps-3">
-            <svg
-              className="size-4 text-gray-400 dark:text-neutral-500"
-              xmlns="http://www.w3.org/2000/svg"
-              width="24"
-              height="24"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <circle cx="11" cy="11" r="8"></circle>
-              <path d="m21 21-4.3-4.3"></path>
-            </svg>
+    <>
+      {/* Search and Filter Section */}
+      <div className="p-4 border-b border-gray-200">
+        <div className="flex items-center gap-4">
+          <div className="relative flex-1 max-w-md">
+            <input
+              type="text"
+              placeholder="Search listings..."
+              value={searchQuery}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <svg className="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
           </div>
-        </div>
-        
-        <div className="flex gap-2">
-          {FILTER_BADGES.map((badge) => (
-            <button
-              key={badge.value}
-              onClick={() => setStatusFilter(badge.value)}
-              className={`
-                px-3 py-1 rounded-full text-sm font-medium
-                ${statusFilter === badge.value
-                  ? `bg-${badge.color}-100 text-${badge.color}-700 ring-2 ring-${badge.color}-600`
-                  : `bg-${badge.color}-50 text-${badge.color}-600 hover:bg-${badge.color}-100`
-                }
-                transition-colors
-              `}
-            >
-              {badge.label}
-              {badge.value !== 'all' && (
-                <span className="ml-1 px-2 py-0.5 rounded-full text-xs bg-white">
-                  {listings.filter(item => item.status === badge.value).length}
-                </span>
-              )}
-            </button>
-          ))}
+          
+          <div className="flex gap-2">
+            {FILTER_BADGES.map((badge) => (
+              <button
+                key={badge.value}
+                onClick={() => {
+                  setStatusFilter(badge.value);
+                  setCurrentPage(1);
+                }}
+                className={`px-3 py-1 rounded-full text-sm ${
+                  statusFilter === badge.value 
+                    ? `bg-${badge.color}-100 text-${badge.color}-800` 
+                    : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+                }`}
+              >
+                {badge.label}
+                {badge.value !== 'all' && (
+                  <span className="ml-1">
+                    {filteredListings.filter(item => item.status === badge.value).length}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
+      {/* Table Content */}
       <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th scope="col" className="px-6 py-3 text-start text-xs font-medium text-gray-500 uppercase dark:text-neutral-500 cursor-pointer" style={{ minWidth: '150px' }} onClick={() => handleSort('title')}>
-                Title {sortColumn === 'title' && (sortOrder === 'asc' ? '▲' : '▼')}
+        <table className="min-w-full">
+          <thead>
+            <tr className="border-b border-gray-200">
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Title
               </th>
-              <th scope="col" className="px-6 py-3 text-start text-xs font-medium text-gray-500 uppercase dark:text-neutral-500 cursor-pointer" style={{ minWidth: '150px' }} onClick={() => handleSort('street')}>
-                Address {sortColumn === 'street' && (sortOrder === 'asc' ? '▲' : '▼')}
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Category
               </th>
-              <th scope="col" className="px-6 py-3 text-start text-xs font-medium text-gray-500 uppercase dark:text-neutral-500 cursor-pointer" style={{ minWidth: '100px' }} >
-                Status 
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Address
               </th>
-              <th scope="col" className="px-6 py-3 text-end text-xs font-medium text-gray-500 uppercase dark:text-neutral-500" style={{ minWidth: '100px' }}>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Status
+              </th>
+              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Actions
               </th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100">
-            {currentData.map((listing) => (
-              <tr key={listing.id} className="hover:bg-gray-50 transition-colors">
-                <td className="px-6 py-4 text-sm text-gray-900" style={{ minHeight: '50px' }} title={listing.title}>
-                  {truncateText(listing.title, 25) || '-'}
+          <tbody className="bg-white divide-y divide-gray-200">
+            {paginatedListings.map((listing) => (
+              <tr key={listing.id} className="hover:bg-gray-50">
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <div className="text-sm font-medium text-gray-900">
+                    {listing.title}
+                  </div>
                 </td>
-                <td className="px-6 py-4 text-sm text-gray-900" style={{ minHeight: '50px' }}>
-                  {listing.street && listing.barangay ? `${listing.street}, ${listing.barangay}` : '-'}
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  {listing.category}
                 </td>
-                <td className="px-6 py-4 text-sm text-gray-900" style={{ minHeight: '50px' }}>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  {listing.street}, {listing.barangay}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
                   <StatusBadge status={listing.status} />
                 </td>
-                <td className="px-6 py-4 text-end space-x-2">
-                  <button onClick={() => handleView(listing)} className="inline-flex items-center px-3 py-1 text-sm font-medium rounded-full text-blue-700 bg-blue-50 hover:bg-blue-100">
-                    <AiOutlineEye className="mr-1" />View
-                  </button>
+                <td className="px-6 py-4 whitespace-nowrap text-right space-x-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setSelectedListing(listing);
+                      setIsViewModalOpen(true);
+                    }}
+                    className="text-blue-600 hover:text-blue-900"
+                  >
+                    <AiOutlineEye className="h-4 w-4" />
+                  </Button>
                   {listing.status !== 'ARCHIVED' && (
-                    <><Link href={`/landlord/listings/edit/${listing.id}`}>
-                      <button className="inline-flex items-center px-3 py-1 text-sm font-medium rounded-full text-green-700 bg-green-50 hover:bg-green-100">
-                        <AiOutlineEdit className="mr-1" />Edit
-                      </button>
-                    </Link>
-                    <button onClick={() => handleArchive(listing.id)} className="inline-flex items-center px-3 py-1 text-sm font-medium rounded-full text-gray-700 bg-gray-50 hover:bg-gray-100">
-                      <FaArchive className="mr-1" />Archive
-                    </button></>
-                  )}
-                  {listing.status === 'ARCHIVED' && (
-                    <span className="inline-flex items-center px-3 py-1 text-sm font-medium rounded-full text-gray-500 bg-gray-100">
-                      Archived
-                    </span>
+                    <>
+                      <Link href={`/landlord/listings/edit/${listing.id}`}>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-green-600 hover:text-green-900"
+                        >
+                          <AiOutlineEdit className="h-4 w-4" />
+                        </Button>
+                      </Link>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleArchive(listing.id)}
+                        className="text-gray-600 hover:text-gray-900"
+                      >
+                        <FaArchive className="h-4 w-4" />
+                      </Button>
+                    </>
                   )}
                 </td>
               </tr>
             ))}
-            {emptyRowsCount > 0 && Array.from({ length: emptyRowsCount }).map((_, idx) => (
-              <tr key={`empty-${idx}`} className="h-16 bg-gray-100">
-                <td className="px-6 py-4" style={{ minHeight: '50px' }}>&nbsp;</td>
-                <td className="px-6 py-4" style={{ minHeight: '50px' }}>&nbsp;</td>
-                <td className="px-6 py-4" style={{ minHeight: '50px' }}>&nbsp;</td>
-                <td className="px-6 py-4" style={{ minHeight: '50px' }}>&nbsp;</td>
+            {/* Add empty rows to maintain height */}
+            {emptyRows > 0 && Array.from({ length: emptyRows }).map((_, index) => (
+              <tr key={`empty-${index}`} className="bg-gray-50/50">
+                <td colSpan={5} className="px-6 py-4 h-[73px] border-b border-gray-100"></td>
               </tr>
             ))}
+            {paginatedListings.length === 0 && (
+              <tr>
+                <td colSpan={5} className="px-6 py-4 text-center text-sm text-gray-500">
+                  No listings to display
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
+
+      {/* Pagination Controls */}
+      {totalPages > 1 && (
+        <div className="px-6 py-4 flex items-center justify-between border-t border-gray-200">
+          <div>
+            <p className="text-sm text-gray-700">
+              Showing{' '}
+              <span className="font-medium">{((currentPage - 1) * ITEMS_PER_PAGE) + 1}</span>
+              {' '}-{' '}
+              <span className="font-medium">
+                {Math.min(currentPage * ITEMS_PER_PAGE, filteredListings.length)}
+              </span>
+              {' '}of{' '}
+              <span className="font-medium">{filteredListings.length}</span>
+              {' '}results
+            </p>
+          </div>
+          <div className="flex gap-2">
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+              <Button
+                key={page}
+                variant={currentPage === page ? "default" : "outline"}
+                size="sm"
+                onClick={() => setCurrentPage(page)}
+              >
+                {page}
+              </Button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* View Modal */}
       {selectedListing && (
@@ -349,48 +277,9 @@ const ActiveListingsTable: React.FC<ActiveListingsTableProps> = ({
           currentUser={currentUser}
         />
       )}
-
-      {/* Pagination Section */}
-      <div className="py-4 px-6 border-t border-gray-100">
-        <nav className="flex items-center justify-center space-x-2">
-          <button
-            type="button"
-            className="p-2 inline-flex items-center rounded-full text-gray-800 hover:bg-gray-100 disabled:opacity-50"
-            onClick={() => handlePageChange(currentPage - 1)}
-            disabled={currentPage === 1}
-          >
-            <span aria-hidden="true">«</span>
-          </button>
-          {Array.from({ length: totalPages }, (_, index) => (
-            <button
-              key={index}
-              type="button"
-              className={`min-w-[40px] flex justify-center items-center text-gray-800 hover:bg-gray-100 focus:outline-none focus:bg-gray-100 py-2.5 text-sm rounded-full ${
-                currentPage === index + 1 ? 'bg-gray-100' : ''
-              }`}
-              onClick={() => handlePageChange(index + 1)}
-            >
-              {index + 1}
-            </button>
-          ))}
-          <button
-            type="button"
-            className="p-2 inline-flex items-center rounded-full text-gray-800 hover:bg-gray-100 disabled:opacity-50"
-            onClick={() => handlePageChange(currentPage + 1)}
-            disabled={currentPage === totalPages}
-          >
-            <span aria-hidden="true">»</span>
-          </button>
-        </nav>
-      </div>
-      {/* End of Pagination */}
-    </div>
+    </>
   );
 };
 
 export default ActiveListingsTable;
-
-function setIsOpen(arg0: boolean) {
-  throw new Error('Function not implemented.');
-}
 

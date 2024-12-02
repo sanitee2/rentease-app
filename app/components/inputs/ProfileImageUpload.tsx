@@ -30,7 +30,6 @@ const ProfileImageUpload = React.forwardRef<HTMLDivElement, ProfileImageUploadPr
               style={{ objectFit: 'cover' }}
               src={value}
               alt="Profile"
-              sizes="128px"
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center bg-gradient-to-r from-indigo-50 to-indigo-100/50">

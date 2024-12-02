@@ -43,10 +43,19 @@ enum ListingStatus {
   ARCHIVED
 }
 
+enum RequestViewingStatus {
+  PENDING
+  APPROVED
+  DECLINED
+  CANCELLED
+  COMPLETED
+}
+
 enum PaymentStatus {
   PENDING
   COMPLETED
   FAILED
+  CANCELLED
 }
 
 enum MaintenanceRequestStatus {
@@ -59,6 +68,20 @@ enum MaintenanceRequestStatus {
 enum PricingType {
   ROOM_BASED
   LISTING_BASED
+}
+
+enum MaintenanceStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum MaintenancePriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
 }
 
 type Location {
@@ -105,10 +128,10 @@ model User {
   // Other relations - fix casing and naming
   requestViewings     RequestViewing[]
   reviews             Review[]
-  payments            Payment[]
   maintenanceRequests MaintenanceRequest[]
   leaseContracts      LeaseContract[]
   Notification        Notification[]
+  Payment             Payment[]
 
   @@map("users")
 }
@@ -125,8 +148,8 @@ model TenantProfile {
   payments    Payment[]
   maintenance MaintenanceRequest[]
   leases      LeaseContract[]
-  roomId      String?              @unique @db.ObjectId
   currentRoom Room?                @relation("CurrentRoom", fields: [roomId], references: [id])
+  roomId      String?              @db.ObjectId
 
   @@map("tenant_profiles")
 }
@@ -214,6 +237,7 @@ model Listing {
   LandlordProfile     LandlordProfile?      @relation(fields: [landlordProfileId], references: [id])
   landlordProfileId   String?               @db.ObjectId
   Notification        Notification[]
+  Payment             Payment[]
 
   @@map("listings")
 }
@@ -232,13 +256,17 @@ model Room {
   listingId      String   @db.ObjectId
 
   // Relations
-  listing         Listing            @relation(fields: [listingId], references: [id], onDelete: Cascade)
-  tenants         User[]             @relation("RoomTenants")
-  currentTenant   TenantProfile?     @relation("CurrentRoom")
-  requestViewings RequestViewing[]
-  amenities       RoomsOnAmenities[]
+  listing             Listing              @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  tenants             User[]               @relation("RoomTenants")
+  tenantProfiles      TenantProfile[]      @relation("CurrentRoom")
+  requestViewings     RequestViewing[]
+  amenities           RoomsOnAmenities[]
+  LeaseContract       LeaseContract[]
+  Payment             Payment[]
+  maintenanceRequests MaintenanceRequest[]
 
   @@index([listingId])
+  @@map("rooms")
 }
 
 // New model to handle the many-to-many relationship
@@ -254,18 +282,19 @@ model RoomsOnAmenities {
 }
 
 model RequestViewing {
-  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  id              String               @id @default(auto()) @map("_id") @db.ObjectId
   date            DateTime
   time            DateTime
-  createdAt       DateTime @default(now())
-  userId          String   @db.ObjectId
-  roomId          String   @db.ObjectId
-  listingId       String   @db.ObjectId
-  tenantProfileId String?  @db.ObjectId
+  createdAt       DateTime             @default(now())
+  status          RequestViewingStatus @default(PENDING)
+  userId          String               @db.ObjectId
+  roomId          String?              @db.ObjectId
+  listingId       String               @db.ObjectId
+  tenantProfileId String?              @db.ObjectId
 
   // Relations
   user          User           @relation(fields: [userId], references: [id])
-  room          Room           @relation(fields: [roomId], references: [id])
+  room          Room?          @relation(fields: [roomId], references: [id])
   listing       Listing        @relation(fields: [listingId], references: [id])
   tenantProfile TenantProfile? @relation(fields: [tenantProfileId], references: [id])
 
@@ -289,51 +318,7 @@ model Review {
   @@map("reviews")
 }
 
-model Payment {
-  id               String        @id @default(auto()) @map("_id") @db.ObjectId
-  amount           Float // Actual amount paid
-  totalAmount      Float // Total amount due for this period
-  remainingBalance Float? // Added to track partial payments better
-  date             DateTime      @default(now())
-  status           PaymentStatus @default(PENDING)
-
-  // References
-  userId          String  @db.ObjectId
-  leaseId         String  @db.ObjectId
-  tenantProfileId String? @db.ObjectId
-
-  // Payment details
-  paymentType   PaymentType   @default(RENT)
-  paymentMethod PaymentMethod @default(CASH)
-  paymentPeriod DateTime? // Required: Which month this payment is for
-  dueDate       DateTime? // Required: When payment is due
-  lateFee       Float? // Optional late payment fee
-
-  // Documentation
-  description   String? // Optional notes
-  receiptNumber String? // For tracking receipts
-  imageSrc      String? // Payment proof/receipt image
-  isPartial     Boolean @default(false)
-
-  // Relations
-  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  lease         LeaseContract  @relation(fields: [leaseId], references: [id], onDelete: Cascade)
-  tenantProfile TenantProfile? @relation(fields: [tenantProfileId], references: [id])
-
-  @@map("payments")
-}
-
-// Add these new enums
-enum PaymentType {
-  RENT
-  SECURITY_DEPOSIT
-  UTILITY
-  MAINTENANCE
-  PENALTY
-  OTHER
-}
-
-enum PaymentMethod {
+enum PaymentMode {
   CASH
   BANK_TRANSFER
   GCASH
@@ -343,43 +328,93 @@ enum PaymentMethod {
   OTHER
 }
 
-model MaintenanceRequest {
-  id              String                   @id @default(auto()) @map("_id") @db.ObjectId
-  description     String
-  status          MaintenanceRequestStatus // Change to use enum instead of String
-  createdAt       DateTime                 @default(now())
-  listingId       String                   @db.ObjectId
-  userId          String?                  @db.ObjectId
-  tenantProfileId String?                  @db.ObjectId
+model Payment {
+  id            String        @id @default(auto()) @map("_id") @db.ObjectId
+  userId        String        @db.ObjectId
+  leaseId       String        @db.ObjectId
+  amount        Float
+  image         String?
+  description   String?
+  status        PaymentStatus @default(PENDING)
+  paymentMethod PaymentMode
+  createdAt     DateTime      @default(now())
+  periodStart   DateTime?
+  periodEnd     DateTime?
 
   // Relations
-  listing       Listing        @relation(fields: [listingId], references: [id], onDelete: Cascade)
-  user          User?          @relation(fields: [userId], references: [id])
-  tenantProfile TenantProfile? @relation(fields: [tenantProfileId], references: [id])
+  user            User           @relation(fields: [userId], references: [id])
+  lease           LeaseContract  @relation(fields: [leaseId], references: [id])
+  TenantProfile   TenantProfile? @relation(fields: [tenantProfileId], references: [id])
+  tenantProfileId String?        @db.ObjectId
+  Listing         Listing?       @relation(fields: [listingId], references: [id])
+  listingId       String?        @db.ObjectId
+  Room            Room?          @relation(fields: [roomId], references: [id])
+  roomId          String?        @db.ObjectId
 
+  @@index([userId])
+  @@index([leaseId])
+  @@map("payments")
+}
+
+model MaintenanceRequest {
+  id          String              @id @default(auto()) @map("_id") @db.ObjectId
+  title       String // Add title field
+  description String
+  status      MaintenanceStatus   @default(PENDING)
+  priority    MaintenancePriority @default(MEDIUM) // Add priority field
+  images      String[]            @default([]) // Add images array
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt // Add updatedAt field
+  listingId   String              @db.ObjectId
+  userId      String?             @db.ObjectId
+  roomId      String?             @db.ObjectId
+
+  // Relations
+  listing         Listing        @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  user            User?          @relation(fields: [userId], references: [id])
+  room            Room?          @relation(fields: [roomId], references: [id])
+  TenantProfile   TenantProfile? @relation(fields: [tenantProfileId], references: [id])
+  tenantProfileId String?        @db.ObjectId
+
+  @@index([listingId])
+  @@index([userId])
+  @@index([roomId])
+  @@index([status])
+  @@index([priority])
   @@map("maintenance_requests")
 }
 
 model LeaseContract {
-  id              String    @id @default(auto()) @map("_id") @db.ObjectId
-  startDate       DateTime
-  rentAmount      Float? // Changed from Int to Float for consistency
-  terms           String
-  createdAt       DateTime  @default(now())
-  monthlyDueDate  Int? // Day of the month when rent is due (1-31)
-  isActive        Boolean   @default(true)
-  endedAt         DateTime?
-  userId          String    @db.ObjectId
-  listingId       String    @db.ObjectId
-  tenantProfileId String?   @db.ObjectId
+  id                 String      @id @default(auto()) @map("_id") @db.ObjectId
+  userId             String      @db.ObjectId
+  listingId          String      @db.ObjectId
+  roomId             String?     @db.ObjectId
+  startDate          DateTime
+  endDate            DateTime? // Make endDate optional by adding ?
+  monthlyDueDate     Int
+  rentAmount         Float
+  outstandingBalance Float       @default(0)
+  leaseTerms         String
+  status             LeaseStatus @default(PENDING)
+  createdAt          DateTime    @default(now())
 
   // Relations
-  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  listing       Listing        @relation(fields: [listingId], references: [id], onDelete: Cascade)
-  payments      Payment[]
-  tenantProfile TenantProfile? @relation(fields: [tenantProfileId], references: [id])
+  user            User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  listing         Listing        @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  room            Room?          @relation(fields: [roomId], references: [id])
+  tenantProfile   TenantProfile? @relation(fields: [tenantProfileId], references: [id])
+  tenantProfileId String?        @db.ObjectId
+  Payment         Payment[]
 
   @@map("lease_contracts")
+}
+
+enum LeaseStatus {
+  PENDING
+  ACTIVE
+  REJECTED
+  INACTIVE
+  CANCELLED
 }
 
 model ListingCategories {

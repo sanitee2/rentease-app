@@ -1,63 +1,64 @@
-import { NextResponse } from 'next/server';
-import getCurrentUser from '@/app/actions/getCurrentUser';
-import prisma from '@/app/libs/prismadb';
+import { NextResponse } from "next/server";
+import prisma from "@/app/libs/prismadb";
+import getCurrentUser from "@/app/actions/getCurrentUser";
 
-export async function GET(request: Request) {
+export async function GET() {
   try {
     const currentUser = await getCurrentUser();
-    if (!currentUser) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+    if (!currentUser || currentUser.role !== 'LANDLORD') {
+      return new NextResponse('Unauthorized', { status: 401 });
     }
 
-    const listings = await prisma.listing.findMany({
+    // Get total listings
+    const totalListings = await prisma.listing.count({
+      where: { userId: currentUser.id }
+    });
+
+    // Get active leases
+    const activeLeases = await prisma.leaseContract.count({
       where: {
-        userId: currentUser.id
-      },
-      include: {
-        rooms: true,
-        leaseContracts: {
-          where: {
-            isActive: true
-          },
-          select: {
-            rentAmount: true
-          }
-        },
-        maintenanceRequests: {
-          where: {
-            status: "PENDING"
-          }
-        }
+        listing: { userId: currentUser.id },
+        status: 'ACTIVE'
       }
     });
 
-    // Calculate stats
-    const totalListings = listings.length;
-    
-    // Calculate active leases
-    const activeLeases = listings.reduce((sum, listing) => 
-      sum + listing.leaseContracts.length, 0);
-    
-    // Calculate total revenue from active leases with null check
-    const totalRevenue = listings.reduce((sum, listing) => {
-      return sum + listing.leaseContracts.reduce((leaseSum, lease) => 
-        leaseSum + (lease.rentAmount ?? 0), 0);
-    }, 0);
+    // Calculate total revenue from active leases
+    const leases = await prisma.leaseContract.findMany({
+      where: {
+        listing: { userId: currentUser.id },
+        status: 'ACTIVE'
+      },
+      select: { rentAmount: true }
+    });
+    const totalRevenue = leases.reduce((sum, lease) => sum + lease.rentAmount, 0);
 
-    // Count pending maintenance requests
-    const pendingMaintenance = listings.reduce((sum, listing) => 
-      sum + listing.maintenanceRequests.length, 0);
+    // Get pending maintenance requests
+    const pendingMaintenance = await prisma.maintenanceRequest.count({
+      where: {
+        listing: { userId: currentUser.id },
+        status: 'PENDING'
+      }
+    });
 
     // Calculate occupancy rate
-    const totalRooms = listings.reduce((sum, listing) => 
-      sum + listing.rooms.length, 0);
-    const occupiedRooms = listings.reduce((sum, listing) => 
-      sum + listing.leaseContracts.length, 0);
+    const totalRooms = await prisma.room.count({
+      where: {
+        listing: { userId: currentUser.id }
+      }
+    });
+
+    const occupiedRooms = await prisma.room.count({
+      where: {
+        listing: { userId: currentUser.id },
+        currentTenants: { isEmpty: false }
+      }
+    });
+
     const occupancyRate = totalRooms > 0 
-      ? Math.round((occupiedRooms / totalRooms) * 100) 
+      ? Math.round((occupiedRooms / totalRooms) * 100)
       : 0;
 
-    // Return the stats
     return NextResponse.json({
       totalListings,
       activeLeases,
@@ -65,12 +66,8 @@ export async function GET(request: Request) {
       pendingMaintenance,
       occupancyRate
     });
-
   } catch (error) {
-    console.error("[DASHBOARD_STATS]", error);
-    return NextResponse.json(
-      { error: "Internal server error" }, 
-      { status: 500 }
-    );
+    console.error('[DASHBOARD_STATS_GET]', error);
+    return new NextResponse('Internal Error', { status: 500 });
   }
 } 

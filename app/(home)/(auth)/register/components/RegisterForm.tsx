@@ -119,7 +119,8 @@ const RegisterForm = () => {
       const signInResult = await signIn('credentials', {
         email: data.email,
         password: data.password,
-        redirect: false
+        redirect: false,
+        callbackUrl: '/listings'
       });
 
       if (signInResult?.error) {
@@ -129,9 +130,8 @@ const RegisterForm = () => {
       }
 
       if (signInResult?.ok) {
-        toast.success('Account created! Redirecting...');
-        router.refresh(); // Refresh the page to update the session
-        router.push('/listings');
+        toast.success('Account created successfully!');
+        router.push(signInResult.url || '/listings');
       }
     } catch (error: any) {
       if (error.response?.data?.error) {

@@ -19,6 +19,13 @@ import '@/app/styles/slick-carousel.css';
 import 'slick-carousel/slick/slick.css';
 import 'slick-carousel/slick/slick-theme.css';
 import { cn } from '@/lib/utils';
+import { FaCircle } from 'react-icons/fa';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface Room {
   id: string;
@@ -31,6 +38,7 @@ interface Room {
   roomCategory: string;
   maxTenantCount?: number;
   currentTenants: string[];
+  tenants: { id: string }[];
   amenities: {
     amenity: {
       id: string;
@@ -84,6 +92,10 @@ interface ListingCardProps {
         desc: string;
       };
       note?: string | null;
+    }[];
+    leaseContracts: {
+      id: string;
+      status: 'ACTIVE' | 'PENDING' | 'DECLINED' | 'ARCHIVED';
     }[];
   };
 
@@ -206,6 +218,31 @@ const ListingCard: React.FC<ListingCardProps> = ({
     ),
   };
 
+  // Add this function to check availability
+  const getAvailabilityInfo = () => {
+    if (data.pricingType === 'LISTING_BASED') {
+      // Check if there are any active lease contracts
+      const isAvailable = !data.leaseContracts || data.leaseContracts.filter(
+        lease => lease.status === 'ACTIVE'
+      ).length === 0;
+      return {
+        available: isAvailable,
+        tooltip: isAvailable ? 'Available' : 'Occupied'
+      };
+    } else {
+      const availableRooms = data.rooms.filter(room => 
+        !room.maxTenantCount || 
+        (room.tenants?.length || 0) < room.maxTenantCount
+      ).length;
+      return {
+        available: availableRooms > 0,
+        tooltip: `${availableRooms} room${availableRooms !== 1 ? 's' : ''} available`
+      };
+    }
+  };
+
+  const availabilityInfo = getAvailabilityInfo();
+
   return (
     <div 
       onClick={() => router.push(`/listings/info/${data.id}`)} 
@@ -236,7 +273,27 @@ const ListingCard: React.FC<ListingCardProps> = ({
               
             </div>
             {/* Heart button */}
-            <HeartButton listingId={data.id} currentUser={currentUser} />
+            <div className="absolute top-3 right-3 flex items-center gap-2">
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger>
+                    <FaCircle 
+                      size={16} 
+                      className={cn(
+                        "transition-colors",
+                        availabilityInfo.available 
+                          ? "text-green-500 hover:text-green-600" 
+                          : "text-red-500 hover:text-red-600"
+                      )} 
+                    />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>{availabilityInfo.tooltip}</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+              <HeartButton listingId={data.id} currentUser={currentUser} />
+            </div>
           </div>
         </div>
       </div>

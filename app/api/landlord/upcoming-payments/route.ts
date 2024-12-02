@@ -2,47 +2,53 @@ import { NextResponse } from 'next/server';
 import prisma from '@/app/libs/prismadb';
 import getCurrentUser from '@/app/actions/getCurrentUser';
 
-export async function GET(request: Request) {
+export async function GET() {
   try {
     const currentUser = await getCurrentUser();
-    if (!currentUser) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+    if (!currentUser || currentUser.role !== 'LANDLORD') {
+      return new NextResponse('Unauthorized', { status: 401 });
     }
 
-    const leases = await prisma.leaseContract.findMany({
+    const payments = await prisma.payment.findMany({
       where: {
-        listing: {
-          userId: currentUser.id
+        lease: {
+          listing: { userId: currentUser.id }
         },
-        isActive: true
+        status: 'PENDING'
       },
       select: {
         id: true,
-        rentAmount: true,
-        startDate: true,
-        monthlyDueDate: true,
-        user: {
-          select: {
-            firstName: true,
-            lastName: true
-          }
-        },
-        listing: {
+        amount: true,
+        status: true,
+        paymentMethod: true,
+        lease: {
           select: {
             id: true,
-            title: true
+            user: {
+              select: {
+                firstName: true,
+                lastName: true
+              }
+            },
+            listing: {
+              select: {
+                id: true,
+                title: true
+              }
+            }
           }
         }
       },
       orderBy: {
-        startDate: "desc"
+        createdAt: 'asc'
       },
       take: 5
     });
 
-    return NextResponse.json(leases);
+    return NextResponse.json(payments);
   } catch (error) {
-    console.error("[UPCOMING_PAYMENTS]", error);
-    return NextResponse.json({ error: "Internal error" }, { status: 500 });
+    console.error('[UPCOMING_PAYMENTS_GET]', error);
+    return new NextResponse('Internal Error', { status: 500 });
   }
 } 

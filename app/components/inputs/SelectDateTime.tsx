@@ -15,9 +15,10 @@ interface SelectDateTimeProps {
   listingId: string;
   selectedRoom: { value: string, label: string } | null;
   onRoomChange: (value: { value: string, label: string } | null) => void;
+  pricingType: 'ROOM_BASED' | 'LISTING_BASED';
 }
 
-const SelectDateTime: React.FC<SelectDateTimeProps> = ({ rooms, currentUser, listingId, selectedRoom, onRoomChange }) => {
+const SelectDateTime: React.FC<SelectDateTimeProps> = ({ rooms, currentUser, listingId, selectedRoom, onRoomChange, pricingType }) => {
   const loginModal = useLoginModal();
 
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
@@ -68,7 +69,7 @@ const SelectDateTime: React.FC<SelectDateTimeProps> = ({ rooms, currentUser, lis
       return;
     }
 
-    if (!selectedRoom) {
+    if (pricingType === 'ROOM_BASED' && !selectedRoom) {
       setError('Please select a room.');
       return;
     }
@@ -81,7 +82,7 @@ const SelectDateTime: React.FC<SelectDateTimeProps> = ({ rooms, currentUser, lis
     }
 
     try {
-      // Check if the user has requested more than 2 viewings for this listing
+      // Check viewing count
       const response = await axios.get('/api/request-viewing/count', {
         params: { userId: currentUser.id, listingId },
       });
@@ -93,17 +94,20 @@ const SelectDateTime: React.FC<SelectDateTimeProps> = ({ rooms, currentUser, lis
         return;
       }
 
-      // Proceed if there are no errors
-      // Format date and time properly
-      const date = combinedDateTime.toISOString().split('T')[0]; // Extract date part
-      const time = combinedDateTime.toISOString(); // Use full ISO string for time with timezone
+      const date = combinedDateTime.toISOString().split('T')[0];
+      const time = combinedDateTime.toISOString();
 
-      await axios.post('/api/request-viewing', {
+      // Different endpoint based on pricing type
+      const endpoint = pricingType === 'ROOM_BASED' 
+        ? '/api/request-viewing/room'
+        : '/api/request-viewing/listing';
+
+      await axios.post(endpoint, {
         date,
         time,
-        roomId: selectedRoom,
+        ...(pricingType === 'ROOM_BASED' && { roomId: selectedRoom }),
         userId: currentUser.id,
-        listingId: listingId, // Include listingId
+        listingId: listingId,
       });
 
       toast.success('Request submitted successfully');
@@ -127,31 +131,33 @@ const SelectDateTime: React.FC<SelectDateTimeProps> = ({ rooms, currentUser, lis
         </h2>
 
         <div className="space-y-6">
-          {/* Room Selection - Improved styling */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Select Room
-            </label>
-            <Select
-              id="roomSelect"
-              value={selectedRoom}
-              onChange={handleRoomChange}
-              options={roomOptions}
-              className="react-select-container"
-              classNamePrefix="react-select"
-              placeholder="Choose a room"
-              isClearable
-              styles={{
-                control: (base) => ({
-                  ...base,
-                  borderColor: '#E5E7EB',
-                  '&:hover': {
-                    borderColor: '#A5B4FC'
-                  }
-                })
-              }}
-            />
-          </div>
+          {/* Only show room selection for room-based pricing */}
+          {pricingType === 'ROOM_BASED' && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Select Room
+              </label>
+              <Select
+                id="roomSelect"
+                value={selectedRoom}
+                onChange={handleRoomChange}
+                options={roomOptions}
+                className="react-select-container"
+                classNamePrefix="react-select"
+                placeholder="Choose a room"
+                isClearable
+                styles={{
+                  control: (base) => ({
+                    ...base,
+                    borderColor: '#E5E7EB',
+                    '&:hover': {
+                      borderColor: '#A5B4FC'
+                    }
+                  })
+                }}
+              />
+            </div>
+          )}
 
           {/* Time Selection - Better UI */}
           <div>

@@ -1,19 +1,32 @@
 import { format } from 'date-fns';
-import { FaTools, FaSpinner, FaCheckCircle, FaTimesCircle } from 'react-icons/fa';
-
-interface MaintenanceRequest {
-  id: string;
-  description: string;
-  status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
-  createdAt: Date;
-}
+import { FaTools, FaSpinner, FaCheckCircle, FaTimesCircle, FaChevronRight } from 'react-icons/fa';
+import EmptyState from './EmptyState';
+import { Button } from '@/components/ui/button';
+import { useRouter } from 'next/navigation';
+import { Eye } from "lucide-react";
+import TenantMaintenanceDetailsModal from '@/app/components/Modals/TenantMaintenanceDetailsModal';
+import { useState } from 'react';
+import { MaintenanceRequest } from '@/app/types';
 
 interface MaintenanceRequestsProps {
-  requests: MaintenanceRequest[];
+  requests: {
+    id: string;
+    description: string;
+    status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
+    createdAt: Date;
+    images?: string[];
+    priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
+    title: string;
+  }[];
 }
 
 const MaintenanceRequests: React.FC<MaintenanceRequestsProps> = ({ requests }) => {
-  const getStatusIcon = (status: string) => {
+  const router = useRouter();
+  const displayRequests = requests.slice(0, 4); // Show only 4 latest requests
+  const [selectedRequest, setSelectedRequest] = useState<Partial<MaintenanceRequest> | null>(null);
+
+  const getStatusIcon = (status: string | undefined) => {
+    if (!status) return <FaTools className="text-yellow-500 w-5 h-5" />;
     switch (status) {
       case 'COMPLETED':
         return <FaCheckCircle className="text-green-500 w-5 h-5" />;
@@ -26,43 +39,107 @@ const MaintenanceRequests: React.FC<MaintenanceRequestsProps> = ({ requests }) =
     }
   };
 
-  if (!requests.length) {
+  const getStatusStyle = (status: string | undefined) => {
+    if (!status) return 'bg-yellow-100 text-yellow-800';
+    switch (status) {
+      case 'COMPLETED':
+        return 'bg-green-100 text-green-800';
+      case 'IN_PROGRESS':
+        return 'bg-blue-100 text-blue-800';
+      case 'CANCELLED':
+        return 'bg-red-100 text-red-800';
+      default:
+        return 'bg-yellow-100 text-yellow-800';
+    }
+  };
+
+  if (!requests?.length) {
     return (
-      <div className="text-center py-8 text-gray-500">
-        No maintenance requests found.
-      </div>
+      <EmptyState 
+        type="maintenance"
+        subtitle="Submit a maintenance request if you need any repairs or have concerns."
+      />
     );
   }
 
   return (
-    <div className="space-y-4">
-      {requests.map((request) => (
-        <div 
-          key={request.id}
-          className="p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition"
-        >
-          <div className="flex items-start gap-3">
-            {getStatusIcon(request.status)}
-            <div className="flex-1">
-              <p className="font-medium line-clamp-2">{request.description}</p>
-              <div className="flex items-center justify-between mt-2">
-                <p className="text-sm text-gray-500">
+    <div className="bg-white rounded-xl shadow-sm border border-gray-100">
+      <div className="p-6 border-b border-gray-100">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900">Maintenance Requests</h2>
+            <p className="text-sm text-gray-500 mt-1">Track your maintenance requests</p>
+          </div>
+            <Button
+              onClick={() => router.push('/maintenance')}
+              variant="ghost"
+              className="text-sm text-gray-600 hover:text-gray-900"
+            >
+              View All
+              <FaChevronRight className="ml-2 w-4 h-4" />
+            </Button>
+        </div>
+      </div>
+
+      <div className="divide-y divide-gray-100">
+        {displayRequests.map((request) => (
+          <div 
+            key={request.id}
+            className="flex items-center justify-between p-4 hover:bg-gray-50 transition"
+          >
+            <div className="flex items-center gap-4">
+              {getStatusIcon(request.status)}
+              <div>
+                <div className="flex items-center gap-2">
+                  <p className="font-medium line-clamp-1">{request.description}</p>
+                  <span className={`
+                    px-2 py-0.5 rounded-full text-xs font-medium
+                    ${getStatusStyle(request.status)}
+                  `}>
+                    {request.status}
+                  </span>
+                </div>
+                <p className="text-sm text-gray-500 mt-1">
                   {format(new Date(request.createdAt), 'MMM d, yyyy')}
                 </p>
-                <span className={`
-                  px-3 py-1 rounded-full text-sm font-medium
-                  ${request.status === 'COMPLETED' ? 'bg-green-100 text-green-800' : ''}
-                  ${request.status === 'IN_PROGRESS' ? 'bg-blue-100 text-blue-800' : ''}
-                  ${request.status === 'CANCELLED' ? 'bg-red-100 text-red-800' : ''}
-                  ${request.status === 'PENDING' ? 'bg-yellow-100 text-yellow-800' : ''}
-                `}>
-                  {request.status}
-                </span>
               </div>
             </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => request.id && setSelectedRequest({
+                ...request,
+                createdAt: request.createdAt.toISOString()
+              })}
+              className="text-blue-600 hover:text-blue-900"
+            >
+              <Eye className="h-4 w-4" />
+            </Button>
           </div>
+        ))}
+      </div>
+
+      {requests.length > 4 && (
+        <div className="p-4 bg-gray-50 border-t border-gray-100 text-center">
+          <Button
+            onClick={() => router.push('/maintenance')}
+            variant="ghost"
+            className="text-sm text-gray-600 hover:text-gray-900"
+          >
+            View All {requests.length} Requests
+            <FaChevronRight className="ml-2 w-4 h-4" />
+          </Button>
         </div>
-      ))}
+      )}
+
+      {selectedRequest && (
+        <TenantMaintenanceDetailsModal
+          isOpen={!!selectedRequest}
+          onClose={() => setSelectedRequest(null)}
+          request={selectedRequest}
+          setSelectedRequest={setSelectedRequest}
+        />
+      )}
     </div>
   );
 };

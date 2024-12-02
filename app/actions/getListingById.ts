@@ -18,12 +18,13 @@ export default async function getListingById(
       },
       include: {
         user: true,
-        rules: true,
+        rooms: true,
         propertyAmenities: {
           include: {
             amenity: true,
           }
-        }
+        },
+        rules: true
       }
     })
 

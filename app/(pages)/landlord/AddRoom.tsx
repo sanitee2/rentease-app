@@ -9,6 +9,7 @@ import Modal from '@/app/components/Modals/Modal';
 import toast from "react-hot-toast";
 
 interface Room {
+  id?: string;
   title: string;
   description: string;
   roomCategory: string;
@@ -73,33 +74,39 @@ const AddRoom: React.FC<AddRoomProps> = ({ rooms, setRooms, listingCategory }) =
     setIsDrawerOpen(true);
   };
 
-  // Save the room and reset state
-  const handleSaveRoom = (roomData: any) => {
-    if (selectedRoom) {
+  // Handle saving room data
+  const handleSaveRoom = (roomData: Room) => {
+    // Helper function to process price
+    const processPrice = (price: number | null) => {
+      if (listingCategory?.pricingType !== 'ROOM_BASED') return null;
+      if (price === null) return 0;
+      return parseFloat(price.toString());
+    };
+
+    if (selectedRoom?.id) {
       // Update existing room
-      setRooms(rooms.map(room => 
-        room === selectedRoom ? {
-          ...room,
+      setRooms(prevRooms => prevRooms.map(room => 
+        room.id === selectedRoom.id ? {
           ...roomData,
-          price: listingCategory?.pricingType === 'ROOM_BASED' 
-            ? parseFloat(roomData.price) 
-            : null,
-          maxTenantCount: parseInt(roomData.maxTenantCount) || 1
+          id: selectedRoom.id,
+          price: processPrice(roomData.price),
+          maxTenantCount: parseInt(roomData.maxTenantCount?.toString() || '1')
         } : room
       ));
     } else {
       // Add new room
-      setRooms([...rooms, {
+      const newRoom = {
         ...roomData,
-        id: Math.random().toString(36).substr(2, 9), // Temporary ID
-        price: listingCategory?.pricingType === 'ROOM_BASED' 
-          ? parseFloat(roomData.price) 
-          : null,
-        maxTenantCount: parseInt(roomData.maxTenantCount) || 1
-      }]);
+        id: Math.random().toString(36).substr(2, 9),
+        price: processPrice(roomData.price),
+        maxTenantCount: parseInt(roomData.maxTenantCount?.toString() || '1')
+      };
+      setRooms(prevRooms => [...prevRooms, newRoom]);
     }
+    
     setIsDrawerOpen(false);
     setSelectedRoom(null);
+    setIsEdited(false);
   };
 
   // Handle closing the drawer with unsaved changes

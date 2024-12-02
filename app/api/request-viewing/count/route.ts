@@ -20,7 +20,8 @@ export async function GET(req: NextRequest) {
       where: {
         userId,
         listingId,
-      },
+        status: 'PENDING'
+      }
     });
 
     return NextResponse.json({ count: viewingCount }, { status: 200 });

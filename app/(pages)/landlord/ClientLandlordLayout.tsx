@@ -45,7 +45,7 @@ const ClientLandlordLayout: React.FC<ClientLandlordLayoutProps> = ({
         setExpanded={setExpanded}
       >
         <SidebarItem icon={<LuLayoutDashboard size={20}/>} text="Dashboard" href="/landlord/dashboard"/>
-        <SidebarItem icon={<LuHome size={20}/>} text="Listings" href="/landlord/listings" alert/>
+        <SidebarItem icon={<LuHome size={20}/>} text="Listings" href="/landlord/listings"/>
         <SidebarItem icon={<LuUsers size={20}/>} text="Tenants" href="/landlord/tenants"/>
         <SidebarItem icon={<LuWallet size={20}/>} text="Payments" href="/landlord/payments"/>
         <SidebarItem icon={<LuWrench size={20}/>} text="Maintenance Requests" href="/landlord/maintenance"/>

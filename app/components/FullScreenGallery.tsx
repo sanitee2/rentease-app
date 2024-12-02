@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef, MouseEvent } from 'react';
 import Image from 'next/image';
 import { MdArrowBackIos, MdArrowForwardIos } from 'react-icons/md';
 import { AiOutlineClose } from 'react-icons/ai';
+import { ZoomIn, ZoomOut } from 'lucide-react';
 
 interface FullScreenGalleryProps {
   images: string[];
@@ -17,96 +18,208 @@ const FullScreenGallery: React.FC<FullScreenGalleryProps> = ({
   initialIndex = 0 
 }) => {
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
+  const [scale, setScale] = useState(1);
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const hasMultipleImages = images.length > 1;
+
+  // Handle mouse down event to start dragging
+  const handleMouseDown = (e: MouseEvent) => {
+    if (scale > 1) {
+      setIsDragging(true);
+      setDragStart({
+        x: e.clientX - position.x,
+        y: e.clientY - position.y
+      });
+    }
+  };
+
+  // Handle mouse move event while dragging
+  const handleMouseMove = (e: MouseEvent) => {
+    if (isDragging && scale > 1) {
+      const maxOffset = (scale - 1) * 500; // Increased from 200 to 500 for more movement range
+      const newX = e.clientX - dragStart.x;
+      const newY = e.clientY - dragStart.y;
+
+      // Constrain movement within bounds
+      const boundedX = Math.max(Math.min(newX, maxOffset), -maxOffset);
+      const boundedY = Math.max(Math.min(newY, maxOffset), -maxOffset);
+
+      setPosition({
+        x: boundedX,
+        y: boundedY
+      });
+    }
+  };
+
+  // Handle mouse up event to stop dragging
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  // Reset position when zoom changes
+  const handleZoomIn = () => {
+    setScale(prev => Math.min(prev + 0.5, 3));
+    setPosition({ x: 0, y: 0 }); // Reset position on zoom change
+  };
+
+  const handleZoomOut = () => {
+    setScale(prev => Math.max(prev - 0.5, 1));
+    setPosition({ x: 0, y: 0 }); // Reset position on zoom change
+  };
 
   const handlePrev = () => {
+    setScale(1);
+    setPosition({ x: 0, y: 0 }); // Reset position on image change
     setCurrentIndex((prevIndex) =>
       prevIndex === 0 ? images.length - 1 : prevIndex - 1
     );
   };
 
   const handleNext = () => {
+    setScale(1);
+    setPosition({ x: 0, y: 0 }); // Reset position on image change
     setCurrentIndex((prevIndex) =>
       prevIndex === images.length - 1 ? 0 : prevIndex + 1
     );
   };
 
   return (
-    <div className="fixed inset-0 bg-black text-white flex flex-col items-center justify-center z-50">
-      {/* Close Button */}
-      <button
-        className="absolute top-5 left-5 p-2 text-white hover:text-gray-300 z-10"
-        onClick={onClose}
-      >
-        <AiOutlineClose size={32} />
-      </button>
+    <div className="fixed inset-0 bg-black text-white flex flex-col items-center justify-center z-[60]">
+      {/* Top Controls */}
+      <div className="absolute top-5 w-full px-5 flex justify-between items-center z-[70]">
+        <button
+          className="p-2 text-white hover:text-gray-300"
+          onClick={onClose}
+        >
+          <AiOutlineClose size={32} />
+        </button>
+        
+        {/* Zoom Controls */}
+        <div className="flex gap-2">
+          <button
+            type="button"
+            className="p-2 text-white hover:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
+            onClick={handleZoomOut}
+            disabled={scale === 1}
+          >
+            <ZoomOut size={24} />
+          </button>
+          <button
+            type="button"
+            className="p-2 text-white hover:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
+            onClick={handleZoomIn}
+            disabled={scale === 3}
+          >
+            <ZoomIn size={24} />
+          </button>
+        </div>
+      </div>
 
       {/* Main Image Container */}
       <div className="relative flex-1 w-full flex items-center justify-center">
         {/* Previous Button */}
-        <button
-          className="absolute left-10 p-2 text-white hover:text-gray-300 z-10"
-          onClick={handlePrev}
-        >
-          <MdArrowBackIos size={32} />
-        </button>
+        {hasMultipleImages && (
+          <button
+            className="absolute left-10 p-2 text-white hover:text-gray-300 z-[70]"
+            onClick={handlePrev}
+          >
+            <MdArrowBackIos size={32} />
+          </button>
+        )}
 
         {/* Current Image */}
-        <div className="relative w-[80vw] h-[70vh]">
-          <Image
-            src={images[currentIndex]}
-            alt={`Image ${currentIndex + 1}`}
-            fill
-            className="object-contain"
-          />
-
-          {/* Image Counter */}
-          <div className="absolute bottom-5 left-1/2 transform -translate-x-1/2 bg-black bg-opacity-75 text-white px-3 py-1 rounded-md">
-            {currentIndex + 1} / {images.length}
+        <div 
+          className="relative w-screen h-screen overflow-hidden"
+          onMouseDown={handleMouseDown}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
+          onMouseLeave={handleMouseUp}
+        >
+          <div 
+            className="relative w-full h-full transition-transform duration-200 ease-out"
+            style={{ 
+              transform: `scale(${scale}) translate(${position.x / scale}px, ${position.y / scale}px)`,
+              cursor: scale > 1 ? (isDragging ? 'grabbing' : 'grab') : 'default',
+              willChange: 'transform'
+            }}
+          >
+            <Image
+              src={images[currentIndex]}
+              alt={`Image ${currentIndex + 1}`}
+              fill
+              className="object-contain p-10"
+              quality={100}
+              priority
+              draggable={false}
+            />
           </div>
+
+          {/* Image Counter - Only show if multiple images */}
+          {hasMultipleImages && (
+            <div className="absolute bottom-5 left-1/2 transform -translate-x-1/2 bg-black bg-opacity-75 text-white px-3 py-1 rounded-md z-[70]">
+              {currentIndex + 1} / {images.length}
+            </div>
+          )}
+
+          {/* Zoom Level Indicator */}
+          {scale > 1 && (
+            <div className="absolute top-5 left-1/2 transform -translate-x-1/2 bg-black bg-opacity-75 text-white px-3 py-1 rounded-md z-[70]">
+              {Math.round(scale * 100)}%
+            </div>
+          )}
         </div>
 
         {/* Next Button */}
-        <button
-          className="absolute right-10 p-2 text-white hover:text-gray-300 z-10"
-          onClick={handleNext}
-        >
-          <MdArrowForwardIos size={32} />
-        </button>
+        {hasMultipleImages && (
+          <button
+            className="absolute right-10 p-2 text-white hover:text-gray-300 z-[70]"
+            onClick={handleNext}
+          >
+            <MdArrowForwardIos size={32} />
+          </button>
+        )}
       </div>
 
-      {/* Thumbnail Strip */}
-      <div className="w-full h-24 bg-black bg-opacity-50 flex items-center justify-center">
-        <div className="flex gap-2 px-4 overflow-x-auto max-w-[90vw] py-2">
-          {images.map((image, index) => (
-            <div
-              key={index}
-              onClick={() => setCurrentIndex(index)}
-              className={`
-                relative 
-                h-20 
-                w-20 
-                flex-shrink-0 
-                cursor-pointer 
-                transition-all 
-                duration-200
-                ${index === currentIndex 
-                  ? 'border-2 border-white opacity-100' 
-                  : 'border border-gray-600 opacity-60 hover:opacity-100'
-                }
-                rounded-md 
-                overflow-hidden
-              `}
-            >
-              <Image
-                src={image}
-                alt={`Thumbnail ${index + 1}`}
-                fill
-                className="object-cover"
-              />
-            </div>
-          ))}
+      {/* Thumbnail Strip - Only show if multiple images */}
+      {hasMultipleImages && (
+        <div className="w-full h-24 bg-black bg-opacity-50 flex items-center justify-center">
+          <div className="flex gap-2 px-4 overflow-x-auto max-w-[90vw] py-2">
+            {images.map((image, index) => (
+              <div
+                key={index}
+                onClick={() => {
+                  setScale(1); // Reset zoom when changing images
+                  setCurrentIndex(index);
+                }}
+                className={`
+                  relative 
+                  h-20 
+                  w-20 
+                  flex-shrink-0 
+                  cursor-pointer 
+                  transition-all 
+                  duration-200
+                  ${index === currentIndex 
+                    ? 'border-2 border-white opacity-100' 
+                    : 'border border-gray-600 opacity-60 hover:opacity-100'
+                  }
+                  rounded-md 
+                  overflow-hidden
+                `}
+              >
+                <Image
+                  src={image}
+                  alt={`Thumbnail ${index + 1}`}
+                  fill
+                  className="object-cover"
+                />
+              </div>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };

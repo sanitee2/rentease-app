@@ -37,35 +37,40 @@ const LoadingState = () => {
 
           {/* Listings Grid Skeleton */}
           <div className="p-4 md:p-6">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
-              {Array.from({ length: 9 }, (_, i) => (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 md:gap-6">
+              {Array.from({ length: 15 }, (_, i) => (
                 <div 
                   key={i}
-                  className="col-span-1 group animate-pulse"
+                  className="col-span-1 cursor-pointer group animate-pulse"
                   style={{
                     animationDelay: `${i * 100}ms`
                   }}
                 >
                   {/* Image Skeleton */}
-                  <div className="aspect-square w-full relative overflow-hidden rounded-xl bg-gray-200" />
+                  <div className="aspect-[4/3] w-full relative overflow-hidden rounded-xl bg-gray-200" />
                   
                   {/* Content Container */}
-                  <div className="mt-4 space-y-4">
+                  <div className="mt-4 space-y-3">
                     {/* Title Skeleton */}
-                    <div className="h-4 w-3/4 bg-gray-200 rounded" />
+                    <div className="h-6 w-3/4 bg-gray-200 rounded" />
                     
                     {/* Location Skeleton */}
-                    <div className="h-4 w-1/2 bg-gray-200 rounded" />
+                    <div className="flex items-center gap-1.5">
+                      <div className="h-4 w-4 bg-gray-200 rounded-full" />
+                      <div className="h-4 w-2/3 bg-gray-200 rounded" />
+                    </div>
                     
                     {/* Price Skeleton */}
-                    <div className="h-4 w-1/3 bg-gray-200 rounded" />
+                    <div className="flex items-center gap-1">
+                      <div className="h-8 w-32 bg-gray-200 rounded-lg" />
+                    </div>
                     
-                    {/* Category Pills */}
-                    <div className="flex gap-2">
-                      {[1, 2].map((pill) => (
+                    {/* Amenities Pills */}
+                    <div className="flex flex-wrap gap-2 pt-2">
+                      {[1, 2, 3].map((pill) => (
                         <div 
                           key={pill}
-                          className="h-6 w-16 bg-gray-200 rounded-full"
+                          className="h-7 w-20 bg-gray-200 rounded-md"
                         />
                       ))}
                     </div>

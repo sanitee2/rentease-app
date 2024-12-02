@@ -55,9 +55,10 @@ interface FormData extends FieldValues {
   listingId: string;
   roomId: string;
   startDate: string;
-  rentAmount: number;
-  terms: string;
+  endDate: string;
   monthlyDueDate: number;
+  rentAmount: number;
+  leaseTerms: string;
 }
 
 const getOccupancyLabel = (currentCount: number, maxCount: number | null) => {
@@ -140,11 +141,11 @@ const AddTenantModal = ({
       listingId: '',
       roomId: '',
       startDate: '',
+      endDate: '',
+      monthlyDueDate: 1,
       rentAmount: 0,
-      terms: '',
-      monthlyDueDate: 1
-    },
-    mode: 'onChange'
+      leaseTerms: ''
+    }
   });
 
   const registerInput = register as unknown as UseFormRegister<FieldValues>;
@@ -248,10 +249,10 @@ const AddTenantModal = ({
           try {
             const response = await axios.get(`/api/listings/${listing.id}/rooms`);
             const rooms = response.data.map((room: any) => {
-              const currentTenantCount = room.currentTenants?.length || 0;
+              const currentTenantCount = room.tenants?.length || 0;
               const maxTenants = room.maxTenantCount;
-              const occupancyLabel = getOccupancyLabel(currentTenantCount, maxTenants);
-              const isDisabled = isAtCapacity(currentTenantCount, maxTenants);
+              const occupancyLabel = ` (${currentTenantCount}/${maxTenants} tenants)`;
+              const isDisabled = maxTenants ? currentTenantCount >= maxTenants : false;
 
               return {
                 value: room.id,
@@ -357,7 +358,7 @@ const AddTenantModal = ({
       
       const roomData = data.roomId ? { roomId: data.roomId } : {};
       
-      const termsValidation = validateRichTextContent(data.terms);
+      const termsValidation = validateRichTextContent(data.leaseTerms);
       if (termsValidation !== true) {
         toast.error(termsValidation);
         return;
@@ -365,16 +366,27 @@ const AddTenantModal = ({
 
       let tenantProfileId;
       try {
-        const tenantProfileResponse = await axios.get(`/api/users/${data.userId}/tenant-profile`);
-        tenantProfileId = tenantProfileResponse.data.id;
-      } catch (error) {
-        console.error('Error getting tenant profile:', error);
-        toast.error('Failed to get tenant profile');
-        return;
+        const existingProfileResponse = await axios.get(`/api/users/${data.userId}/tenant-profile`);
+        tenantProfileId = existingProfileResponse.data.id;
+      } catch (error: any) {
+        if (error.response?.status === 404) {
+          try {
+            const createProfileResponse = await axios.post(`/api/users/${data.userId}/tenant-profile`);
+            tenantProfileId = createProfileResponse.data.id;
+          } catch (createError: any) {
+            console.error('Error creating tenant profile:', createError);
+            toast.error('Failed to create tenant profile');
+            return;
+          }
+        } else {
+          console.error('Error getting tenant profile:', error);
+          toast.error('Failed to get tenant profile');
+          return;
+        }
       }
 
       if (!tenantProfileId) {
-        toast.error('Failed to get tenant profile ID');
+        toast.error('Failed to get or create tenant profile');
         return;
       }
 
@@ -385,14 +397,12 @@ const AddTenantModal = ({
         ...roomData,
         leaseContract: {
           startDate: data.startDate,
-          rentAmount: Number(data.rentAmount),
-          terms: data.terms,
+          endDate: data.endDate,
           monthlyDueDate: Number(data.monthlyDueDate),
-          payment: {
-            status: 'PENDING',
-            amount: Number(data.rentAmount),
-            totalAmount: Number(data.rentAmount)
-          }
+          rentAmount: Number(data.rentAmount),
+          outstandingBalance: Number(data.rentAmount),
+          leaseTerms: data.leaseTerms,
+          status: 'PENDING'
         }
       });
 
@@ -705,21 +715,21 @@ const AddTenantModal = ({
 
       <div className="w-full relative">
         <Input
-          id="terms"
+          id="leaseTerms"
           label="Lease Terms"
           disabled={isLoading}
           register={registerInput}
           errors={errors}
           textArea
-          value={watch('terms')}
+          value={watch('leaseTerms')}
           setValue={(id, value) => {
-            if (id === 'terms') {
+            if (id === 'leaseTerms') {
               setValue(id, value, {
                 shouldValidate: true,
                 shouldDirty: true,
                 shouldTouch: true
               });
-              trigger('terms');
+              trigger('leaseTerms');
             }
           }}
           validation={{
@@ -742,9 +752,9 @@ const AddTenantModal = ({
             }
           }}
         />
-        {errors.terms && (
+        {errors.leaseTerms && (
           <span className="text-rose-500 text-sm mt-1">
-            {errors.terms.message as string}
+            {errors.leaseTerms.message as string}
           </span>
         )}
       </div>

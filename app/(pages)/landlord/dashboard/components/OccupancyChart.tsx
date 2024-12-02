@@ -10,53 +10,91 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  TooltipProps
+  Legend,
+  YAxisProps
 } from 'recharts';
 
-interface OccupancyData {
+interface ChartData {
   month: string;
+  revenue: number;
   occupancyRate: number;
+  activeLeases: number;
+  _debug?: {
+    totalRooms: number;
+    occupiedRooms: number;
+    monthRange: string;
+  };
 }
 
 export default function OccupancyChart() {
-  const [data, setData] = useState<OccupancyData[]>([]);
+  const [data, setData] = useState<ChartData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchOccupancyData = async () => {
+    const fetchData = async () => {
       try {
-        const response = await axios.get('/api/landlord/occupancy-trends');
+        setIsLoading(true);
+        setError(null);
+        const response = await axios.get('/api/landlord/dashboard-trends');
+        console.log('Chart Data:', response.data);
         setData(response.data);
       } catch (error) {
-        console.error('Failed to fetch occupancy data:', error);
+        console.error('Failed to fetch dashboard trends:', error);
+        setError('Failed to load dashboard data');
       } finally {
         setIsLoading(false);
       }
     };
-    fetchOccupancyData();
+    fetchData();
   }, []);
 
   if (isLoading) {
-    return <div className="text-center p-4 text-gray-500">Loading occupancy data...</div>;
+    return (
+      <div className="h-[300px] flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mb-2"></div>
+          <p className="text-gray-500">Loading data...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="h-[300px] flex items-center justify-center">
+        <div className="text-center text-red-500">
+          <p>{error}</p>
+          <p className="text-sm mt-2">Please try again later</p>
+        </div>
+      </div>
+    );
   }
 
   if (data.length === 0) {
     return (
       <div className="text-center p-6 bg-gray-50 rounded-lg h-[300px] flex flex-col items-center justify-center">
-        <p className="text-gray-500">No occupancy data available</p>
-        <p className="text-sm text-gray-400 mt-1">Add properties and tenants to see occupancy trends</p>
+        <p className="text-gray-500">No data available</p>
+        <p className="text-sm text-gray-400 mt-1">Start adding properties and tenants to see trends</p>
       </div>
     );
   }
 
-  const CustomTooltip = ({ active, payload, label }: TooltipProps<number, string>) => {
+  const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
       return (
         <div className="bg-white p-4 shadow-lg rounded-lg border">
-          <p className="text-sm font-medium">{label}</p>
-          <p className="text-sm text-indigo-600">
-            {`Occupancy Rate: ${payload[0].value}%`}
-          </p>
+          <p className="text-sm font-medium mb-2">{label}</p>
+          {payload.map((entry: any, index: number) => (
+            <p key={index} className="text-sm" style={{ color: entry.color }}>
+              {entry.name === 'revenue' 
+                ? `Revenue: ₱${entry.value.toLocaleString()}`
+                : entry.name === 'occupancyRate'
+                ? `Occupancy: ${entry.value}%`
+                : `Active Leases: ${entry.value}`
+              }
+            </p>
+          ))}
         </div>
       );
     }
@@ -76,19 +114,50 @@ export default function OccupancyChart() {
             stroke="#6b7280"
             fontSize={12}
           />
+          {/* Revenue Axis (Left) */}
           <YAxis
-            stroke="#6b7280"
+            yAxisId="revenue"
+            orientation="left"
+            stroke="#6366f1"
+            fontSize={12}
+            tickFormatter={(value) => `₱${value/1000}k`}
+          />
+          {/* Percentage Axis (Right) */}
+          <YAxis
+            yAxisId="percentage"
+            orientation="right"
+            stroke="#10b981"
             fontSize={12}
             tickFormatter={(value) => `${value}%`}
           />
           <Tooltip content={<CustomTooltip />} />
+          <Legend />
           <Line
+            yAxisId="revenue"
             type="monotone"
-            dataKey="occupancyRate"
+            dataKey="revenue"
             stroke="#6366f1"
             strokeWidth={2}
+            name="Monthly Revenue"
             dot={{ fill: '#6366f1', strokeWidth: 2 }}
-            activeDot={{ r: 6, fill: '#6366f1' }}
+          />
+          <Line
+            yAxisId="percentage"
+            type="monotone"
+            dataKey="occupancyRate"
+            stroke="#10b981"
+            strokeWidth={2}
+            name="Occupancy Rate"
+            dot={{ fill: '#10b981', strokeWidth: 2 }}
+          />
+          <Line
+            yAxisId="percentage"
+            type="monotone"
+            dataKey="activeLeases"
+            stroke="#f59e0b"
+            strokeWidth={2}
+            name="Active Leases"
+            dot={{ fill: '#f59e0b', strokeWidth: 2 }}
           />
         </LineChart>
       </ResponsiveContainer>

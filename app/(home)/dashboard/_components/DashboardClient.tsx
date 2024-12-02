@@ -1,136 +1,410 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useMemo, useState } from 'react';
+import type { FC, ReactElement } from 'react';
 import Container from '@/app/components/Container';
 import TenantStats from './TenantStats';
 import ActiveLease from './ActiveLease';
 import PaymentHistory from './PaymentHistory';
 import MaintenanceRequests from './MaintenanceRequests';
-import LoadingState from '../loading';
-import axios from 'axios';
 import { SafeUser } from '@/app/types';
-import { FaTools, FaCreditCard, FaFileContract, FaBell } from 'react-icons/fa';
+import { 
+  FaHome,           // For Active Leases
+  FaMoneyBillWave,  // For Total Paid
+  FaClipboardList,  // For Pending Payments
+  FaExclamation,    // For Outstanding Balance
+  FaBell,
+  FaFileInvoiceDollar,
+  FaWrench,
+  FaEnvelope,
+  FaFileContract 
+} from 'react-icons/fa';
+import { 
+  LuHome,           // Alternative for Active Leases
+  LuWallet,         // Alternative for Total Paid
+  LuClock,          // Alternative for Pending Payments
+  LuAlertCircle     // Alternative for Outstanding Balance
+} from 'react-icons/lu';
 import HostInfo from './HostInfo';
+import { PaymentStatus, PaymentMode, LeaseStatus } from '@prisma/client';
+import { useRouter } from 'next/navigation';
+import PendingLeaseAlert from './PendingLeaseAlert';
+import EmptyState from '@/app/components/EmptyState';
+import PaymentDialog from '@/app/components/Modals/PaymentDialog';
+import MaintenanceRequestDialog from '@/app/components/Modals/MaintenanceRequestDialog';
+import axios from 'axios';
+import { addDays, format } from 'date-fns';
+
+// Update types to match our schema and data structure
+export interface DashboardData {
+  leases: {
+    id: string;
+    status: LeaseStatus;
+    rentAmount: number;
+    startDate: Date;
+    endDate?: Date | null;
+    monthlyDueDate: number;
+    outstandingBalance: number;
+    leaseTerms: string;
+    Payment: {
+      id: string;
+      amount: number;
+      status: PaymentStatus;
+      createdAt: Date;
+    }[];
+    listing: {
+      id: string;
+      title: string;
+      description: string;
+    };
+    room?: {  // Add room data here too
+      id: string;
+      title: string;
+    };
+  }[];
+  payments: {
+    id: string;
+    amount: number;
+    status: PaymentStatus;
+    createdAt: Date;
+    paymentMethod: PaymentMode;
+    description?: string;
+    image?: string;
+    periodStart?: Date;
+    periodEnd?: Date;
+    listing?: {
+      id: string;
+      title: string;
+    };
+  }[];
+  maintenanceRequests: {
+    id: string;
+    description: string;
+    status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
+    createdAt: Date;
+    images?: string[];
+    priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
+    title: string;
+    listing: {
+      id: string;
+      title: string;
+    };
+  }[];
+  currentLease: {
+    id: string;
+    status: LeaseStatus;
+    rentAmount: number;
+    startDate: Date;
+    endDate?: Date;
+    leaseTerms: string;
+    outstandingBalance: number;
+    monthlyDueDate: number;
+    listing: {
+      id: string;
+      title: string;
+      description: string;
+    };
+    room?: {  // Add room data here too
+      id: string;
+      title: string;
+    };
+  } | null;
+  host: SafeUser | null;
+}
 
 interface DashboardClientProps {
   currentUser: SafeUser | null;
+  initialData: DashboardData | null;
 }
 
-const DashboardClient: React.FC<DashboardClientProps> = ({ currentUser }) => {
-  const [loading, setLoading] = useState(true);
-  const [data, setData] = useState({
-    leases: [],
-    payments: [],
-    maintenanceRequests: [],
-    currentLease: null,
-    currentRoom: null,
-    totalPaid: 0,
-    activeLeaseCount: 0,
-    host: null
-  });
+interface QuickAction {
+  label: string;
+  description: string;
+  icon: React.ReactNode;
+  onClick: () => void;
+  bgColor: string;
+  textColor: string;
+  borderColor: string;
+  iconBg: string;
+}
 
-  useEffect(() => {
-    const fetchDashboardData = async () => {
-      try {
-        const response = await axios.get('/api/tenant/dashboard');
-        setData(response.data);
-      } catch (error) {
-        console.error('Error fetching dashboard data:', error);
-      } finally {
-        setLoading(false);
-      }
+const DashboardClient: FC<DashboardClientProps> = ({ 
+  currentUser,
+  initialData 
+}) => {
+  const router = useRouter();
+  const [showPaymentDialog, setShowPaymentDialog] = useState(false);
+  const [showMaintenanceDialog, setShowMaintenanceDialog] = useState(false);
+  const [newInitialData, setNewInitialData] = useState<DashboardData | null>(null);
+
+  const currentLease = initialData?.currentLease;
+
+  const quickActions: QuickAction[] = [
+    {
+      label: 'Pay Rent',
+      description: 'Make a payment for your current lease',
+      icon: <FaFileInvoiceDollar className="w-5 h-5" />,
+      onClick: () => setShowPaymentDialog(true),
+      bgColor: 'bg-gradient-to-br from-green-50 to-green-100',
+      textColor: 'text-green-700',
+      borderColor: 'border-green-200',
+      iconBg: 'bg-green-500'
+    },
+    {
+      label: 'Submit Request',
+      description: 'Report maintenance issues or concerns',
+      icon: <FaWrench className="w-5 h-5" />,
+      onClick: () => setShowMaintenanceDialog(true),
+      bgColor: 'bg-gradient-to-br from-blue-50 to-blue-100',
+      textColor: 'text-blue-700',
+      borderColor: 'border-blue-200',
+      iconBg: 'bg-blue-500'
+    },
+  ];
+
+  const stats = useMemo(() => {
+    if (!initialData) {
+      return {
+        nextDueDate: null,
+        totalPaid: 0,
+        pendingPayments: 0,
+        outstandingBalance: 0,
+        leases: []
+      };
+    }
+
+    // Calculate next due date based on monthlyDueDate and completed payments
+    const nextDueDate = initialData.currentLease?.monthlyDueDate 
+      ? (() => {
+          const today = new Date();
+          const currentMonth = today.getMonth();
+          const currentYear = today.getFullYear();
+          let dueDate = new Date(currentYear, currentMonth, initialData.currentLease.monthlyDueDate);
+          
+          // Get the latest completed payment with a period
+          const latestPayment = initialData.payments
+            .filter(payment => 
+              payment.status === 'COMPLETED' && 
+              payment.periodStart && 
+              payment.periodEnd
+            )
+            .sort((a, b) => 
+              new Date(b.periodEnd!).getTime() - new Date(a.periodEnd!).getTime()
+            )[0];
+
+          if (latestPayment?.periodEnd) {
+            // Get the due date for the month immediately after the period end
+            const periodEndDate = new Date(latestPayment.periodEnd);
+            // Use the month from period end date directly (no need to add 1 since it's already the end of the period)
+            dueDate = new Date(
+              periodEndDate.getFullYear(),
+              periodEndDate.getMonth(),
+              initialData.currentLease.monthlyDueDate
+            );
+          } else {
+            // If no payments found, use current month's due date
+            // If today's date is past this month's due date, get next month's due date
+            if (today > dueDate) {
+              dueDate = new Date(currentYear, currentMonth + 1, initialData.currentLease.monthlyDueDate);
+            }
+          }
+          
+          return dueDate;
+        })()
+      : null;
+
+    // Calculate total paid from payments
+    const totalPaid = initialData.payments
+      .filter(payment => payment.status === 'COMPLETED')
+      .reduce((sum, payment) => sum + payment.amount, 0);
+
+    // Get pending payments count
+    const pendingPayments = initialData.payments
+      .filter(payment => payment.status === 'PENDING')
+      .length;
+
+    // Get outstanding balance from current lease
+    const outstandingBalance = initialData.currentLease?.outstandingBalance || 0;
+
+    return {
+      nextDueDate,
+      totalPaid,
+      pendingPayments,
+      outstandingBalance,
+      leases: [initialData.currentLease].filter(Boolean) // Only include current lease if it exists
     };
+  }, [initialData]);
 
-    fetchDashboardData();
-  }, []);
+  console.log(initialData);
 
-  if (loading) {
-    return <LoadingState />;
-  }
+  const pendingLease = initialData?.leases.find(
+    lease => lease.status === 'PENDING'
+  );
+
+  const refreshPayments = async () => {
+    try {
+      const response = await axios.get('/api/payments');
+      // Update only the payments data
+      setNewInitialData(prev => prev ? {
+        ...prev,
+        payments: response.data
+      } : prev);
+    } catch (error) {
+      console.error('Failed to refresh payments:', error);
+    }
+  };
 
   return (
     <Container>
-      <div className="py-16">
+      <div className="py-8">
+        {/* Header Section */}
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">
               Welcome back, {currentUser?.firstName}
             </h1>
             <p className="text-gray-500 mt-2">
-              Manage your lease, payments, and maintenance requests
+              Here's what's happening with your rental
             </p>
           </div>
-          <button className="p-2 rounded-full bg-indigo-50 hover:bg-indigo-100 transition">
-            <FaBell className="w-5 h-5 text-indigo-600" />
-          </button>
         </div>
-        
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Main Content */}
-          <div className="lg:col-span-2 space-y-8">
-            <TenantStats 
-              leases={data.leases}
-              totalPaid={data.totalPaid}
-              activeLeaseCount={data.activeLeaseCount}
-            />
-            
-            <div className="bg-white rounded-2xl shadow-sm p-8 border border-gray-100">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-semibold text-gray-900">Active Lease</h2>
-                <span className="px-4 py-1.5 bg-indigo-50 text-indigo-700 rounded-full text-sm font-medium">
-                  Active
-                </span>
-              </div>
-              <ActiveLease lease={data.currentLease} room={data.currentRoom} />
-            </div>
-            
-            <HostInfo host={data.host} />
-            
-            <div className="bg-white rounded-2xl shadow-sm p-8 border border-gray-100">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-semibold text-gray-900">Payment History</h2>
-                <button className="px-4 py-1.5 bg-indigo-50 text-indigo-600 rounded-full text-sm font-medium hover:bg-indigo-100 transition">
-                  View All
-                </button>
-              </div>
-              <PaymentHistory payments={data.payments} />
-            </div>
+
+        {/* Main Content Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+          {/* Left Column (3/4) */}
+          <div className="lg:col-span-3 space-y-8">
+            {!initialData ? (
+              <EmptyState
+                title="No dashboard data"
+                subtitle="Unable to load dashboard data. Please try again later."
+              />
+            ) : (
+              <>
+                {pendingLease && (
+                  <PendingLeaseAlert lease={pendingLease} />
+                )}
+
+                {/* Stats Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+                  <TenantStats
+                    icon={LuClock}
+                    label="Next Due Date"
+                    value={stats.nextDueDate ? format(stats.nextDueDate, 'MMM d, yyyy') : 'No active lease'}
+                  />
+                  <TenantStats
+                    icon={LuWallet}
+                    label="Total Paid"
+                    value={`₱${stats.totalPaid.toFixed(2)}`}
+                  />
+                  <TenantStats
+                    icon={LuAlertCircle}
+                    label="Outstanding Balance"
+                    value={`₱${stats.outstandingBalance.toFixed(2)}`}
+                  />
+                </div>
+
+                <ActiveLease lease={initialData.currentLease} />
+                <PaymentHistory 
+                  payments={initialData.payments} 
+                  initialData={initialData}
+                />
+                <MaintenanceRequests requests={initialData.maintenanceRequests} />
+              </>
+            )}
           </div>
           
-          {/* Sidebar */}
-          <div className="space-y-8">
-            <div className="bg-gradient-to-br from-indigo-600 to-indigo-700 rounded-2xl shadow-md p-8 text-white">
-              <h2 className="text-xl font-semibold mb-6">Quick Actions</h2>
-              <div className="space-y-4">
-                <button className="w-full py-3.5 px-4 bg-white/10 hover:bg-white/20 rounded-xl transition flex items-center gap-3 backdrop-blur-sm">
-                  <FaTools className="w-5 h-5" />
-                  <span className="font-medium">Submit Maintenance Request</span>
-                </button>
-                <button className="w-full py-3.5 px-4 bg-white/10 hover:bg-white/20 rounded-xl transition flex items-center gap-3 backdrop-blur-sm">
-                  <FaCreditCard className="w-5 h-5" />
-                  <span className="font-medium">Make Payment</span>
-                </button>
-                <button className="w-full py-3.5 px-4 bg-white/10 hover:bg-white/20 rounded-xl transition flex items-center gap-3 backdrop-blur-sm">
-                  <FaFileContract className="w-5 h-5" />
-                  <span className="font-medium">View Lease Details</span>
-                </button>
+          {/* Right Column (1/4) */}
+          <div className="flex flex-col space-y-4">
+            {/* Quick Actions Card */}
+            <div className="order-2 md:order-1">
+              <div className="bg-white rounded-xl shadow-sm border border-gray-100">
+                <div className="p-6 border-b border-gray-100">
+                  <h2 className="text-lg font-semibold text-gray-900">
+                    Quick Actions
+                  </h2>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Common tasks and shortcuts
+                  </p>
+                </div>
+                <div className="p-4">
+                  <div className="grid gap-4">
+                    {quickActions.map((action, index) => (
+                      <button
+                        key={index}
+                        onClick={action.onClick}
+                        className={`group relative w-full ${action.bgColor} ${action.textColor} p-4 rounded-xl 
+                          border ${action.borderColor} hover:shadow-md transition-all duration-200
+                          hover:scale-[1.02] active:scale-[0.98]`}
+                      >
+                        <div className="flex items-start gap-4">
+                          <div className={`${action.iconBg} text-white p-2.5 rounded-lg 
+                            shadow-sm group-hover:shadow group-hover:scale-110 transition-all duration-200`}>
+                            {action.icon}
+                          </div>
+                          <div className="flex-1 text-left">
+                            <h3 className="font-semibold mb-1">
+                              {action.label}
+                            </h3>
+                            <p className="text-sm opacity-80">
+                              {action.description}
+                            </p>
+                          </div>
+                          <div className="self-center opacity-0 group-hover:opacity-100 transition-opacity">
+                            <svg 
+                              className="w-5 h-5" 
+                              fill="none" 
+                              stroke="currentColor" 
+                              viewBox="0 0 24 24"
+                            >
+                              <path 
+                                strokeLinecap="round" 
+                                strokeLinejoin="round" 
+                                strokeWidth={2} 
+                                d="M9 5l7 7-7 7" 
+                              />
+                            </svg>
+                          </div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
-            
-            <div className="bg-white rounded-2xl shadow-sm p-8 border border-gray-100">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-semibold text-gray-900">Maintenance Requests</h2>
-                <button className="px-4 py-1.5 bg-indigo-50 text-indigo-600 rounded-full text-sm font-medium hover:bg-indigo-100 transition">
-                  View All
-                </button>
-              </div>
-              <MaintenanceRequests requests={data.maintenanceRequests} />
+
+            {/* Host Info Card */}
+            <div className="order-1 md:order-2">
+              <HostInfo host={initialData?.host} />
             </div>
           </div>
         </div>
       </div>
-    </Container>
+
+      
+      <MaintenanceRequestDialog
+        isOpen={showMaintenanceDialog}
+        onClose={() => setShowMaintenanceDialog(false)}
+        listingId={initialData?.currentLease?.listing?.id}
+        roomId={initialData?.currentLease?.room?.id}
+        listing={initialData?.currentLease?.listing}
+        room={initialData?.currentLease?.room}
+      />
+
+      <PaymentDialog
+        isOpen={showPaymentDialog}
+        onClose={() => setShowPaymentDialog(false)}
+        leaseId={initialData?.currentLease?.id}
+        listingId={initialData?.currentLease?.listing?.id}
+        landlordId={initialData?.host?.id}
+        rentAmount={initialData?.currentLease?.rentAmount}
+        outstandingBalance={initialData?.currentLease?.outstandingBalance}
+        monthlyDueDate={initialData?.currentLease?.monthlyDueDate}
+        listing={initialData?.currentLease?.listing}
+        room={initialData?.currentLease?.room}
+        onSuccess={refreshPayments}
+      />
+    </Container>      
   );
 };
 
-export default DashboardClient; 
+export default DashboardClient;

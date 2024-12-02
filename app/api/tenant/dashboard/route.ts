@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/app/libs/prismadb';
 import getCurrentUser from '@/app/actions/getCurrentUser';
+import { TenantData } from '@/app/types';
 
 export async function GET() {
   try {
@@ -16,15 +17,33 @@ export async function GET() {
         userId: currentUser.id 
       },
       include: {
-        // Include all related data based on schema relationships
+        user: {
+          select: {
+            id: true,
+            firstName: true,
+            middleName: true,
+            lastName: true,
+            suffix: true,
+            email: true,
+            phoneNumber: true,
+            image: true,
+          }
+        },
         leases: {
           include: {
             listing: {
-              include: {
-                user: true
+              select: {
+                id: true,
+                title: true,
               }
             },
-            payments: {
+            Payment: {
+              select: {
+                id: true,
+                amount: true,
+                dueDate: true,
+                status: true,
+              },
               orderBy: {
                 date: 'desc'
               }
@@ -34,22 +53,10 @@ export async function GET() {
             startDate: 'desc'
           }
         },
-        payments: {
-          orderBy: {
-            date: 'desc'
-          }
-        },
-        maintenance: {
-          include: {
-            listing: true
-          },
-          orderBy: {
-            createdAt: 'desc'
-          }
-        },
         currentRoom: {
-          include: {
-            listing: true
+          select: {
+            id: true,
+            title: true,
           }
         }
       }
@@ -59,57 +66,45 @@ export async function GET() {
       return new NextResponse('Tenant profile not found', { status: 404 });
     }
 
-    // Get current active lease
-    const currentLease = tenantProfile.leases[0]; // Most recent lease
-
-    // Calculate total paid from completed payments
-    const totalPaid = tenantProfile.payments
-      .filter(payment => payment.status === 'COMPLETED')
-      .reduce((sum, payment) => sum + payment.amount, 0);
-
-    // Count active leases (not expired)
-    const activeLeaseCount = tenantProfile.leases.filter(lease => 
-      lease.endedAt && new Date(lease.endedAt) >= new Date()
-    ).length;
-
-    // Get host information from the current lease
-    const host = currentLease?.listing?.user ? {
-      id: currentLease.listing.user.id,
-      name: currentLease.listing.user.firstName + ' ' + currentLease.listing.user.lastName,
-      email: currentLease.listing.user.email,
-      image: currentLease.listing.user.image,
-      phone: currentLease.listing.user.phoneNumber || undefined
-    } : null;
-
-    // Format the response data
-    const responseData = {
-      leases: tenantProfile.leases.map(lease => ({
-        ...lease,
-        startDate: lease.startDate.toISOString(),
-        endDate: lease.endedAt ? lease.endedAt.toISOString() : null,
-        createdAt: lease.createdAt.toISOString(),
+    const formattedData: TenantData = {
+      id: tenantProfile.user.id,
+      firstName: tenantProfile.user.firstName,
+      middleName: tenantProfile.user.middleName,
+      lastName: tenantProfile.user.lastName,
+      suffix: tenantProfile.user.suffix,
+      email: tenantProfile.user.email,
+      phoneNumber: tenantProfile.user.phoneNumber,
+      image: tenantProfile.user.image,
+      tenant: {
+        id: tenantProfile.id,
+        currentRoom: tenantProfile.currentRoom ? {
+          id: tenantProfile.currentRoom.id,
+          title: tenantProfile.currentRoom.title,
+        } : null,
+      },
+      leaseContracts: tenantProfile.leases.map(lease => ({
+        id: lease.id,
+        startDate: new Date(lease.startDate),
+        endDate: lease.endDate ? new Date(lease.endDate) : null,
+        rentAmount: Number(lease.rentAmount),
+        monthlyDueDate: lease.monthlyDueDate,
+        outstandingBalance: Number(lease.outstandingBalance),
+        leaseTerms: lease.leaseTerms,
+        status: lease.status,
+        listing: lease.listing ? {
+          id: lease.listing.id,
+          title: lease.listing.title,
+        } : undefined,
+        Payment: lease.Payment.map(payment => ({
+          id: payment.id,
+          amount: Number(payment.amount),
+          dueDate: payment.dueDate ? new Date(payment.dueDate) : null,
+          status: payment.status,
+        }))
       })),
-      payments: tenantProfile.payments.map(payment => ({
-        ...payment,
-        date: payment.date.toISOString(),
-      })),
-      maintenanceRequests: tenantProfile.maintenance.map(request => ({
-        ...request,
-        createdAt: request.createdAt.toISOString(),
-      })),
-      currentLease: currentLease ? {
-        ...currentLease,
-        startDate: currentLease.startDate.toISOString(),
-        endDate: currentLease.endedAt ? currentLease.endedAt.toISOString() : null,
-        createdAt: currentLease.createdAt.toISOString(),
-      } : null,
-      currentRoom: tenantProfile.currentRoom,
-      totalPaid,
-      activeLeaseCount,
-      host,
     };
 
-    return NextResponse.json(responseData);
+    return NextResponse.json(formattedData);
   } catch (error) {
     console.error('[DASHBOARD_GET]', error);
     return new NextResponse('Internal error', { status: 500 });

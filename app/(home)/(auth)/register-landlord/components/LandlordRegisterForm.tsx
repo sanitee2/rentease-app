@@ -107,18 +107,22 @@ const LandlordRegisterForm = () => {
         image: previewImage || '',
       });
 
-      const result = await signIn('credentials', {
-        ...submitData,
-        redirect: false
+      const signInResult = await signIn('credentials', {
+        email: data.email,
+        password: data.password,
+        redirect: false,
+        callbackUrl: '/landlord/dashboard'
       });
 
-      if (result?.error) {
-        toast.error('Failed to login automatically');
+      if (signInResult?.error) {
+        toast.error('Account created but failed to login automatically');
         return;
       }
 
-      toast.success('Landlord account created! Redirecting...');
-      router.push('/landlord/dashboard');
+      if (signInResult?.ok) {
+        toast.success('Landlord account created successfully!');
+        router.push(signInResult.url || '/landlord/dashboard');
+      }
     } catch (error: any) {
       if (error.response?.data?.error) {
         toast.error(error.response.data.error);

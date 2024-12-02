@@ -2,25 +2,24 @@ import { NextResponse } from 'next/server';
 import prisma from '@/app/libs/prismadb';
 import getCurrentUser from '@/app/actions/getCurrentUser';
 
-export async function GET(request: Request) {
+export async function GET() {
   try {
     const currentUser = await getCurrentUser();
-    if (!currentUser) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+    if (!currentUser || currentUser.role !== 'LANDLORD') {
+      return new NextResponse('Unauthorized', { status: 401 });
     }
 
-    const leases = await prisma.leaseContract.findMany({
+    const recentLeases = await prisma.leaseContract.findMany({
       where: {
-        listing: {
-          userId: currentUser.id
-        }
+        listing: { userId: currentUser.id },
+        status: 'ACTIVE'
       },
       select: {
         id: true,
         startDate: true,
-        endedAt: true,
+        endDate: true,
         rentAmount: true,
-        isActive: true,
         user: {
           select: {
             firstName: true,
@@ -35,14 +34,14 @@ export async function GET(request: Request) {
         }
       },
       orderBy: {
-        startDate: "desc"
+        createdAt: 'desc'
       },
       take: 5
     });
 
-    return NextResponse.json(leases);
+    return NextResponse.json(recentLeases);
   } catch (error) {
-    console.error("[RECENT_LEASES]", error);
-    return NextResponse.json({ error: "Internal error" }, { status: 500 });
+    console.error('[RECENT_LEASES_GET]', error);
+    return new NextResponse('Internal Error', { status: 500 });
   }
 } 
