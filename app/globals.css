@@ -87,3 +87,14 @@ body,
     position: relative;
   }
 }
+
+.verification-input {
+  letter-spacing: 0.5em;
+  text-align: center;
+  font-family: monospace;
+  font-size: 1.5rem;
+}
+
+.verification-input::placeholder {
+  letter-spacing: normal;
+}
