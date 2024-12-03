@@ -16,6 +16,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import axios from "axios";
 import { toast } from "react-hot-toast";
 import { useRouter } from "next/navigation";
+import { useNotifications } from '@/app/contexts/NotificationsContext';
 
 interface TenantDetailsModalProps {
   isOpen: boolean;
@@ -31,6 +32,7 @@ export default function TenantDetailsModal({
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('profile');
+  const { refreshNotifications } = useNotifications();
   
   const currentLease = tenant.leaseContracts[0];
   const fullName = `${tenant.firstName} ${tenant.middleName || ''} ${tenant.lastName} ${tenant.suffix || ''}`.trim();
@@ -53,10 +55,26 @@ export default function TenantDetailsModal({
   const handleCancelLease = async () => {
     try {
       setIsLoading(true);
+      
+      // Cancel the lease
       await axios.patch(`/api/leases/${currentLease.id}/cancel`);
+
+      // Create notification for the tenant
+      await axios.post('/api/notifications', {
+        userId: tenant.id,
+        type: 'leaseCancelled',
+        listingId: currentLease.listing?.id
+      });
+
+      // Refresh notifications to show the new one
+      await refreshNotifications();
+
       toast.success('Lease cancelled successfully');
       router.refresh();
       onClose();
+      
+      // Force a hard refresh of the page to update all data
+      window.location.reload();
     } catch (error) {
       console.error('Error cancelling lease:', error);
       toast.error('Failed to cancel lease');

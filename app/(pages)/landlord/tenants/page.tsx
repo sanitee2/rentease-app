@@ -25,9 +25,6 @@ const FILTER_BADGES: Array<{
   { value: 'all', label: 'All', color: 'gray' },
   { value: 'ACTIVE', label: 'Active', color: 'green' },
   { value: 'PENDING', label: 'Pending', color: 'yellow' },
-  { value: 'CANCELLED', label: 'Cancelled', color: 'orange' },
-  { value: 'REJECTED', label: 'Rejected', color: 'red' },
-  { value: 'INACTIVE', label: 'Inactive', color: 'gray' }
 ];
 
 const Tenants = () => {

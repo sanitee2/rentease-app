@@ -22,6 +22,7 @@ import {
 import { CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import { useNotifications } from '@/app/contexts/NotificationsContext';
 
 interface AddTenantModalProps {
   isOpen: boolean;
@@ -111,6 +112,7 @@ const AddTenantModal = ({
 }: AddTenantModalProps) => {
   const { users: availableUsers, isLoading: isLoadingUsers, error: usersError, searchUsers } = useAvailableUsers();
   const { listings, isLoading: isLoadingListings, error: listingsError } = useUserListings();
+  const { refreshNotifications } = useNotifications();
 
   const isLoadingInitialData = isLoadingListings;
   const error = usersError || listingsError;
@@ -406,9 +408,22 @@ const AddTenantModal = ({
         }
       });
 
+      await axios.post('/api/notifications', {
+        userId: data.userId,
+        type: 'newTenant',
+        listingId: data.listingId
+      });
+
+      await refreshNotifications();
+
+      toast.success('Tenant added successfully');
+      
       onSuccess(response.data);
       reset();
       onClose();
+      
+      // Force a hard refresh of the page to update all data
+      window.location.reload();
     } catch (error: any) {
       console.error('Error in onSubmit:', error);
       toast.error(error.response?.data?.error || 'Something went wrong');

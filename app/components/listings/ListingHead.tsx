@@ -41,7 +41,7 @@ const ListingHead: React.FC<ListingHeadProps> = ({ imageSrc, id, currentUser }) 
 
         {imageSrc.length === 1 ? (
           // Single image layout
-          <div className="relative h-[60vh] overflow-hidden rounded-xl">
+          <div className="relative h-[300px] md:h-[60vh] overflow-hidden rounded-xl">
             <Image
               alt="property"
               src={imageSrc[0]}
@@ -52,7 +52,7 @@ const ListingHead: React.FC<ListingHeadProps> = ({ imageSrc, id, currentUser }) 
           </div>
         ) : imageSrc.length === 2 ? (
           // Two images layout - first image takes 2 columns
-          <div className="grid grid-cols-3 gap-4 h-[60vh]">
+          <div className="grid grid-cols-3 gap-2 md:gap-4 h-[300px] md:h-[60vh]">
             <div className="col-span-2 relative overflow-hidden rounded-xl">
               <Image
                 alt="main-image"
@@ -74,7 +74,7 @@ const ListingHead: React.FC<ListingHeadProps> = ({ imageSrc, id, currentUser }) 
           </div>
         ) : (
           // Three or more images layout
-          <div className="grid grid-cols-3 gap-4 h-[60vh]">
+          <div className="grid grid-cols-3 gap-2 md:gap-4 h-[300px] md:h-[60vh]">
             <div className="col-span-2 relative overflow-hidden rounded-xl">
               <Image
                 alt="main-image"
@@ -85,7 +85,7 @@ const ListingHead: React.FC<ListingHeadProps> = ({ imageSrc, id, currentUser }) 
               />
             </div>
             
-            <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-2 md:gap-4">
               {imageSrc.slice(1, 3).map((src, index) => (
                 <div
                   key={index}
@@ -106,19 +106,19 @@ const ListingHead: React.FC<ListingHeadProps> = ({ imageSrc, id, currentUser }) 
                       onClick={() => handleImageClick(2)}
                     >
                       <div className="flex items-center gap-2">
-                        <span className="text-white text-2xl font-medium">
+                        <span className="text-white text-lg md:text-2xl font-medium">
                           +{imageSrc.length - 3}
                         </span>
                       </div>
                       <button 
-                        className="px-4 py-2 bg-white text-gray-900 rounded-full
-                          text-sm font-semibold hover:bg-gray-100 transition"
+                        className="px-3 py-1.5 md:px-4 md:py-2 bg-white text-gray-900 rounded-full
+                          text-xs md:text-sm font-semibold hover:bg-gray-100 transition"
                         onClick={(e) => {
                           e.stopPropagation();
                           setIsFullScreen(true);
                         }}
                       >
-                        View all pictures
+                        View all
                       </button>
                     </div>
                   )}

@@ -179,9 +179,10 @@ const RoomModal: React.FC<RoomModalProps> = ({ isOpen, onClose, roomData, onRequ
         {/* Description */}
         <div className="bg-gray-50/80 p-5 rounded-xl space-y-3">
           <h3 className="font-semibold text-gray-900">Description</h3>
-          <p className="text-gray-600 leading-relaxed">
-            {roomData.description}
-          </p>
+          <div 
+            className="text-gray-600 leading-relaxed prose prose-indigo max-w-none"
+            dangerouslySetInnerHTML={{ __html: roomData.description }}
+          />
         </div>
 
         {/* Room Amenities */}

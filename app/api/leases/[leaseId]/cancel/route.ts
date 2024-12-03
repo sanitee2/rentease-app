@@ -8,44 +8,24 @@ export async function PATCH(
 ) {
   try {
     const currentUser = await getCurrentUser();
+    if (!currentUser) {
+      return new NextResponse("Unauthorized", { status: 401 });
+    }
+
     const { leaseId } = params;
 
-    if (!currentUser || currentUser.role !== 'LANDLORD') {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 403 }
-      );
-    }
-
-    if (!leaseId) {
-      return NextResponse.json(
-        { error: "Lease ID is required" },
-        { status: 400 }
-      );
-    }
-
-    // Get the lease to check if it exists and get related data
+    // Get the lease with all necessary relations
     const lease = await prisma.leaseContract.findUnique({
       where: { id: leaseId },
       include: {
+        listing: true,
         room: true,
-        user: true,
-        tenantProfile: true
-      }
+        tenantProfile: true,
+      },
     });
 
     if (!lease) {
-      return NextResponse.json(
-        { error: "Lease not found" },
-        { status: 404 }
-      );
-    }
-
-    if (lease.status !== 'PENDING') {
-      return NextResponse.json(
-        { error: "Only pending leases can be cancelled" },
-        { status: 400 }
-      );
+      return new NextResponse("Lease not found", { status: 404 });
     }
 
     // Update everything in a transaction
@@ -53,38 +33,29 @@ export async function PATCH(
       // 1. Update lease status
       const updatedLease = await tx.leaseContract.update({
         where: { id: leaseId },
-        data: {
+        data: { 
           status: 'CANCELLED',
           endDate: new Date()
-        }
+        },
       });
 
-      // 2. Remove room reservation only if room exists and has tenant
-      if (lease.roomId && lease.room) {
-        const room = await tx.room.findUnique({
+      // 2. Remove room assignment if exists
+      if (lease.roomId) {
+        await tx.room.update({
           where: { id: lease.roomId },
-          include: { tenants: true }
-        });
-
-        if (room && room.tenants.some(tenant => tenant.id === lease.userId)) {
-          await tx.room.update({
-            where: { id: lease.roomId },
-            data: {
-              tenants: {
-                disconnect: { id: lease.userId }
-              }
+          data: {
+            tenants: {
+              disconnect: { id: lease.userId }
             }
-          });
-        }
+          }
+        });
       }
 
-      // 3. Update tenant profile only if it exists and has matching room
-      if (lease.tenantProfileId && lease.tenantProfile?.roomId === lease.roomId) {
+      // 3. Update tenant profile
+      if (lease.tenantProfileId) {
         await tx.tenantProfile.update({
           where: { id: lease.tenantProfileId },
-          data: {
-            roomId: null
-          }
+          data: { roomId: null }
         });
       }
 
@@ -110,9 +81,6 @@ export async function PATCH(
     return NextResponse.json(result);
   } catch (error) {
     console.error('[LEASE_CANCEL]', error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    return new NextResponse("Internal Error", { status: 500 });
   }
 } 

@@ -5,10 +5,9 @@ import { SafeUser } from '@/app/types'
 import { LuMenu } from "react-icons/lu";
 import { Button } from "@/components/ui/button";
 import Logo from '@/app/components/navbar/Logo';
-// import NotificationsDropdown from '@/app/components/notifications/NotificationsDropdown';
-// import { useNotifications } from '@/app/contexts/NotificationsContext';
+import NotificationsDropdown from '@/app/components/notifications/NotificationsDropdown';
 import { Badge } from "@/components/ui/badge";
-import { IoNotificationsOutline } from 'react-icons/io5';
+import { Bell } from 'lucide-react';
 
 interface LandlordNavbarProps {
   currentUser?: SafeUser | null;
@@ -21,9 +20,6 @@ const LandlordNavbar: React.FC<LandlordNavbarProps> = ({
   onMenuClick,
   expanded,
 }) => {
-  // const { notifications } = useNotifications();
-  // const unreadCount = notifications.filter(n => !n.isRead).length;
-
   return (
     <div className="fixed top-0 left-0 right-0 h-[70px] bg-white border-b border-gray-200 z-40">
       <div className="flex items-center justify-between h-full px-4">
@@ -47,23 +43,11 @@ const LandlordNavbar: React.FC<LandlordNavbarProps> = ({
         <div className="flex items-center gap-2">
           {currentUser && (
             <>
-              {/* <NotificationsDropdown currentUser={currentUser}>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="relative p-2 hover:bg-gray-100 rounded-full transition"
-                >
-                  <IoNotificationsOutline size={28} className="text-gray-600" />
-                  {unreadCount > 0 && (
-                    <Badge 
-                      variant="destructive" 
-                      className="absolute -top-2 -right-2 h-6 w-6 flex items-center justify-center p-0 text-xs"
-                    >
-                      {unreadCount > 99 ? '99+' : unreadCount}
-                    </Badge>
-                  )}
-                </Button>
-              </NotificationsDropdown> */}
+              <NotificationsDropdown>
+                <div className="p-2 rounded-full border border-gray-300 hover:bg-gray-100 transition-colors cursor-pointer relative">
+                  <Bell className="text-gray-600" size={17} />
+                </div>
+              </NotificationsDropdown>
               <UserMenu currentUser={currentUser} />
             </>
           )}

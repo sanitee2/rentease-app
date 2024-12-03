@@ -86,52 +86,52 @@ const FullScreenGallery: React.FC<FullScreenGalleryProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-black text-white flex flex-col items-center justify-center z-[60]">
+    <div className="fixed inset-0 bg-black text-white flex flex-col items-center justify-center z-[60] overflow-hidden">
       {/* Top Controls */}
-      <div className="absolute top-5 w-full px-5 flex justify-between items-center z-[70]">
+      <div className="absolute top-0 w-full px-5 py-4 flex justify-between items-center z-[70] bg-black bg-opacity-50">
         <button
-          className="p-2 text-white hover:text-gray-300"
+          className="p-2 text-white hover:text-gray-300 rounded-full hover:bg-black/20"
           onClick={onClose}
         >
-          <AiOutlineClose size={32} />
+          <AiOutlineClose size={24} />
         </button>
         
         {/* Zoom Controls */}
         <div className="flex gap-2">
           <button
             type="button"
-            className="p-2 text-white hover:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="p-2 text-white hover:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed rounded-full hover:bg-black/20"
             onClick={handleZoomOut}
             disabled={scale === 1}
           >
-            <ZoomOut size={24} />
+            <ZoomOut size={20} />
           </button>
           <button
             type="button"
-            className="p-2 text-white hover:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="p-2 text-white hover:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed rounded-full hover:bg-black/20"
             onClick={handleZoomIn}
             disabled={scale === 3}
           >
-            <ZoomIn size={24} />
+            <ZoomIn size={20} />
           </button>
         </div>
       </div>
 
       {/* Main Image Container */}
-      <div className="relative flex-1 w-full flex items-center justify-center">
+      <div className="relative w-full h-[calc(100vh-96px)] flex items-center justify-center">
         {/* Previous Button */}
         {hasMultipleImages && (
           <button
-            className="absolute left-10 p-2 text-white hover:text-gray-300 z-[70]"
+            className="absolute left-4 p-2 text-white hover:text-gray-300 z-[70] rounded-full hover:bg-black/20"
             onClick={handlePrev}
           >
-            <MdArrowBackIos size={32} />
+            <MdArrowBackIos size={24} />
           </button>
         )}
 
         {/* Current Image */}
         <div 
-          className="relative w-screen h-screen overflow-hidden"
+          className="relative w-full h-full overflow-hidden"
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
@@ -149,7 +149,7 @@ const FullScreenGallery: React.FC<FullScreenGalleryProps> = ({
               src={images[currentIndex]}
               alt={`Image ${currentIndex + 1}`}
               fill
-              className="object-contain p-10"
+              className="object-contain p-4"
               quality={100}
               priority
               draggable={false}
@@ -158,14 +158,14 @@ const FullScreenGallery: React.FC<FullScreenGalleryProps> = ({
 
           {/* Image Counter - Only show if multiple images */}
           {hasMultipleImages && (
-            <div className="absolute bottom-5 left-1/2 transform -translate-x-1/2 bg-black bg-opacity-75 text-white px-3 py-1 rounded-md z-[70]">
+            <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-black/75 text-white px-3 py-1 rounded-full text-sm z-[70]">
               {currentIndex + 1} / {images.length}
             </div>
           )}
 
           {/* Zoom Level Indicator */}
           {scale > 1 && (
-            <div className="absolute top-5 left-1/2 transform -translate-x-1/2 bg-black bg-opacity-75 text-white px-3 py-1 rounded-md z-[70]">
+            <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-black/75 text-white px-3 py-1 rounded-full text-sm z-[70]">
               {Math.round(scale * 100)}%
             </div>
           )}
@@ -174,36 +174,36 @@ const FullScreenGallery: React.FC<FullScreenGalleryProps> = ({
         {/* Next Button */}
         {hasMultipleImages && (
           <button
-            className="absolute right-10 p-2 text-white hover:text-gray-300 z-[70]"
+            className="absolute right-4 p-2 text-white hover:text-gray-300 z-[70] rounded-full hover:bg-black/20"
             onClick={handleNext}
           >
-            <MdArrowForwardIos size={32} />
+            <MdArrowForwardIos size={24} />
           </button>
         )}
       </div>
 
       {/* Thumbnail Strip - Only show if multiple images */}
       {hasMultipleImages && (
-        <div className="w-full h-24 bg-black bg-opacity-50 flex items-center justify-center">
-          <div className="flex gap-2 px-4 overflow-x-auto max-w-[90vw] py-2">
+        <div className="w-full h-24 bg-black/50 flex items-center justify-center">
+          <div className="flex gap-2 px-4 overflow-x-auto max-w-[90vw] py-2 scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-transparent">
             {images.map((image, index) => (
               <div
                 key={index}
                 onClick={() => {
-                  setScale(1); // Reset zoom when changing images
+                  setScale(1);
                   setCurrentIndex(index);
                 }}
                 className={`
                   relative 
-                  h-20 
-                  w-20 
+                  h-16 
+                  w-16 
                   flex-shrink-0 
                   cursor-pointer 
                   transition-all 
                   duration-200
                   ${index === currentIndex 
-                    ? 'border-2 border-white opacity-100' 
-                    : 'border border-gray-600 opacity-60 hover:opacity-100'
+                    ? 'ring-2 ring-white opacity-100' 
+                    : 'ring-1 ring-gray-600 opacity-60 hover:opacity-100'
                   }
                   rounded-md 
                   overflow-hidden

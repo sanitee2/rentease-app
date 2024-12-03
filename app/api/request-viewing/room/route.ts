@@ -10,22 +10,39 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { date, time, roomId, listingId } = body;
+    const { 
+      listingId,
+      roomId,
+      preferredDate,
+    } = body;
 
-    const viewing = await prisma.requestViewing.create({
+    if (!listingId || !roomId || !preferredDate) {
+      return new NextResponse('Missing required fields', { status: 400 });
+    }
+
+    // Parse the date string into a valid Date object
+    const parsedDate = new Date(preferredDate);
+    
+    // Validate the date
+    if (isNaN(parsedDate.getTime())) {
+      return new NextResponse('Invalid date format', { status: 400 });
+    }
+
+    // Create viewing request with separate date and time fields
+    const viewingRequest = await prisma.requestViewing.create({
       data: {
-        date: new Date(date),
-        time: new Date(time),
-        userId: currentUser.id,
         listingId,
         roomId,
+        userId: currentUser.id,
+        date: parsedDate,
+        time: parsedDate,
         status: 'PENDING'
       }
     });
 
-    return NextResponse.json(viewing);
+    return NextResponse.json(viewingRequest);
   } catch (error) {
-    console.error('[VIEWING_ROOM_POST]', error);
-    return new NextResponse('Internal error', { status: 500 });
+    console.error('[REQUEST_VIEWING_ROOM]', error);
+    return new NextResponse('Internal Error', { status: 500 });
   }
 } 

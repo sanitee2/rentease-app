@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import Calendar from './Calendar';
 import { SafeRoom, SafeUser } from '@/app/types';
@@ -8,6 +8,7 @@ import useLoginModal from '@/app/hooks/useLoginModal';
 import toast from 'react-hot-toast';
 import Select from 'react-select';
 import TimeSelect from './TimeSelect';
+import { AlertCircle } from 'lucide-react';
 
 interface SelectDateTimeProps {
   rooms: SafeRoom[];
@@ -24,6 +25,67 @@ const SelectDateTime: React.FC<SelectDateTimeProps> = ({ rooms, currentUser, lis
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedTime, setSelectedTime] = useState<string>('12:00');
   const [error, setError] = useState<string>('');
+  const [hasPendingRequest, setHasPendingRequest] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Check for pending requests on component mount
+  useEffect(() => {
+    const checkPendingRequest = async () => {
+      if (!currentUser) return;
+      
+      try {
+        const response = await axios.get('/api/request-viewing/pending', {
+          params: { 
+            userId: currentUser.id, 
+            listingId 
+          }
+        });
+        setHasPendingRequest(response.data.hasPendingRequest);
+      } catch (error) {
+        console.error('Error checking pending requests:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    checkPendingRequest();
+  }, [currentUser, listingId]);
+
+  if (isLoading) {
+    return (
+      <div className="bg-white rounded-xl shadow-sm p-6 max-w-md mx-auto">
+        <div className="flex items-center justify-center h-40">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+        </div>
+      </div>
+    );
+  }
+
+  if (hasPendingRequest) {
+    return (
+      <div className="bg-white rounded-xl shadow-sm p-6 max-w-md mx-auto">
+        <div className="flex flex-col items-center text-center gap-4">
+          <div className="p-3 bg-yellow-100 rounded-full">
+            <AlertCircle className="h-6 w-6 text-yellow-600" />
+          </div>
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">
+              Pending Viewing Request
+            </h3>
+            <p className="mt-2 text-sm text-gray-600">
+              You already have a pending viewing request for this property. 
+              Please wait for the landlord to respond to your request.
+            </p>
+          </div>
+          <div className="mt-2 p-4 bg-gray-50 rounded-lg w-full">
+            <p className="text-sm text-gray-500">
+              Once your request is approved or declined, you can schedule another viewing if needed.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // Handle date change
   const handleDateChange = (date: Date | null) => {
@@ -69,6 +131,7 @@ const SelectDateTime: React.FC<SelectDateTimeProps> = ({ rooms, currentUser, lis
       return;
     }
 
+    // Only validate room selection for room-based pricing
     if (pricingType === 'ROOM_BASED' && !selectedRoom) {
       setError('Please select a room.');
       return;
@@ -82,37 +145,58 @@ const SelectDateTime: React.FC<SelectDateTimeProps> = ({ rooms, currentUser, lis
     }
 
     try {
-      // Check viewing count
-      const response = await axios.get('/api/request-viewing/count', {
+      // Check for pending requests first
+      const pendingResponse = await axios.get('/api/request-viewing/pending', {
+        params: { 
+          userId: currentUser.id, 
+          listingId 
+        },
+      });
+
+      if (pendingResponse.data.hasPendingRequest) {
+        setError('You already have a pending viewing request for this property. Please wait for the landlord to respond.');
+        return;
+      }
+
+      // Check total viewing count
+      const countResponse = await axios.get('/api/request-viewing/count', {
         params: { userId: currentUser.id, listingId },
       });
 
-      const viewingCount = response.data.count;
+      const viewingCount = countResponse.data.count;
 
       if (viewingCount >= 2) {
         setError('You have already requested the maximum number of viewings allowed for this listing.');
         return;
       }
 
-      const date = combinedDateTime.toISOString().split('T')[0];
-      const time = combinedDateTime.toISOString();
-
       // Different endpoint based on pricing type
       const endpoint = pricingType === 'ROOM_BASED' 
         ? '/api/request-viewing/room'
         : '/api/request-viewing/listing';
 
-      await axios.post(endpoint, {
-        date,
-        time,
-        ...(pricingType === 'ROOM_BASED' && { roomId: selectedRoom }),
+      // Create request data
+      const requestData = {
         userId: currentUser.id,
         listingId: listingId,
-      });
+        preferredDate: combinedDateTime?.toISOString(),
+        // Only include roomId for room-based pricing
+        ...(pricingType === 'ROOM_BASED' && selectedRoom ? { roomId: selectedRoom.value } : {})
+      };
 
-      toast.success('Request submitted successfully');
+      await axios.post(endpoint, requestData);
+
+      toast.success('Viewing request submitted successfully');
+      
+      // Reset form
+      setSelectedDate(null);
+      setSelectedTime('12:00');
+      if (pricingType === 'ROOM_BASED') {
+        onRoomChange(null);
+      }
     } catch (error) {
       console.error('Error submitting request:', error);
+      toast.error('Failed to submit viewing request');
       setError('Error submitting request. Please try again later.');
     }
   };
@@ -159,7 +243,7 @@ const SelectDateTime: React.FC<SelectDateTimeProps> = ({ rooms, currentUser, lis
             </div>
           )}
 
-          {/* Time Selection - Better UI */}
+          {/* Time Selection */}
           <div>
             <label className="block text-sm text-gray-600 mb-2">
               Preferred Time
@@ -170,8 +254,8 @@ const SelectDateTime: React.FC<SelectDateTimeProps> = ({ rooms, currentUser, lis
             />
           </div>
 
-          {/* Calendar - Enhanced presentation */}
-          <div className="">
+          {/* Calendar */}
+          <div>
             <label className="block text-sm text-gray-600 mb-2">
               Preferred Date
             </label>
@@ -181,25 +265,22 @@ const SelectDateTime: React.FC<SelectDateTimeProps> = ({ rooms, currentUser, lis
             />
           </div>
 
-          
-
-          {/* Error Message - Improved visibility */}
+          {/* Error Message */}
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-md text-sm">
               {error}
             </div>
           )}
 
-          {/* Submit Button - Enhanced styling */}
+          {/* Submit Button */}
           <button
             onClick={handleSubmit}
             className="w-full bg-indigo-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-indigo-700 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-            disabled={!selectedDate || !selectedRoom}
+            disabled={!selectedDate || (pricingType === 'ROOM_BASED' && !selectedRoom)}
           >
             Request Viewing
           </button>
 
-          {/* Additional Info */}
           <p className="text-xs text-gray-500 text-center mt-4">
             You can schedule up to 2 viewings per listing
           </p>

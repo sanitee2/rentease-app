@@ -14,9 +14,10 @@ const DashboardPage = async () => {
   try {
     // Fetch initial data server-side
     const dashboardData = await getDashboardData(currentUser.id);
-
-    console.log(dashboardData);
-
+    console.log('Dashboard data in page:', {
+      totalLeases: dashboardData?.leases?.length,
+      pendingLeases: dashboardData?.leases?.filter(lease => lease.status === 'PENDING')
+    });
 
     return (
       <DashboardClient 

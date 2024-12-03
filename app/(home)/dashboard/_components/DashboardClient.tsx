@@ -262,9 +262,15 @@ const DashboardClient: FC<DashboardClientProps> = ({
 
   console.log(initialData);
 
-  const pendingLease = initialData?.leases.find(
-    lease => lease.status === 'PENDING'
-  );
+  console.log('Initial data in DashboardClient:', initialData);
+  
+  const pendingLease = useMemo(() => {
+    const pending = initialData?.leases?.find(lease => lease.status === 'PENDING');
+    console.log('Found pending lease:', pending);
+    return pending;
+  }, [initialData?.leases]);
+
+  console.log('Pending Lease:', pendingLease);
 
   const refreshPayments = async () => {
     try {
@@ -306,7 +312,9 @@ const DashboardClient: FC<DashboardClientProps> = ({
             ) : (
               <>
                 {pendingLease && (
-                  <PendingLeaseAlert lease={pendingLease} />
+                  <div className="mb-6">
+                    <PendingLeaseAlert lease={pendingLease} />
+                  </div>
                 )}
 
                 {/* Stats Cards */}

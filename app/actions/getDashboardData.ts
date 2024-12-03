@@ -3,34 +3,47 @@ import { SafeUser } from '@/app/types';
 
 export async function getDashboardData(userId: string) {
   try {
-    // First get the current active lease
-    const currentLease = await prisma.leaseContract.findFirst({
+    // Get all leases including pending ones
+    const leases = await prisma.leaseContract.findMany({
       where: {
-        userId,
-        status: 'ACTIVE'
+        userId: userId,
       },
-      select: {
-        id: true,
-        status: true,
-        rentAmount: true,
-        startDate: true,
-        endDate: true,
-        leaseTerms: true,
-        outstandingBalance: true,
-        monthlyDueDate: true,
-        listing: {
-          select: {
-            id: true,
-            title: true,
-            description: true
-          }
-        }
-      }
+      include: {
+        listing: true,
+        room: true,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
     });
+
+    // Transform all leases first
+    const transformedLeases = leases.map(lease => ({
+      id: lease.id,
+      status: lease.status,
+      rentAmount: lease.rentAmount,
+      startDate: lease.startDate,
+      endDate: lease.endDate,
+      monthlyDueDate: lease.monthlyDueDate,
+      outstandingBalance: lease.outstandingBalance,
+      leaseTerms: lease.leaseTerms,
+      listing: {
+        id: lease.listing.id,
+        title: lease.listing.title,
+        description: lease.listing.description
+      },
+      room: lease.room ? {
+        id: lease.room.id,
+        title: lease.room.title
+      } : undefined
+    }));
+
+    // Get current active lease
+    const currentLease = leases.find(lease => lease.status === 'ACTIVE');
 
     if (!currentLease) {
       return {
-        leases: [],
+        leases: transformedLeases,
         payments: [],
         maintenanceRequests: [],
         currentLease: null,
@@ -155,7 +168,7 @@ export async function getDashboardData(userId: string) {
       payments: transformedPayments,
       maintenanceRequests: transformedMaintenanceRequests,
       host: safeHost,
-      leases: [transformedCurrentLease] // Only include current lease
+      leases: transformedLeases
     };
   } catch (error) {
     console.error('Error fetching dashboard data:', error);

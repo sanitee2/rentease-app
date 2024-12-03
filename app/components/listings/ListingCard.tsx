@@ -27,28 +27,12 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
-interface Room {
+interface SimpleRoom {
   id: string;
   title: string;
-  description: string;
-  imageSrc: {
-    images: string[];
-  };
-  price?: number;
-  roomCategory: string;
-  maxTenantCount?: number;
-  tenants: {
-    id: string;
-    // Add other tenant fields if needed
-  }[];
-  amenities: {
-    amenity: {
-      id: string;
-      title: string;
-      icon: string;
-      desc: string;
-    };
-  }[];
+  price: number | null;
+  maxTenantCount: number | null;
+  currentTenants: string[];
 }
 
 interface LeaseContract {
@@ -83,7 +67,7 @@ interface ListingCardProps {
     overnightGuestsAllowed: boolean;
     hasMaxTenantCount: boolean;
     maxTenantCount?: number;
-    rooms?: Room[];
+    rooms: SimpleRoom[];
     rules?: {
       petsAllowed: boolean;
       childrenAllowed: boolean;
@@ -260,7 +244,7 @@ const ListingCard: React.FC<ListingCardProps> = ({
         ) || false;
 
         // Count current tenants and check capacity
-        const currentTenants = room.tenants?.length || 0;
+        const currentTenants = room.currentTenants?.length || 0;
         const maxTenants = room.maxTenantCount || 1;
         
         // Room is available if it has space for more tenants

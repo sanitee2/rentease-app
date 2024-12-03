@@ -101,10 +101,6 @@ const Footer = () => {
                 Surigao City, Philippines
               </li>
               <li className="flex items-center gap-3 text-gray-500">
-                <FaPhone className="text-indigo-500" />
-                +63 XXX XXX XXXX
-              </li>
-              <li className="flex items-center gap-3 text-gray-500">
                 <FaEnvelope className="text-indigo-500" />
                 contact@rentease.com
               </li>
