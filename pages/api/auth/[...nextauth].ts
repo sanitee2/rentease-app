@@ -1,5 +1,5 @@
 import { PrismaAdapter } from "@next-auth/prisma-adapter";
-import prisma from "@/app/libs/prismadb";
+import { authPrisma } from "@/app/libs/prismadb";
 import { AuthOptions } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
 import CredentialsProvider from "next-auth/providers/credentials";
@@ -9,7 +9,7 @@ import NextAuth from "next-auth";
 const ONE_HOUR = 60 * 60; // 1 hour in seconds (3600 seconds)
 
 export const authOptions: AuthOptions = {
-  adapter: PrismaAdapter(prisma),
+  adapter: PrismaAdapter(authPrisma),
   providers: [
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID as string,
@@ -27,7 +27,7 @@ export const authOptions: AuthOptions = {
           throw new Error("Invalid credentials");
         }
 
-        const user = await prisma.user.findUnique({
+        const user = await authPrisma.user.findUnique({
           where: { email: credentials.email },
         });
 
