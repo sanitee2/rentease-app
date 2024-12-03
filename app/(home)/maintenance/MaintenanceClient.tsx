@@ -16,10 +16,13 @@ import {
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import TenantMaintenanceDetailsModal from "@/app/components/Modals/TenantMaintenanceDetailsModal";
+import { MaintenanceRequest as MaintenanceRequestType } from "@/app/types";
 
 interface MaintenanceClientProps {
   maintenanceRequests: (MaintenanceRequest & {
     listing: {
+      id: string;
       title: string;
       imageSrc: { images: string[] };
     };
@@ -39,6 +42,7 @@ const MaintenanceClient: React.FC<MaintenanceClientProps> = ({
   const [priorityFilter, setPriorityFilter] = useState('all');
   const [sortBy, setSortBy] = useState('date-desc');
   const [currentPage, setCurrentPage] = useState(1);
+  const [selectedRequest, setSelectedRequest] = useState<Partial<MaintenanceRequestType> | null>(null);
 
   // Filter requests
   const filteredRequests = maintenanceRequests.filter(request => {
@@ -238,10 +242,27 @@ const MaintenanceClient: React.FC<MaintenanceClientProps> = ({
                     </div>
                   </div>
                 </div>
-                <button className="flex items-center gap-1.5 text-blue-600 hover:text-blue-800 text-sm font-medium">
-                  <FaEye size={16} />
-                  <span>View</span>
-                </button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setSelectedRequest({
+                    id: request.id,
+                    title: request.title,
+                    description: request.description,
+                    status: request.status,
+                    priority: request.priority,
+                    createdAt: request.createdAt.toISOString(),
+                    images: request.images,
+                    listing: {
+                      id: request.listing.id,
+                      title: request.listing.title
+                    },
+                    room: request.room
+                  })}
+                  className="text-blue-600 hover:text-blue-900"
+                >
+                  <FaEye className="h-4 w-4" />
+                </Button>
               </div>
             ))}
           </div>
@@ -285,6 +306,15 @@ const MaintenanceClient: React.FC<MaintenanceClientProps> = ({
             <div className="text-center py-10 text-gray-500">
               No maintenance requests found matching your filters
             </div>
+          )}
+
+          {selectedRequest && (
+            <TenantMaintenanceDetailsModal
+              isOpen={!!selectedRequest}
+              onClose={() => setSelectedRequest(null)}
+              request={selectedRequest}
+              setSelectedRequest={setSelectedRequest}
+            />
           )}
         </div>
       </Container>

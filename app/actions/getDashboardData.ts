@@ -66,6 +66,7 @@ export async function getDashboardData(userId: string) {
         periodStart: true,
         periodEnd: true,
         image: true,
+        declineReason: true,
         Listing: {
           select: {
             id: true,
@@ -139,6 +140,7 @@ export async function getDashboardData(userId: string) {
       periodStart: payment.periodStart || undefined,
       periodEnd: payment.periodEnd || undefined,
       image: payment.image || undefined,
+      declineReason: payment.declineReason || undefined,
       listing: payment.Listing || undefined
     }));
 

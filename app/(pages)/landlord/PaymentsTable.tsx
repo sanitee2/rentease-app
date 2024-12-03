@@ -11,6 +11,8 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import { Badge } from '@/components/ui/badge';
 import {
@@ -69,6 +71,8 @@ export default function PaymentsTable({
   const [showGallery, setShowGallery] = useState(false);
   const [tempPayment, setTempPayment] = useState<(typeof data)[0] | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [showDeclineDialog, setShowDeclineDialog] = useState(false);
+  const [declineReason, setDeclineReason] = useState('');
 
   // Calculate pagination values
   const totalPages = Math.ceil(data.length / itemsPerPage);
@@ -101,14 +105,10 @@ export default function PaymentsTable({
   };
 
   const handlePaymentAction = async (action: PaymentStatus) => {
-    if (!selectedPayment) {
-      console.error('No payment selected');
-      return;
-    }
+    if (!selectedPayment) return;
 
-    // Check if we have all required data
-    if (!selectedPayment.lease?.listing?.user) {
-      console.error('Missing listing or user data');
+    if (action === 'FAILED' && !declineReason) {
+      setShowDeclineDialog(true);
       return;
     }
 
@@ -119,7 +119,8 @@ export default function PaymentsTable({
       const response = await axios.patch(`/api/payments/${selectedPayment.id}`, {
         status: action,
         leaseId: selectedPayment.leaseId,
-        amount: selectedPayment.amount
+        amount: selectedPayment.amount,
+        declineReason: action === 'FAILED' ? declineReason : undefined
       });
 
       if (action === 'COMPLETED') {
@@ -151,6 +152,7 @@ export default function PaymentsTable({
       toast.dismiss();
       toast.success(action === 'COMPLETED' ? 'Payment approved successfully' : 'Payment declined');
       setSelectedPayment(null);
+      setDeclineReason('');
 
     } catch (error) {
       console.error('Payment action error:', error);
@@ -158,6 +160,7 @@ export default function PaymentsTable({
       toast.error('Failed to update payment status');
     } finally {
       setIsLoading(false);
+      setShowDeclineDialog(false);
     }
   };
 
@@ -494,6 +497,49 @@ export default function PaymentsTable({
           initialIndex={0}
         />
       )}
+
+      {/* Decline Reason Dialog */}
+      <Dialog open={showDeclineDialog} onOpenChange={() => setShowDeclineDialog(false)}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Decline Payment</DialogTitle>
+            <DialogDescription>
+              Please provide a reason for declining this payment.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <label className="text-sm font-medium">Reason</label>
+              <textarea
+                className="min-h-[100px] w-full rounded-md border border-gray-200 p-3"
+                placeholder="Enter reason for declining..."
+                value={declineReason}
+                onChange={(e) => setDeclineReason(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowDeclineDialog(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                if (declineReason.trim()) {
+                  setShowDeclineDialog(false);
+                  handlePaymentAction('FAILED');
+                }
+              }}
+              disabled={!declineReason.trim()}
+            >
+              Decline Payment
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 } 

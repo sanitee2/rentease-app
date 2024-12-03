@@ -46,10 +46,7 @@ const DashboardContent = () => {
       value: stats.totalListings,
       icon: HiHome,
       description: `${stats.occupancyRate}% occupancy rate`,
-      trend: {
-        value: 12,
-        isPositive: true
-      }
+      
     },
     {
       title: 'Active Tenants',
@@ -62,20 +59,14 @@ const DashboardContent = () => {
       value: `₱${stats.totalRevenue.toLocaleString()}`,
       icon: HiCurrencyDollar,
       description: 'Total from all active leases',
-      trend: {
-        value: 8.2,
-        isPositive: true
-      }
+      
     },
     {
       title: 'Maintenance Requests',
       value: stats.pendingMaintenance,
       icon: HiExclamationCircle,
       description: 'Pending maintenance requests',
-      trend: {
-        value: 2,
-        isPositive: false
-      }
+      
     }
   ];
 
@@ -88,7 +79,6 @@ const DashboardContent = () => {
           value={card.value}
           icon={card.icon}
           description={card.description}
-          trend={card.trend}
         />
       ))}
     </div>

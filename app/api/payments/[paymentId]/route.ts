@@ -1,25 +1,32 @@
 import { NextResponse } from "next/server";
 import prisma from "@/app/libs/prismadb";
+import getCurrentUser from "@/app/actions/getCurrentUser";
 
 export async function PATCH(
   request: Request,
   { params }: { params: { paymentId: string } }
 ) {
   try {
+    const currentUser = await getCurrentUser();
+    if (!currentUser) {
+      return new NextResponse("Unauthorized", { status: 401 });
+    }
+
     const body = await request.json();
-    const { status, leaseId, amount } = body;
+    const { status, leaseId, amount, declineReason } = body;
 
     if (!params.paymentId) {
       return new NextResponse("Payment ID required", { status: 400 });
     }
 
-    // Update payment with related data
-    const payment = await prisma.payment.update({
+    // Update payment with decline reason
+    const updatedPayment = await prisma.payment.update({
       where: {
-        id: params.paymentId,
+        id: params.paymentId
       },
       data: {
         status,
+        declineReason: status === 'FAILED' ? declineReason : null
       },
       include: {
         user: true,
@@ -52,9 +59,9 @@ export async function PATCH(
       });
     }
 
-    return NextResponse.json(payment);
+    return NextResponse.json(updatedPayment);
   } catch (error) {
-    console.error('Payment update error:', error);
+    console.error('PATCH /api/payments/[paymentId] error:', error);
     return new NextResponse("Internal error", { status: 500 });
   }
 } 

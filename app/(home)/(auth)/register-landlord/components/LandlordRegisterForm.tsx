@@ -346,7 +346,7 @@ const LandlordRegisterForm = () => {
         email: data.email,
         password: data.password,
         redirect: false,
-        callbackUrl: '/listings'
+        callbackUrl: '/landlord/dashboard'
       });
 
       if (signInResult?.error) {

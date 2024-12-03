@@ -1,9 +1,9 @@
 'use client';
 
 import Container from "@/app/components/Container";
-import { Payment, PaymentStatus, PaymentMode } from "@prisma/client";
+import { RequestViewing } from "@prisma/client";
 import { format } from "date-fns";
-import { FaCheckCircle, FaTimesCircle, FaEye, FaSearch, FaBan, FaClock } from "react-icons/fa";
+import { FaCheckCircle, FaTimesCircle, FaEye, FaSearch, FaBan } from 'react-icons/fa';
 import { MdChevronRight, MdChevronLeft } from "react-icons/md";
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
@@ -15,85 +15,85 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import TenantPaymentDetailsModal from "@/app/components/Modals/TenantPaymentDetailsModal";
+import { RequestViewingStatus } from "@prisma/client";
+import ViewingRequestDetailsModal from "@/app/components/Modals/ViewingRequestDetailsModal";
 import { useRouter } from "next/navigation";
 
-interface PaymentsClientProps {
-  payments: (Payment & {
-    lease: {
-      room: {
-        title: string;
-      } | null;
-      listing: {
-        id: string;
-        title: string;
+interface ViewingRequestsClientProps {
+  requests: (RequestViewing & {
+    listing: {
+      id: string;
+      title: string;
+      user?: {
+        firstName: string;
+        lastName: string;
+        email?: string | null;
+        phoneNumber?: string | null;
       };
     };
+    room?: {
+      id: string;
+      title: string;
+    } | null;
   })[];
 }
 
 const ITEMS_PER_PAGE = 5;
 
-type SelectedPayment = {
-  id: string;
-  amount: number;
-  status: PaymentStatus;
-  createdAt: Date;
-  paymentMethod: PaymentMode;
-  description?: string | undefined;
-  image?: string | undefined;
-  periodStart?: Date | undefined;
-  periodEnd?: Date | undefined;
-  declineReason?: string | undefined;
-  listing?: {
-    id: string;
-    title: string;
-  };
-};
-
-const PaymentsClient: React.FC<PaymentsClientProps> = ({
-  payments
+const ViewingRequestsClient: React.FC<ViewingRequestsClientProps> = ({
+  requests
 }) => {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [sortBy, setSortBy] = useState('date-desc');
   const [currentPage, setCurrentPage] = useState(1);
-  const [selectedPayment, setSelectedPayment] = useState<SelectedPayment | null>(null);
+  const [selectedRequest, setSelectedRequest] = useState<(RequestViewing & {
+    listing: {
+      id: string;
+      title: string;
+      user?: {
+        firstName: string;
+        lastName: string;
+        email?: string | null;
+        phoneNumber?: string | null;
+      };
+    };
+    room?: {
+      id: string;
+      title: string;
+    } | null;
+  }) | null>(null);
   const router = useRouter();
 
-  // Filter payments based on search and status
-  const filteredPayments = payments.filter(payment => {
+  // Filter requests based on search and status
+  const filteredRequests = requests.filter(request => {
     const matchesSearch = 
-      payment.lease.listing.title.toLowerCase().includes(search.toLowerCase()) ||
-      payment.amount.toString().includes(search);
+      request.listing.title.toLowerCase().includes(search.toLowerCase()) ||
+      request.room?.title?.toLowerCase().includes(search.toLowerCase());
     
     const matchesStatus = 
       statusFilter === 'all' || 
-      payment.status.toLowerCase() === statusFilter;
+      request.status.toLowerCase() === statusFilter.toLowerCase();
 
     return matchesSearch && matchesStatus;
   });
 
-  // Sort payments
-  const sortedPayments = [...filteredPayments].sort((a, b) => {
+  // Sort requests
+  const sortedRequests = [...filteredRequests].sort((a, b) => {
     switch (sortBy) {
       case 'date-desc':
         return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
       case 'date-asc':
         return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
-      case 'amount-desc':
-        return b.amount - a.amount;
-      case 'amount-asc':
-        return a.amount - b.amount;
       default:
         return 0;
     }
   });
 
   // Calculate pagination
-  const totalPages = Math.ceil(sortedPayments.length / ITEMS_PER_PAGE);
+  const totalPages = Math.ceil(sortedRequests.length / ITEMS_PER_PAGE);
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-  const paginatedPayments = sortedPayments.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  const paginatedRequests = sortedRequests.slice(startIndex, startIndex + ITEMS_PER_PAGE);
 
   // Handle page changes
   const handlePageChange = (page: number) => {
@@ -101,43 +101,41 @@ const PaymentsClient: React.FC<PaymentsClientProps> = ({
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // Update the status icon mapping
-  const getStatusIcon = (status: PaymentStatus) => {
+  const getStatusIcon = (status: RequestViewingStatus) => {
     switch (status) {
-      case 'COMPLETED':
+      case 'APPROVED':
         return <FaCheckCircle className="h-6 w-6 text-emerald-500 mt-1" />;
-      case 'FAILED':
+      case 'DECLINED':
         return <FaTimesCircle className="h-6 w-6 text-rose-500 mt-1" />;
-      case 'PENDING':
-        return <FaClock className="h-6 w-6 text-yellow-500 mt-1" />; // Add clock icon for pending
-      default:
+      case 'CANCELLED':
         return <FaBan className="h-6 w-6 text-gray-500 mt-1" />;
+      default:
+        return <FaCheckCircle className="h-6 w-6 text-yellow-500 mt-1" />;
     }
   };
 
-  // Update the status badge styling
-  const getStatusClass = (status: PaymentStatus) => {
+  const getStatusClass = (status: RequestViewingStatus) => {
     switch (status) {
-      case 'COMPLETED':
+      case 'APPROVED':
         return 'bg-emerald-100 text-emerald-600';
-      case 'FAILED':
+      case 'DECLINED':
         return 'bg-rose-100 text-rose-600';
-      case 'PENDING':
-        return 'bg-yellow-100 text-yellow-600'; // Add yellow for pending
-      default:
+      case 'CANCELLED':
         return 'bg-gray-100 text-gray-600';
+      default:
+        return 'bg-yellow-100 text-yellow-600';
     }
   };
 
   return (
-    <div className="pb-20 pt-10 min-h-[calc(70vh-100px)]">
+    <div className="pb-20 pt-10">
       <Container>
         <div className="flex flex-col gap-6">
           <div className="flex justify-between items-center">
             <div>
-              <h2 className="text-2xl font-bold">Recent Payments</h2>
+              <h2 className="text-2xl font-bold">Viewing Requests</h2>
               <p className="text-gray-500 text-base">
-                Your latest payment transactions
+                Track your property viewing requests
               </p>
             </div>
           </div>
@@ -148,7 +146,7 @@ const PaymentsClient: React.FC<PaymentsClientProps> = ({
               <div className="relative">
                 <FaSearch className="absolute left-3 top-3 text-gray-400" />
                 <Input
-                  placeholder="Search by property or amount..."
+                  placeholder="Search by property or room..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   className="pl-10"
@@ -162,10 +160,10 @@ const PaymentsClient: React.FC<PaymentsClientProps> = ({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="completed">Completed</SelectItem>
-                  <SelectItem value="pending">Pending</SelectItem>
-                  <SelectItem value="failed">Failed</SelectItem>
-                  <SelectItem value="cancelled">Cancelled</SelectItem>
+                  <SelectItem value="PENDING">Pending</SelectItem>
+                  <SelectItem value="APPROVED">Approved</SelectItem>
+                  <SelectItem value="DECLINED">Declined</SelectItem>
+                  <SelectItem value="CANCELLED">Cancelled</SelectItem>
                 </SelectContent>
               </Select>
 
@@ -176,8 +174,6 @@ const PaymentsClient: React.FC<PaymentsClientProps> = ({
                 <SelectContent>
                   <SelectItem value="date-desc">Latest First</SelectItem>
                   <SelectItem value="date-asc">Oldest First</SelectItem>
-                  <SelectItem value="amount-desc">Highest Amount</SelectItem>
-                  <SelectItem value="amount-asc">Lowest Amount</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -185,30 +181,35 @@ const PaymentsClient: React.FC<PaymentsClientProps> = ({
 
           {/* Results count with pagination info */}
           <div className="text-sm text-gray-500">
-            Showing {startIndex + 1}-{Math.min(startIndex + ITEMS_PER_PAGE, sortedPayments.length)} of {sortedPayments.length} payments
+            Showing {startIndex + 1}-{Math.min(startIndex + ITEMS_PER_PAGE, sortedRequests.length)} of {sortedRequests.length} requests
           </div>
 
-          {/* Payments list */}
+          {/* Requests list */}
           <div className="space-y-6">
-            {paginatedPayments.map((payment) => (
-              <div key={payment.id} className="flex items-center justify-between border p-4 rounded-xl border-gray-100 pb-4 pr-6">
+            {paginatedRequests.map((request) => (
+              <div key={request.id} className="flex items-center justify-between border p-4 rounded-xl border-gray-100 pb-4 pr-6">
                 <div className="flex gap-4 items-center">
-                  {getStatusIcon(payment.status)}
+                  {getStatusIcon(request.status)}
                   <div>
                     <div className="flex items-center gap-2">
                       <span className="text-xl font-semibold">
-                        ₱{payment.amount.toLocaleString('en-US')}
+                        {request.listing.title}
                       </span>
-                      <span className={`text-xs px-2 py-0.5 rounded-full ${getStatusClass(payment.status)}`}>
-                        {payment.status}
+                      <span className={`text-xs px-2 py-0.5 rounded-full ${getStatusClass(request.status)}`}>
+                        {request.status}
                       </span>
                     </div>
                     <div className="text-gray-500 text-sm mt-1">
-                      GCASH • {format(new Date(payment.createdAt), 'MMM d, yyyy')} • Period: {format(new Date(payment.createdAt), 'MMM d')} - {format(new Date(payment.createdAt), 'MMM d, yyyy')}
+                      {format(new Date(request.date), 'MMM d, yyyy')} at {format(new Date(request.time), 'h:mm a')}
                     </div>
-                    {payment.lease.listing.title && (
+                    {request.room && (
                       <div className="text-gray-500 mt-1">
-                        {payment.lease.listing.title}
+                        Room: {request.room.title}
+                      </div>
+                    )}
+                    {request.declineReason && request.status === 'DECLINED' && (
+                      <div className="text-rose-500 text-sm mt-1">
+                        Reason: {request.declineReason}
                       </div>
                     )}
                   </div>
@@ -216,22 +217,7 @@ const PaymentsClient: React.FC<PaymentsClientProps> = ({
                 <Button
                   variant="ghost"
                   size="icon"
-                  onClick={() => setSelectedPayment({
-                    id: payment.id,
-                    amount: payment.amount,
-                    status: payment.status,
-                    createdAt: payment.createdAt,
-                    paymentMethod: payment.paymentMethod,
-                    description: payment.description ?? undefined,
-                    image: payment.image ?? undefined,
-                    periodStart: payment.periodStart ?? undefined,
-                    periodEnd: payment.periodEnd ?? undefined,
-                    declineReason: payment.declineReason ?? undefined,
-                    listing: {
-                      id: payment.lease.listing.id,
-                      title: payment.lease.listing.title
-                    }
-                  })}
+                  onClick={() => setSelectedRequest(request)}
                   className="text-blue-600 hover:text-blue-900"
                 >
                   <FaEye className="h-4 w-4" />
@@ -275,18 +261,17 @@ const PaymentsClient: React.FC<PaymentsClientProps> = ({
           )}
 
           {/* No results message */}
-          {sortedPayments.length === 0 && (
+          {sortedRequests.length === 0 && (
             <div className="text-center py-10 text-gray-500">
-              No payments found matching your filters
+              No viewing requests found matching your filters
             </div>
           )}
 
-          {selectedPayment && (
-            <TenantPaymentDetailsModal
-              isOpen={!!selectedPayment}
-              onClose={() => setSelectedPayment(null)}
-              payment={selectedPayment}
-              setSelectedPayment={setSelectedPayment}
+          {selectedRequest && (
+            <ViewingRequestDetailsModal
+              isOpen={!!selectedRequest}
+              onClose={() => setSelectedRequest(null)}
+              request={selectedRequest}
             />
           )}
         </div>
@@ -295,4 +280,4 @@ const PaymentsClient: React.FC<PaymentsClientProps> = ({
   );
 };
 
-export default PaymentsClient; 
+export default ViewingRequestsClient; 

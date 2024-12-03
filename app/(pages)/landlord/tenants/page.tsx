@@ -102,7 +102,6 @@ const Tenants = () => {
 
   const handleAddSuccess = (newTenant: TenantData) => {
     setTenants(prev => [...prev, newTenant]);
-    toast.success('Tenant added successfully');
   };
 
   // Add this function to serialize dates

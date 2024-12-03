@@ -157,6 +157,7 @@ const DashboardClient: FC<DashboardClientProps> = ({
     },
   ];
 
+  console.log('Initial data in DashboardClient:', initialData);
   const stats = useMemo(() => {
     if (!initialData) {
       return {
@@ -192,7 +193,20 @@ const DashboardClient: FC<DashboardClientProps> = ({
     // Calculate next due date based on latest payment period and payment completeness
     const nextDueDate = initialData.currentLease?.monthlyDueDate 
       ? (() => {
-          // Get all completed payments grouped by period
+          const today = new Date();
+          const startDate = new Date(initialData.currentLease.startDate);
+          const dueDay = initialData.currentLease.monthlyDueDate;
+
+          // If we're at the start date, next due is next month
+          if (startDate.getDate() === dueDay) {
+            return new Date(
+              startDate.getFullYear(),
+              startDate.getMonth() + 1,
+              dueDay
+            );
+          }
+
+          // Rest of your existing due date calculation logic
           const paymentsByPeriod = initialData.payments
             .filter(payment => 
               payment.status === 'COMPLETED' && 

@@ -44,9 +44,9 @@ const Navbar: React.FC<NavbarProps> = ({
     
     { label: currentUser ? 'Payments' : 'About Us',
       href: currentUser ? '/payments' : '/about-us' },
-    { label: currentUser ? 'Maintenance' : 'Contact',
-      href: currentUser ? '/maintenance' : '/contact' },
+      { label: currentUser ? 'Maintenance' : '', href: currentUser ? '/maintenance' : '' },
     { label: currentUser ? 'Favorites' : '', href: currentUser ? '/favorites' : '' },
+    { label: currentUser ? 'Viewing Requests' : '', href: currentUser ? '/viewing-requests' : '' },
   ];
 
   return (
@@ -66,7 +66,7 @@ const Navbar: React.FC<NavbarProps> = ({
 
               {/* Desktop Navigation */}
               <div className="hidden md:flex items-center justify-center flex-1">
-                <nav className="flex items-center gap-8">
+                <nav className="flex items-center gap-8 mr-2">
                   {navigationItems.map((item) => (
                     <Link 
                       key={item.href}
@@ -144,7 +144,7 @@ const Navbar: React.FC<NavbarProps> = ({
               {/* Notification Bell and User Menu */}
               <div className="flex items-center gap-4">
                 
-                {currentUser && (
+                {/* {currentUser && (
                   <NotificationsDropdown>
                     <div className="flex items-center justify-center p-2 rounded-full border border-gray-300 hover:bg-gray-100 transition-colors cursor-pointer relative">
                       <Bell className="text-gray-600" size={18} />
@@ -158,7 +158,7 @@ const Navbar: React.FC<NavbarProps> = ({
                       )}
                     </div>
                   </NotificationsDropdown>
-                )}
+                )} */}
                 <UserMenu currentUser={currentUser} />
               </div>
             </div>

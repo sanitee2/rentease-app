@@ -41,7 +41,7 @@ const LandlordNavbar: React.FC<LandlordNavbarProps> = ({
         </div>
 
         <div className="flex items-center gap-2">
-          {currentUser && (
+          {/* {currentUser && (
             <>
               <NotificationsDropdown>
                 <div className="p-2 rounded-full border border-gray-300 hover:bg-gray-100 transition-colors cursor-pointer relative">
@@ -50,7 +50,8 @@ const LandlordNavbar: React.FC<LandlordNavbarProps> = ({
               </NotificationsDropdown>
               <UserMenu currentUser={currentUser} />
             </>
-          )}
+          )} */}
+          <UserMenu currentUser={currentUser} />
         </div>
       </div>
     </div>

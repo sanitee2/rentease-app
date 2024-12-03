@@ -179,8 +179,25 @@ export interface MaintenanceRequest {
   priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
   createdAt: string;
   images?: string[];
-  listing?: {
+  listing: {
     id: string;
     title: string;
   };
+  room?: {
+    title: string;
+  } | null;
+}
+
+export interface ChartData {
+  listingStatus: {
+    label: string;
+    value: number;
+    color: string;
+  }[];
+  monthlyListings: {
+    date: Date;
+    month: string;
+    categories: Record<string, number>;
+  }[];
+  // ... rest of the interface
 }

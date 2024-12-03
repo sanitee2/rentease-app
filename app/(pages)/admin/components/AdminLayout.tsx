@@ -61,11 +61,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({
           text="Categories"
           href="/admin/categories"
         />
-        <AdminSidebarItem 
-          icon={<LuSettings size={20} />}
-          text="Settings"
-          href="/admin/settings"
-        />
+        
       </AdminSidebar>
 
       <main 

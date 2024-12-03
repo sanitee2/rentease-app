@@ -291,6 +291,7 @@ model RequestViewing {
   roomId          String?              @db.ObjectId
   listingId       String               @db.ObjectId
   tenantProfileId String?              @db.ObjectId
+  declineReason   String?              @default("") // Add this line
 
   // Relations
   user          User           @relation(fields: [userId], references: [id])
@@ -339,6 +340,7 @@ model Payment {
   paymentMethod PaymentMode
   createdAt     DateTime      @default(now())
   periodStart   DateTime?
+  declineReason String? // Add this field for landlord's decline reason
   periodEnd     DateTime?
 
   // Relations

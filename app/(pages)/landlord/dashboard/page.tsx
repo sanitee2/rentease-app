@@ -44,7 +44,7 @@ export default function Dashboard() {
 
           {/* Upcoming Payments */}
           <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-lg font-semibold mb-4">Upcoming Payments</h2>
+            <h2 className="text-lg font-semibold mb-4">Payments Need Approval</h2>
             <Suspense fallback={<LoadingState />}>
               <UpcomingPayments />
             </Suspense>

@@ -8,6 +8,7 @@ import Image from 'next/image';
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
 import { useRouter } from 'next/navigation';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 
 interface ViewingRequestsTableProps {
   currentData: any[];
@@ -35,6 +36,9 @@ const ViewingRequestsTable = ({ currentData }: ViewingRequestsTableProps) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<FilterValue>('all');
   const [currentPage, setCurrentPage] = useState(1);
+  const [showDeclineDialog, setShowDeclineDialog] = useState(false);
+  const [declineReason, setDeclineReason] = useState('');
+  const [selectedRequest, setSelectedRequest] = useState<any>(null);
 
   // Calculate total counts from original data (not filtered)
   const statusCounts = useMemo(() => {
@@ -72,10 +76,21 @@ const ViewingRequestsTable = ({ currentData }: ViewingRequestsTableProps) => {
 
   // Handle request status update
   const handleUpdateStatus = async (requestId: string, newStatus: RequestStatus) => {
+    if (newStatus === 'DECLINED' && !declineReason) {
+      setSelectedRequest(requestId);
+      setShowDeclineDialog(true);
+      return;
+    }
+
     try {
-      await axios.patch(`/api/viewing-requests/${requestId}`, { status: newStatus });
+      await axios.patch(`/api/viewing-requests/${requestId}`, { 
+        status: newStatus,
+        declineReason: newStatus === 'DECLINED' ? declineReason : undefined
+      });
       toast.success('Request status updated successfully');
       router.refresh();
+      setDeclineReason('');
+      setShowDeclineDialog(false);
     } catch (error) {
       console.error('Error updating request status:', error);
       toast.error('Failed to update request status');
@@ -278,6 +293,51 @@ const ViewingRequestsTable = ({ currentData }: ViewingRequestsTableProps) => {
           </div>
         </div>
       )}
+
+      {/* Decline Reason Dialog */}
+      <Dialog open={showDeclineDialog} onOpenChange={() => setShowDeclineDialog(false)}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Decline Viewing Request</DialogTitle>
+            <DialogDescription>
+              Please provide a reason for declining this viewing request.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <label className="text-sm font-medium">Reason</label>
+              <textarea
+                className="min-h-[100px] w-full rounded-md border border-gray-200 p-3"
+                placeholder="Enter reason for declining..."
+                value={declineReason}
+                onChange={(e) => setDeclineReason(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowDeclineDialog(false);
+                setDeclineReason('');
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                if (declineReason.trim() && selectedRequest) {
+                  handleUpdateStatus(selectedRequest, 'DECLINED');
+                }
+              }}
+              disabled={!declineReason.trim()}
+            >
+              Decline Request
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 };

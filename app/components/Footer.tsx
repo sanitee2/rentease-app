@@ -9,8 +9,9 @@ import {
   FaMapMarkerAlt
 } from 'react-icons/fa';
 import Logo from './navbar/Logo';
+import { SafeUser } from '@/app/types';
 
-const Footer = () => {
+const Footer = ({ currentUser }: { currentUser?: SafeUser | null }) => {
   return (
     <footer className="bg-gray-100 border-t">
       {/* Main Footer */}
@@ -47,6 +48,7 @@ const Footer = () => {
                   Browse Listings
                 </Link>
               </li>
+              
               <li>
                 <Link href="/about" className="text-gray-500 hover:text-indigo-500 transition-colors">
                   About Us
@@ -65,32 +67,7 @@ const Footer = () => {
             </ul>
           </div>
 
-          {/* For Landlords/Tenants */}
-          <div>
-            <h4 className="text-lg font-semibold text-gray-900 mb-6">Services</h4>
-            <ul className="space-y-4">
-              <li>
-                <Link href="/landlord" className="text-gray-500 hover:text-indigo-500 transition-colors">
-                  For Landlords
-                </Link>
-              </li>
-              <li>
-                <Link href="/tenant" className="text-gray-500 hover:text-indigo-500 transition-colors">
-                  For Tenants
-                </Link>
-              </li>
-              <li>
-                <Link href="/pricing" className="text-gray-500 hover:text-indigo-500 transition-colors">
-                  Pricing Plans
-                </Link>
-              </li>
-              <li>
-                <Link href="/help" className="text-gray-500 hover:text-indigo-500 transition-colors">
-                  Help Center
-                </Link>
-              </li>
-            </ul>
-          </div>
+          
 
           {/* Contact Info */}
           <div>
@@ -114,16 +91,9 @@ const Footer = () => {
         <div className="container mx-auto px-4 py-6">
           <div className="flex flex-col md:flex-row justify-between items-center">
             <p className="text-gray-500 text-sm">
-              © {new Date().getFullYear()} RentEase. All rights reserved.
+              © {new Date().getFullYear()} RentEase
             </p>
-            <div className="flex gap-6 mt-4 md:mt-0">
-              <Link href="/privacy" className="text-gray-500 hover:text-indigo-500 text-sm transition-colors">
-                Privacy Policy
-              </Link>
-              <Link href="/terms" className="text-gray-500 hover:text-indigo-500 text-sm transition-colors">
-                Terms of Service
-              </Link>
-            </div>
+            
           </div>
         </div>
       </div>

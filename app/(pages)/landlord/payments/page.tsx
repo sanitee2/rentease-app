@@ -29,6 +29,7 @@ type Payment = {
   status: PaymentStatus;
   paymentMethod: PaymentMode;
   createdAt: Date;
+  declineReason: string | null;
   tenantProfileId: string | null;
   periodStart: Date | null;
   periodEnd: Date | null;

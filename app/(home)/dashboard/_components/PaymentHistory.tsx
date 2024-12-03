@@ -4,7 +4,7 @@ import EmptyState from './EmptyState';
 import { PaymentStatus, PaymentMode } from '@prisma/client';
 import { Button } from '@/components/ui/button';
 import { useRouter } from 'next/navigation';
-import { Eye } from "lucide-react";
+import { Eye, X } from "lucide-react";
 import TenantPaymentDetailsModal from '@/app/components/Modals/TenantPaymentDetailsModal';
 import { useState } from 'react';
 import { DashboardData } from './DashboardClient';
@@ -19,6 +19,7 @@ interface Payment {
   image?: string;
   periodStart?: Date;
   periodEnd?: Date;
+  declineReason?: string;
   listing?: {
     id: string;
     title: string;
@@ -127,6 +128,12 @@ const PaymentHistory: React.FC<PaymentHistoryProps> = ({ payments, initialData }
                 {payment.description && (
                   <p className="text-sm text-gray-500 mt-1">{payment.description}</p>
                 )}
+                {payment.status === 'FAILED' && (
+                  <div className="flex items-center gap-1 mt-1">
+                    <X className="w-3 h-3 text-red-500" />
+                    <span className="text-xs text-red-600">Payment declined</span>
+                  </div>
+                )}
               </div>
             </div>
             <Button
@@ -134,7 +141,8 @@ const PaymentHistory: React.FC<PaymentHistoryProps> = ({ payments, initialData }
               size="icon"
               onClick={() => setSelectedPayment({
                 ...payment,
-                listing: initialData.currentLease?.listing
+                listing: initialData.currentLease?.listing,
+                declineReason: payment.declineReason
               })}
               className="text-blue-600 hover:text-blue-900"
             >

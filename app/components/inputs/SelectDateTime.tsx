@@ -50,7 +50,31 @@ const SelectDateTime: React.FC<SelectDateTimeProps> = ({
   const [error, setError] = useState<string>('');
   const [hasPendingRequest, setHasPendingRequest] = useState(false);
 
-  // Only check for pending requests if user is logged in
+  const isListingFull = useMemo(() => {
+    if (pricingType === 'LISTING_BASED') {
+      // Check if there's any active lease contract
+      return listing.leaseContracts?.some(
+        lease => lease.status === 'ACTIVE'
+      ) || false;
+    }
+    
+    // For room-based, check if all rooms are occupied
+    return rooms.every(room => 
+      room.maxTenantCount && room.tenants?.length >= room.maxTenantCount
+    );
+  }, [pricingType, listing, rooms]);
+
+  const availableRooms = useMemo(() => {
+    return rooms.filter(room => {
+      // Check if room has maxTenantCount and tenants array
+      if (room.maxTenantCount) {
+        const roomTenants = room.tenants?.length || 0;
+        return roomTenants < room.maxTenantCount;
+      }
+      return true;
+    });
+  }, [rooms]);
+
   useEffect(() => {
     const checkPendingRequest = async () => {
       if (!currentUser) return;
@@ -103,17 +127,14 @@ const SelectDateTime: React.FC<SelectDateTimeProps> = ({
     setSelectedDate(date);
   };
 
-  // Handle time change
   const handleTimeChange = (time: string) => {
     setSelectedTime(time);
   };
 
-  // Handle room selection
   const handleRoomChange = (selectedOption: any) => {
     onRoomChange(selectedOption);
   };
 
-  // Combine the selected date and time in local time
   const getCombinedDateTime = () => {
     if (selectedDate) {
       const [hours, minutes] = selectedTime.split(':');
@@ -127,7 +148,6 @@ const SelectDateTime: React.FC<SelectDateTimeProps> = ({
     return null;
   };
 
-  // Handle form submission
   const handleSubmit = async () => {
     setError(''); // Reset error state
 
@@ -212,42 +232,39 @@ const SelectDateTime: React.FC<SelectDateTimeProps> = ({
     }
   };
 
-  // Check if listing is fully occupied
-  const isListingFull = useMemo(() => {
-    if (pricingType === 'LISTING_BASED') {
-      // Check if there's any active lease contract
-      return listing.leaseContracts?.some(
-        lease => lease.status === 'ACTIVE'
-      ) || false;
-    } else {
-      // For room-based, check if all rooms are occupied
-      return rooms.every(room => 
-        room.maxTenantCount && room.tenants?.length >= room.maxTenantCount
-      );
-    }
-  }, [pricingType, listing, rooms]);
-
-  // Filter available rooms
-  const availableRooms = useMemo(() => {
-    return rooms.filter(room => {
-      // Check if room has maxTenantCount and tenants array
-      if (room.maxTenantCount) {
-        const roomTenants = room.tenants?.length || 0;
-        return roomTenants < room.maxTenantCount;
-      }
-      return true;
-    });
-  }, [rooms]);
-
   // Convert only available rooms to options with occupancy info
   const roomOptions = availableRooms.map((room) => ({
     value: room.id,
     label: `${room.title} (${room.tenants?.length || 0}/${room.maxTenantCount || '∞'} occupied)`,
   }));
 
-  // If listing is full or no rooms available, show message
-  if (isListingFull || (pricingType === 'ROOM_BASED' && availableRooms.length === 0)) {
-    return (
+  let content;
+  if (currentUser && hasPendingRequest) {
+    content = (
+      <div className="bg-white rounded-xl shadow-sm p-6 max-w-md mx-auto">
+        <div className="flex flex-col items-center text-center gap-4">
+          <div className="p-3 bg-yellow-100 rounded-full">
+            <AlertCircle className="h-6 w-6 text-yellow-600" />
+          </div>
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">
+              Pending Viewing Request
+            </h3>
+            <p className="mt-2 text-sm text-gray-600">
+              You already have a pending viewing request for this property. 
+              Please wait for the landlord to respond to your request.
+            </p>
+          </div>
+          <div className="mt-2 p-4 bg-gray-50 rounded-lg w-full">
+            <p className="text-sm text-gray-500">
+              Once your request is approved or declined, you can schedule another viewing if needed.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  } else if (isListingFull || (pricingType === 'ROOM_BASED' && availableRooms.length === 0)) {
+    content = (
       <div className="bg-white rounded-xl shadow-sm p-6 max-w-md mx-auto">
         <div className="flex flex-col items-center text-center gap-4">
           <div className="p-3 bg-yellow-100 rounded-full">
@@ -272,91 +289,93 @@ const SelectDateTime: React.FC<SelectDateTimeProps> = ({
         </div>
       </div>
     );
-  }
+  } else {
+    content = (
+      <div id="booking-section" className="sticky top-28 w-full">
+        <div className="bg-white rounded-xl shadow-sm p-6 max-w-md mx-auto">
+          <h2 className="text-xl font-semibold mb-6 text-center">
+            Schedule a Viewing
+          </h2>
 
-  return (
-    <div id="booking-section" className="sticky top-28 w-full">
-      <div className="bg-white rounded-xl shadow-lg p-6 max-w-md mx-auto">
-        <h2 className="text-xl font-semibold mb-6 text-center">
-          Schedule a Viewing
-        </h2>
+          <div className="space-y-6">
+            {/* Only show room selection for room-based pricing if rooms are available */}
+            {pricingType === 'ROOM_BASED' && availableRooms.length > 0 && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Select Available Room
+                </label>
+                <Select
+                  id="roomSelect"
+                  value={selectedRoom}
+                  onChange={handleRoomChange}
+                  options={roomOptions}
+                  className="react-select-container"
+                  classNamePrefix="react-select"
+                  placeholder="Choose a room"
+                  isClearable
+                  styles={{
+                    control: (base) => ({
+                      ...base,
+                      borderColor: '#E5E7EB',
+                      '&:hover': {
+                        borderColor: '#A5B4FC'
+                      }
+                    })
+                  }}
+                />
+              </div>
+            )}
 
-        <div className="space-y-6">
-          {/* Only show room selection for room-based pricing if rooms are available */}
-          {pricingType === 'ROOM_BASED' && availableRooms.length > 0 && (
+            {/* Time Selection */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Select Available Room
+              <label className="block text-sm text-gray-600 mb-2">
+                Preferred Time
               </label>
-              <Select
-                id="roomSelect"
-                value={selectedRoom}
-                onChange={handleRoomChange}
-                options={roomOptions}
-                className="react-select-container"
-                classNamePrefix="react-select"
-                placeholder="Choose a room"
-                isClearable
-                styles={{
-                  control: (base) => ({
-                    ...base,
-                    borderColor: '#E5E7EB',
-                    '&:hover': {
-                      borderColor: '#A5B4FC'
-                    }
-                  })
-                }}
+              <TimeSelect
+                value={selectedTime}
+                onChange={handleTimeChange}
               />
             </div>
-          )}
 
-          {/* Time Selection */}
-          <div>
-            <label className="block text-sm text-gray-600 mb-2">
-              Preferred Time
-            </label>
-            <TimeSelect
-              value={selectedTime}
-              onChange={handleTimeChange}
-            />
-          </div>
-
-          {/* Calendar */}
-          <div>
-            <label className="block text-sm text-gray-600 mb-2">
-              Preferred Date
-            </label>
-            <Calendar 
-              selectedDate={selectedDate} 
-              onChange={handleDateChange}
-            />
-          </div>
-
-          {/* Error Message */}
-          {error && (
-            <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-md text-sm">
-              {error}
+            {/* Calendar */}
+            <div>
+              <label className="block text-sm text-gray-600 mb-2">
+                Preferred Date
+              </label>
+              <Calendar 
+                selectedDate={selectedDate} 
+                onChange={handleDateChange}
+              />
             </div>
-          )}
 
-          {/* Submit Button */}
-          <button
-            onClick={handleSubmit}
-            className="w-full bg-indigo-600 text-white px-6 py-3 rounded-lg font-medium 
-              hover:bg-indigo-700 transition-colors duration-200 
-              disabled:opacity-50 disabled:cursor-not-allowed"
-            disabled={!selectedDate || (pricingType === 'ROOM_BASED' && !selectedRoom)}
-          >
-            Request Viewing
-          </button>
+            {/* Error Message */}
+            {error && (
+              <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-md text-sm">
+                {error}
+              </div>
+            )}
 
-          <p className="text-xs text-gray-500 text-center mt-4">
-            You can schedule up to 2 viewings per listing
-          </p>
+            {/* Submit Button */}
+            <button
+              onClick={handleSubmit}
+              className="w-full bg-indigo-600 text-white px-6 py-3 rounded-lg font-medium 
+                hover:bg-indigo-700 transition-colors duration-200 
+                disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={!selectedDate || (pricingType === 'ROOM_BASED' && !selectedRoom)}
+            >
+              Request Viewing
+            </button>
+
+            <p className="text-xs text-gray-500 text-center mt-4">
+              You can schedule up to 2 viewings per listing
+            </p>
+          </div>
         </div>
       </div>
-    </div>
-  );
+    );
+  }
+
+  return content;
 };
 
 export default SelectDateTime;

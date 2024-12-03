@@ -28,6 +28,7 @@ const MaintenancePage = async () => {
     include: {
       listing: {
         select: {
+          id: true,
           title: true,
           imageSrc: true
         }
