@@ -59,9 +59,10 @@ interface PaymentDialogProps {
 }
 
 interface Payment {
-  status: string;
-  periodEnd: string | Date;
-  periodStart: string | Date;
+  status: PaymentStatus;
+  amount: number;
+  periodStart?: Date | string;
+  periodEnd?: Date | string;
 }
 
 export default function PaymentDialog({
@@ -87,6 +88,7 @@ export default function PaymentDialog({
   const [selectedPeriod, setSelectedPeriod] = useState<PaymentPeriod | null>(null);
   const [leaseDetails, setLeaseDetails] = useState<any>(null);
   const router = useRouter();
+  const [showAmount, setShowAmount] = useState(false);
 
   // Fetch lease details when dialog opens
   useEffect(() => {
@@ -113,64 +115,91 @@ export default function PaymentDialog({
   // Calculate payment periods based on lease details
   const getPaymentPeriods = () => {
     if (!rentAmount || !monthlyDueDate || !leaseDetails?.lease) {
+      console.log('Missing required data:', { rentAmount, monthlyDueDate, lease: leaseDetails?.lease });
       return [];
     }
 
     const periods: PaymentPeriod[] = [];
-    const leaseStartDate = new Date(leaseDetails.lease.startDate);
-    const completedPayments = leaseDetails.payments || [];
+    const completedPayments = payments.filter(p => p.status === 'COMPLETED') || [];
 
-    // Group payments by period to track partial payments
-    const paymentsByPeriod = completedPayments.reduce((acc: any, payment: any) => {
-      if (payment.periodStart && payment.periodEnd) {
-        const periodKey = format(new Date(payment.periodStart), 'yyyy-MM');
-        if (!acc[periodKey]) {
-          acc[periodKey] = {
-            totalPaid: 0,
-            periodStart: new Date(payment.periodStart),
-            periodEnd: new Date(payment.periodEnd)
-          };
-        }
-        acc[periodKey].totalPaid += payment.amount;
-      }
-      return acc;
-    }, {});
+    // Get the latest completed payment period
+    const latestPayment = completedPayments
+      .filter((payment) => payment.periodStart && payment.periodEnd)
+      .sort((a, b) => 
+        new Date(b.periodStart!).getTime() - new Date(a.periodStart!).getTime()
+      )[0];
 
-    // Find the latest paid period
-    const latestPaidPeriod = Object.values(paymentsByPeriod)
-      .sort((a: any, b: any) => b.periodEnd.getTime() - a.periodEnd.getTime())[0] as {
-        periodEnd: Date;
-        periodStart: Date;
-        totalPaid: number;
-      } | undefined;
+    if (!latestPayment) {
+      // If no payments exist, start from lease start date
+      const startDate = new Date(leaseDetails.lease.startDate);
+      const endDate = new Date(startDate);
+      endDate.setMonth(endDate.getMonth() + 1);
 
-    // Set current date to either the month after the latest paid period or lease start date
-    let currentDate;
-    if (latestPaidPeriod) {
-      currentDate = new Date(latestPaidPeriod.periodEnd);
-    } else {
-      currentDate = new Date(leaseStartDate);
+      periods.push({
+        label: `${format(startDate, 'MMMM d')} to ${format(endDate, 'MMMM d')} / ₱${rentAmount.toLocaleString()}`,
+        amount: rentAmount,
+        months: 1,
+        startDate,
+        endDate,
+        isPartial: false
+      });
+
+      return periods;
     }
 
-    // Generate only the next period
-    const periodStart = new Date(currentDate);
-    const periodEnd = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, monthlyDueDate);
-    const periodKey = format(periodStart, 'yyyy-MM');
-    
-    const existingPayments = paymentsByPeriod[periodKey];
-    const expectedAmount = rentAmount;
-    const paidAmount = existingPayments?.totalPaid || 0;
-    const remainingAmount = Math.max(0, expectedAmount - paidAmount);
+    // Calculate total payments for the current period
+    const currentPeriodPayments = payments.filter(payment => 
+      payment.status === 'COMPLETED' &&
+      payment.periodStart &&
+      payment.periodEnd &&
+      format(new Date(payment.periodStart), 'yyyy-MM-dd') === format(new Date(latestPayment.periodStart!), 'yyyy-MM-dd') &&
+      format(new Date(payment.periodEnd), 'yyyy-MM-dd') === format(new Date(latestPayment.periodEnd!), 'yyyy-MM-dd')
+    );
 
-    // Add period if there's any remaining balance
-    if (remainingAmount > 0) {
+    const totalPaid = currentPeriodPayments.reduce((sum, payment) => 
+      sum + payment.amount, 0
+    );
+
+    const remainingBalance = rentAmount - totalPaid;
+
+    // Add current period if there's remaining balance
+    if (remainingBalance > 0) {
       periods.push({
-        label: `${format(periodStart, 'MMMM d')} to ${format(periodEnd, 'MMMM d')} / ₱${remainingAmount.toLocaleString()}`,
-        amount: remainingAmount,
+        label: `${format(new Date(latestPayment.periodStart!), 'MMMM d')} to ${format(new Date(latestPayment.periodEnd!), 'MMMM d')} / ₱${remainingBalance.toLocaleString()}`,
+        amount: remainingBalance,
         months: 1,
-        startDate: periodStart,
-        endDate: periodEnd,
-        isPartial: paidAmount > 0
+        startDate: new Date(latestPayment.periodStart!),
+        endDate: new Date(latestPayment.periodEnd!),
+        isPartial: totalPaid > 0
+      });
+    } else {
+      // If current period is fully paid, show next period
+      const nextPeriodStart = new Date(latestPayment.periodEnd!);
+      const nextPeriodEnd = new Date(nextPeriodStart);
+      nextPeriodEnd.setMonth(nextPeriodEnd.getMonth() + 1);
+
+      // Check if there are any payments for the next period
+      const nextPeriodPayments = payments.filter(payment => 
+        payment.status === 'COMPLETED' &&
+        payment.periodStart &&
+        payment.periodEnd &&
+        format(new Date(payment.periodStart), 'yyyy-MM-dd') === format(nextPeriodStart, 'yyyy-MM-dd') &&
+        format(new Date(payment.periodEnd), 'yyyy-MM-dd') === format(nextPeriodEnd, 'yyyy-MM-dd')
+      );
+
+      const nextPeriodTotalPaid = nextPeriodPayments.reduce((sum, payment) => 
+        sum + payment.amount, 0
+      );
+
+      const nextPeriodRemainingBalance = rentAmount - nextPeriodTotalPaid;
+
+      periods.push({
+        label: `${format(nextPeriodStart, 'MMMM d')} to ${format(nextPeriodEnd, 'MMMM d')} / ₱${nextPeriodRemainingBalance.toLocaleString()}`,
+        amount: nextPeriodRemainingBalance,
+        months: 1,
+        startDate: nextPeriodStart,
+        endDate: nextPeriodEnd,
+        isPartial: nextPeriodTotalPaid > 0
       });
     }
 
@@ -180,23 +209,39 @@ export default function PaymentDialog({
   // Update payment amount when period changes
   const handlePeriodChange = (period: PaymentPeriod) => {
     setSelectedPeriod(period);
-    // Don't automatically set the amount to allow for partial payments
-    if (!paymentAmount) {
-      setPaymentAmount(period.amount.toString());
-    }
+    setShowAmount(true);
+    // Set initial amount to the full remaining balance of the period
+    setPaymentAmount(period.amount.toString());
   };
 
-  // Handle amount change
+  // Update the handleAmountChange function
   const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     const numericValue = parseFloat(value);
     
-    // Only update if it's a valid number and doesn't exceed the period amount
-    if (!isNaN(numericValue) && (!selectedPeriod || numericValue <= selectedPeriod.amount)) {
+    // Get the maximum allowed amount (either selected period amount or remaining balance)
+    const maxAmount = selectedPeriod?.amount || outstandingBalance;
+    
+    // Only update if:
+    // 1. It's a valid number
+    // 2. It's not negative
+    // 3. Doesn't exceed the maximum allowed amount
+    if (!isNaN(numericValue) && numericValue >= 0 && numericValue <= maxAmount) {
       setPaymentAmount(value);
     }
   };
 
+  // Add a reset function
+  const resetForm = () => {
+    setPaymentAmount("");
+    setPaymentMode("GCASH");
+    setProofImage([]);
+    setDescription("");
+    setSelectedPeriod(null);
+    setShowAmount(false);
+  };
+
+  // Update the handleSubmit function
   const handleSubmit = async () => {
     try {
       if (!leaseId || !listingId || !landlordId) {
@@ -229,6 +274,7 @@ export default function PaymentDialog({
       await axios.post('/api/payments', paymentData);
       
       toast.success('Payment submitted for approval');
+      resetForm(); // Reset form after successful submission
       onClose();
       onSuccess?.();
     } catch (error) {
@@ -284,13 +330,75 @@ export default function PaymentDialog({
     );
   };
 
-  const resetForm = () => {
-    setPaymentAmount(rentAmount?.toString() || "");
-    setPaymentMode("GCASH");
-    setProofImage([]);
-    setDescription("");
-    setSelectedPeriod(null);
+  const getNextPaymentPeriod = () => {
+    if (!payments || !monthlyDueDate) return null;
+
+    // Sort payments by period start date
+    const completedPayments = payments
+      .filter(payment => 
+        payment.status === 'COMPLETED' && 
+        payment.periodStart &&
+        payment.periodEnd
+      )
+      .sort((a, b) => 
+        new Date(a.periodStart!).getTime() - new Date(b.periodStart!).getTime()
+      );
+
+    // Get the latest payment period
+    const latestPayment = completedPayments[completedPayments.length - 1];
+
+    // If there's no payment yet, start from current month's due date
+    if (!latestPayment) {
+      const today = new Date();
+      const startDate = new Date(today.getFullYear(), today.getMonth(), monthlyDueDate);
+      const endDate = new Date(today.getFullYear(), today.getMonth() + 1, monthlyDueDate);
+      
+      // If today is past this month's due date, move to next month
+      if (today > startDate) {
+        startDate.setMonth(startDate.getMonth() + 1);
+        endDate.setMonth(endDate.getMonth() + 1);
+      }
+      
+      return { start: startDate, end: endDate };
+    }
+
+    // Get the period of the latest payment
+    const currentPeriodStart = new Date(latestPayment.periodStart!);
+    const currentPeriodEnd = new Date(latestPayment.periodEnd!);
+
+    // Calculate total payments for the current period
+    const currentPeriodPayments = payments.filter(payment => 
+      payment.status === 'COMPLETED' &&
+      payment.periodStart &&
+      new Date(payment.periodStart).getTime() === currentPeriodStart.getTime()
+    );
+
+    const totalPaidForPeriod = currentPeriodPayments.reduce((sum, payment) => 
+      sum + payment.amount, 0
+    );
+
+    // If there's still remaining balance for the current period, return the same period
+    if (totalPaidForPeriod < rentAmount!) {
+      return {
+        start: currentPeriodStart,
+        end: currentPeriodEnd,
+        remainingBalance: rentAmount! - totalPaidForPeriod
+      };
+    }
+
+    // If current period is fully paid, move to next period
+    const nextPeriodStart = new Date(currentPeriodEnd);
+    const nextPeriodEnd = new Date(nextPeriodStart);
+    nextPeriodEnd.setMonth(nextPeriodEnd.getMonth() + 1);
+
+    return { 
+      start: nextPeriodStart, 
+      end: nextPeriodEnd,
+      remainingBalance: rentAmount
+    };
   };
+
+  const paymentPeriod = getNextPaymentPeriod();
 
   return (
     <>
@@ -364,39 +472,7 @@ export default function PaymentDialog({
                   </Select>
                 </div>
 
-                {/* Amount */}
-                <div className="grid gap-1.5">
-                  <label className="text-sm font-medium text-gray-900">Amount</label>
-                  <Input
-                    type="number"
-                    value={paymentAmount}
-                    onChange={handleAmountChange}
-                    placeholder="Enter amount"
-                    disabled={isLoading}
-                    className="h-11"
-                  />
-                  <div className="flex items-center gap-2">
-                    <p className="text-xs text-gray-500">
-                      {balanceMessage}
-                    </p>
-                    {outstandingBalance < 0 && (
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <button className="relative">
-                              <HiInformationCircle className="w-4 h-4 text-indigo-400 hover:text-indigo-600 transition-colors animate-pulse" />
-                              <span className="absolute inset-0 rounded-full animate-ping bg-indigo-400/30" />
-                            </button>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p className="text-sm">{tooltipMessage}</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    )}
-                  </div>
-                </div>
-
+                {/* Payment Period - Moved before Amount */}
                 <div className="grid gap-2 relative z-[51]">
                   <label className="text-sm font-medium">Payment Period</label>
                   <Select
@@ -411,34 +487,64 @@ export default function PaymentDialog({
                       <SelectValue placeholder="Select payment period (optional)" />
                     </SelectTrigger>
                     <SelectContent className="z-[52]">
-                      {getPaymentPeriods().map((period) => (
-                        <SelectItem 
-                          key={period.label} 
-                          value={period.label}
-                          disabled={hasPendingPayment(period.startDate, period.endDate)}
-                          className={`flex items-center justify-between ${
-                            hasPendingPayment(period.startDate, period.endDate) ? 'opacity-50 cursor-not-allowed' : ''
-                          }`}
-                        >
-                          <div className="flex items-center gap-2">
-                            {period.label}
-                            {period.isPartial && (
-                              <span className="text-xs px-1.5 py-0.5 bg-yellow-100 text-yellow-800 rounded">
-                                Partial
-                              </span>
-                            )}
-                            {hasPendingPayment(period.startDate, period.endDate) && (
-                              <span className="text-xs px-1.5 py-0.5 bg-orange-100 text-orange-800 rounded">
-                                Pending
-                              </span>
-                            )}
-                          </div>
+                      {getPaymentPeriods().length > 0 ? (
+                        getPaymentPeriods().map((period) => (
+                          <SelectItem 
+                            key={period.label} 
+                            value={period.label}
+                            disabled={hasPendingPayment(period.startDate, period.endDate)}
+                            className={`flex items-center justify-between ${
+                              hasPendingPayment(period.startDate, period.endDate) ? 'opacity-50 cursor-not-allowed' : ''
+                            }`}
+                          >
+                            <div className="flex items-center gap-2">
+                              {period.label}
+                              {period.isPartial && (
+                                <span className="text-xs px-1.5 py-0.5 bg-yellow-100 text-yellow-800 rounded">
+                                  Partial
+                                </span>
+                              )}
+                              {hasPendingPayment(period.startDate, period.endDate) && (
+                                <span className="text-xs px-1.5 py-0.5 bg-orange-100 text-orange-800 rounded">
+                                  Pending
+                                </span>
+                              )}
+                            </div>
+                          </SelectItem>
+                        ))
+                      ) : (
+                        <SelectItem value="no-periods" disabled>
+                          No payment periods available
                         </SelectItem>
-                      ))}
+                      )}
                     </SelectContent>
                   </Select>
                 </div>
 
+                {/* Amount - Only show after period is selected */}
+                {showAmount && selectedPeriod && (
+                  <div className="grid gap-1.5">
+                    <label className="text-sm font-medium text-gray-900">Amount</label>
+                    <Input
+                      type="number"
+                      value={paymentAmount}
+                      onChange={handleAmountChange}
+                      placeholder={`Enter amount (max: ₱${selectedPeriod.amount.toLocaleString()})`}
+                      disabled={isLoading}
+                      className="h-11"
+                      min={0}
+                      max={selectedPeriod.amount}
+                      step="0.01"
+                    />
+                    <div className="flex items-center gap-2">
+                      <p className="text-xs text-gray-500">
+                        Maximum amount: ₱{selectedPeriod.amount.toLocaleString()}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Description */}
                 <div className="grid gap-2">
                   <label className="text-sm font-medium">Description</label>
                   <Input
@@ -449,6 +555,7 @@ export default function PaymentDialog({
                   />
                 </div>
 
+                {/* Payment Proof */}
                 <div className="grid gap-2">
                   <label className="text-sm font-medium text-gray-900">Payment Proof</label>
                   <PaymentProofUpload

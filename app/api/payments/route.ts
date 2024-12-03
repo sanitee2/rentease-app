@@ -61,4 +61,37 @@ export async function POST(request: Request) {
     console.error('[PAYMENTS_POST]', error);
     return new NextResponse('Internal Error', { status: 500 });
   }
+}
+
+export async function GET() {
+  try {
+    const currentUser = await getCurrentUser();
+
+    if (!currentUser) {
+      return new NextResponse('Unauthorized', { status: 401 });
+    }
+
+    // Fetch payments for the current user
+    const payments = await prisma.payment.findMany({
+      where: {
+        userId: currentUser.id
+      },
+      include: {
+        Listing: {
+          select: {
+            id: true,
+            title: true
+          }
+        }
+      },
+      orderBy: {
+        createdAt: 'desc'
+      }
+    });
+
+    return NextResponse.json(payments);
+  } catch (error) {
+    console.error('[PAYMENTS_GET]', error);
+    return new NextResponse('Internal Error', { status: 500 });
+  }
 } 
