@@ -44,14 +44,14 @@ export type SafeListing = Omit<
 export type SafeRoom = {
   id: string;
   title: string;
+  maxTenantCount: number | null;
+  currentTenants: string[];
   description: string;
   imageSrc: {
     images: string[];
   };
   roomCategory: string;
   price: number;
-  maxTenantCount?: number;
-  currentTenants: string[];
   pricingType: 'LISTING_BASED' | 'ROOM_BASED';
   listingId: string;
   amenities: {

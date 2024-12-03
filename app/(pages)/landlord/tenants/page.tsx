@@ -222,7 +222,13 @@ const Tenants = () => {
               Complete history of all lease contracts
             </p>
           </div>
-          <LeaseHistoryTable currentData={tenants} />
+          {isLoading ? (
+            <LoadingState />
+          ) : (
+            <LeaseHistoryTable 
+              currentData={tenants} 
+            />
+          )}
         </div>
       </div>
 

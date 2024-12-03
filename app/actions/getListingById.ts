@@ -24,7 +24,13 @@ export default async function getListingById(
             amenity: true,
           }
         },
-        rules: true
+        rules: true,
+        leaseContracts: {
+          select: {
+            id: true,
+            status: true
+          }
+        }
       }
     })
 

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import Calendar from './Calendar';
 import { SafeRoom, SafeUser } from '@/app/types';
@@ -9,6 +9,7 @@ import toast from 'react-hot-toast';
 import Select from 'react-select';
 import TimeSelect from './TimeSelect';
 import { AlertCircle } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
 interface SelectDateTimeProps {
   rooms: SafeRoom[];
@@ -17,18 +18,39 @@ interface SelectDateTimeProps {
   selectedRoom: { value: string, label: string } | null;
   onRoomChange: (value: { value: string, label: string } | null) => void;
   pricingType: 'ROOM_BASED' | 'LISTING_BASED';
+  maxTenantCount?: number;
+  hasMaxTenantCount?: boolean;
+  currentTenants?: string[];
+  listing: {
+    id: string;
+    leaseContracts?: {
+      id: string;
+      status: string;
+    }[];
+  };
 }
 
-const SelectDateTime: React.FC<SelectDateTimeProps> = ({ rooms, currentUser, listingId, selectedRoom, onRoomChange, pricingType }) => {
+const SelectDateTime: React.FC<SelectDateTimeProps> = ({ 
+  rooms, 
+  currentUser, 
+  listingId, 
+  selectedRoom, 
+  onRoomChange, 
+  pricingType,
+  maxTenantCount = 0,
+  hasMaxTenantCount,
+  currentTenants = [],
+  listing
+}) => {
   const loginModal = useLoginModal();
+  const router = useRouter();
 
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedTime, setSelectedTime] = useState<string>('12:00');
   const [error, setError] = useState<string>('');
   const [hasPendingRequest, setHasPendingRequest] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
 
-  // Check for pending requests on component mount
+  // Only check for pending requests if user is logged in
   useEffect(() => {
     const checkPendingRequest = async () => {
       if (!currentUser) return;
@@ -43,25 +65,14 @@ const SelectDateTime: React.FC<SelectDateTimeProps> = ({ rooms, currentUser, lis
         setHasPendingRequest(response.data.hasPendingRequest);
       } catch (error) {
         console.error('Error checking pending requests:', error);
-      } finally {
-        setIsLoading(false);
       }
     };
 
     checkPendingRequest();
   }, [currentUser, listingId]);
 
-  if (isLoading) {
-    return (
-      <div className="bg-white rounded-xl shadow-sm p-6 max-w-md mx-auto">
-        <div className="flex items-center justify-center h-40">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
-        </div>
-      </div>
-    );
-  }
-
-  if (hasPendingRequest) {
+  // Show pending request message if user has a pending request
+  if (currentUser && hasPendingRequest) {
     return (
       <div className="bg-white rounded-xl shadow-sm p-6 max-w-md mx-auto">
         <div className="flex flex-col items-center text-center gap-4">
@@ -120,18 +131,18 @@ const SelectDateTime: React.FC<SelectDateTimeProps> = ({ rooms, currentUser, lis
   const handleSubmit = async () => {
     setError(''); // Reset error state
 
-    // Validation
+    // Check for login first
     if (!currentUser) {
       loginModal.onOpen();
       return;
     }
 
+    // Rest of your validation and submission logic
     if (!selectedDate) {
       setError('Please select a date.');
       return;
     }
 
-    // Only validate room selection for room-based pricing
     if (pricingType === 'ROOM_BASED' && !selectedRoom) {
       setError('Please select a room.');
       return;
@@ -201,11 +212,67 @@ const SelectDateTime: React.FC<SelectDateTimeProps> = ({ rooms, currentUser, lis
     }
   };
 
-  // Convert rooms data to options for React Select
-  const roomOptions = rooms.map((room) => ({
+  // Check if listing is fully occupied
+  const isListingFull = useMemo(() => {
+    if (pricingType === 'LISTING_BASED') {
+      // Check if there's any active lease contract
+      return listing.leaseContracts?.some(
+        lease => lease.status === 'ACTIVE'
+      ) || false;
+    } else {
+      // For room-based, check if all rooms are occupied
+      return rooms.every(room => 
+        room.maxTenantCount && room.tenants?.length >= room.maxTenantCount
+      );
+    }
+  }, [pricingType, listing, rooms]);
+
+  // Filter available rooms
+  const availableRooms = useMemo(() => {
+    return rooms.filter(room => {
+      // Check if room has maxTenantCount and tenants array
+      if (room.maxTenantCount) {
+        const roomTenants = room.tenants?.length || 0;
+        return roomTenants < room.maxTenantCount;
+      }
+      return true;
+    });
+  }, [rooms]);
+
+  // Convert only available rooms to options with occupancy info
+  const roomOptions = availableRooms.map((room) => ({
     value: room.id,
-    label: room.title,
+    label: `${room.title} (${room.tenants?.length || 0}/${room.maxTenantCount || '∞'} occupied)`,
   }));
+
+  // If listing is full or no rooms available, show message
+  if (isListingFull || (pricingType === 'ROOM_BASED' && availableRooms.length === 0)) {
+    return (
+      <div className="bg-white rounded-xl shadow-sm p-6 max-w-md mx-auto">
+        <div className="flex flex-col items-center text-center gap-4">
+          <div className="p-3 bg-yellow-100 rounded-full">
+            <AlertCircle className="h-6 w-6 text-yellow-600" />
+          </div>
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">
+              {isListingFull ? 'Property Fully Occupied' : 'No Rooms Available'}
+            </h3>
+            <p className="mt-2 text-sm text-gray-600">
+              {isListingFull 
+                ? 'This property has reached its maximum occupancy. Please check back later or explore other properties.'
+                : 'All rooms in this property are currently occupied. Please check back later or explore other properties.'}
+            </p>
+          </div>
+          <button
+            onClick={() => router.push('/listings')}
+            className="mt-2 text-indigo-600 hover:text-indigo-800 text-sm font-medium"
+          >
+            Browse Other Properties
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div id="booking-section" className="sticky top-28 w-full">
@@ -215,11 +282,11 @@ const SelectDateTime: React.FC<SelectDateTimeProps> = ({ rooms, currentUser, lis
         </h2>
 
         <div className="space-y-6">
-          {/* Only show room selection for room-based pricing */}
-          {pricingType === 'ROOM_BASED' && (
+          {/* Only show room selection for room-based pricing if rooms are available */}
+          {pricingType === 'ROOM_BASED' && availableRooms.length > 0 && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Select Room
+                Select Available Room
               </label>
               <Select
                 id="roomSelect"
@@ -275,7 +342,9 @@ const SelectDateTime: React.FC<SelectDateTimeProps> = ({ rooms, currentUser, lis
           {/* Submit Button */}
           <button
             onClick={handleSubmit}
-            className="w-full bg-indigo-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-indigo-700 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full bg-indigo-600 text-white px-6 py-3 rounded-lg font-medium 
+              hover:bg-indigo-700 transition-colors duration-200 
+              disabled:opacity-50 disabled:cursor-not-allowed"
             disabled={!selectedDate || (pricingType === 'ROOM_BASED' && !selectedRoom)}
           >
             Request Viewing

@@ -189,25 +189,52 @@ const DashboardClient: FC<DashboardClientProps> = ({
       ? `Paid period: ${format(new Date(firstPayment.periodStart!), 'MMM d, yyyy')} - ${format(new Date(lastPayment.periodEnd!), 'MMM d, yyyy')}`
       : null;
 
-    // Calculate next due date based on latest payment period end
+    // Calculate next due date based on latest payment period and payment completeness
     const nextDueDate = initialData.currentLease?.monthlyDueDate 
       ? (() => {
-          // Get the latest completed payment with a period
-          const latestPayment = initialData.payments
+          // Get all completed payments grouped by period
+          const paymentsByPeriod = initialData.payments
             .filter(payment => 
               payment.status === 'COMPLETED' && 
+              payment.periodStart &&
               payment.periodEnd
             )
-            .sort((a, b) => 
-              new Date(b.periodEnd!).getTime() - new Date(a.periodEnd!).getTime()
-            )[0];
+            .reduce((acc, payment) => {
+              const periodKey = payment.periodStart!.toString();
+              if (!acc[periodKey]) {
+                acc[periodKey] = {
+                  periodStart: new Date(payment.periodStart!),
+                  periodEnd: new Date(payment.periodEnd!),
+                  totalPaid: 0
+                };
+              }
+              acc[periodKey].totalPaid += payment.amount;
+              return acc;
+            }, {} as Record<string, { periodStart: Date; periodEnd: Date; totalPaid: number }>);
 
-          if (latestPayment?.periodEnd) {
-            // Get the due date one month after the period end date
-            const periodEndDate = new Date(latestPayment.periodEnd);
+          // Convert to array and sort by period start date
+          const sortedPeriods = Object.values(paymentsByPeriod)
+            .sort((a, b) => b.periodStart.getTime() - a.periodStart.getTime());
+
+          // Get the latest period
+          const latestPeriod = sortedPeriods[0];
+
+          if (latestPeriod) {
+            const rentAmount = initialData.currentLease.rentAmount;
+            
+            // If the latest period is not fully paid, use its end date as next due date
+            if (latestPeriod.totalPaid < rentAmount) {
+              return new Date(
+                latestPeriod.periodEnd.getFullYear(),
+                latestPeriod.periodEnd.getMonth(),
+                initialData.currentLease.monthlyDueDate
+              );
+            }
+
+            // If fully paid, set due date to the next month after the period end
             return new Date(
-              periodEndDate.getFullYear(),
-              periodEndDate.getMonth() + 1, // Add one month
+              latestPeriod.periodEnd.getFullYear(),
+              latestPeriod.periodEnd.getMonth() + 1,
               initialData.currentLease.monthlyDueDate
             );
           } else {

@@ -16,6 +16,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { BsCashCoin } from 'react-icons/bs';
+import LandlordPaymentDialog from "@/app/components/Modals/LandlordPaymentDialog";
 
 type Payment = {
   id: string;
@@ -60,24 +62,25 @@ export default function LandlordPaymentsPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<PaymentStatus | "ALL">("ALL");
   const [filteredPayments, setFilteredPayments] = useState<Payment[]>([]);
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
 
-  // Fetch payments data
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setIsLoading(true);
-        const response = await axios.get('/api/payments/landlord');
-        if (Array.isArray(response.data)) {
-          setPayments(response.data);
-        }
-      } catch (err) {
-        console.error('Error fetching payments:', err);
-        toast.error('Failed to load payments');
-      } finally {
-        setIsLoading(false);
+  const fetchData = async () => {
+    try {
+      setIsLoading(true);
+      const response = await axios.get('/api/payments/landlord');
+      if (Array.isArray(response.data)) {
+        setPayments(response.data);
       }
-    };
+    } catch (err) {
+      console.error('Error fetching payments:', err);
+      toast.error('Failed to load payments');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
+  // Use fetchData in useEffect
+  useEffect(() => {
     fetchData();
   }, []);
 
@@ -121,6 +124,11 @@ export default function LandlordPaymentsPage() {
     );
   };
 
+  const handlePaymentSuccess = () => {
+    fetchData();
+    toast.success('Payment recorded successfully');
+  };
+
   if (isLoading) {
     return <LoadingState />;
   }
@@ -129,9 +137,17 @@ export default function LandlordPaymentsPage() {
     <div className="min-h-screen bg-gray-50/50">
       <div className="max-w-[1500px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex flex-col gap-1 mb-8">
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent">
-            Payments
-          </h1>
+          <div className="flex items-center justify-between">
+            <h1 className="text-4xl font-bold bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent">
+              Payments
+            </h1>
+            <button 
+              onClick={() => setIsPaymentModalOpen(true)}
+              className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-full hover:bg-green-700 transition text-sm font-medium"
+            >
+              <BsCashCoin className="mr-2" /> Record Payment
+            </button>
+          </div>
           <Breadcrumbs />
         </div>
 
@@ -215,6 +231,13 @@ export default function LandlordPaymentsPage() {
             onPaymentUpdate={handlePaymentUpdate}
           />
         </div>
+
+        {/* Payment Dialog */}
+        <LandlordPaymentDialog 
+          isOpen={isPaymentModalOpen}
+          onClose={() => setIsPaymentModalOpen(false)}
+          onSuccess={handlePaymentSuccess}
+        />
       </div>
     </div>
   );

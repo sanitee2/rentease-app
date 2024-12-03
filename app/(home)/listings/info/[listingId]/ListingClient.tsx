@@ -19,6 +19,10 @@ import { FaPesoSign } from 'react-icons/fa6';
 interface ListingClientProps {
   listing: SafeListing & {
     user: SafeUser;
+    leaseContracts?: {
+      id: string;
+      status: string;
+    }[];
   };
   currentUser?: SafeUser | null;
 }
@@ -66,6 +70,18 @@ const ListingClient: React.FC<ListingClientProps> = ({
     setSelectedRoomOption(option);
   };
 
+  // Calculate current tenants based on room occupancy and listing tenants
+  const currentTenants = useMemo(() => {
+    if (listing.pricingType === 'LISTING_BASED') {
+      // For listing-based, get tenants directly from the listing
+      return listing.tenants || [];
+    } else {
+      // For room-based, aggregate tenants from all rooms
+      return rooms.reduce((acc, room) => {
+        return [...acc, ...(room.tenants?.map(tenant => tenant.id) || [])];
+      }, [] as string[]);
+    }
+  }, [listing, rooms]);
 
   return (
     <>
@@ -118,6 +134,8 @@ const ListingClient: React.FC<ListingClientProps> = ({
                 selectedRoom={selectedRoomOption}
                 onRoomChange={handleRoomChange}
                 pricingType={listing.pricingType}
+                listing={listing}
+                hasMaxTenantCount={listing.hasMaxTenantCount}
               />
             </div>
           </div>

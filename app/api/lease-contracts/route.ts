@@ -66,4 +66,67 @@ export async function POST(request: Request) {
       { status: 500 }
     );
   }
+}
+
+export async function GET(request: Request) {
+  try {
+    const currentUser = await getCurrentUser();
+    if (!currentUser) {
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
+    // Get the tenant ID from the URL search params
+    const { searchParams } = new URL(request.url);
+    const userId = searchParams.get('userId');
+
+    if (!userId) {
+      return NextResponse.json(
+        { error: "User ID is required" },
+        { status: 400 }
+      );
+    }
+
+    const lease = await prisma.leaseContract.findFirst({
+      where: {
+        userId: userId,
+        listing: {
+          userId: currentUser.id
+        },
+        status: 'ACTIVE'
+      },
+      include: {
+        listing: {
+          select: {
+            id: true,
+            title: true,
+            description: true
+          }
+        },
+        room: {
+          select: {
+            id: true,
+            title: true
+          }
+        }
+      }
+    });
+
+    if (!lease) {
+      return NextResponse.json(
+        { error: "No active lease found" },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json(lease);
+  } catch (error: any) {
+    console.error('[LEASE_CONTRACT_GET]', error);
+    return NextResponse.json(
+      { error: error.message || "Internal server error" },
+      { status: 500 }
+    );
+  }
 } 
