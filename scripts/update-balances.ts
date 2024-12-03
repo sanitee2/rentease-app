@@ -72,10 +72,14 @@ async function updateOutstandingBalances() {
         
         if (totalPaid < lease.rentAmount) {
           // If they haven't paid enough for this period
-          newBalance += (lease.rentAmount - totalPaid);
+          const remaining = lease.rentAmount - totalPaid;
+          newBalance += remaining;
         } else if (totalPaid > lease.rentAmount) {
           // If they paid more than required (advance payment)
-          newBalance -= (totalPaid - lease.rentAmount);
+          newBalance = newBalance + lease.rentAmount;
+        } else {
+          // If they paid exactly the required amount
+          newBalance = newBalance + lease.rentAmount;
         }
         
         // Only update if the balance has changed
