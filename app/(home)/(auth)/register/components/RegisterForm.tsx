@@ -476,7 +476,6 @@ const RegisterForm = () => {
       }
     };
 
-    const isDevelopment = process.env.NODE_ENV === 'development';
 
     return (
       <Dialog open={isOpen} onOpenChange={() => onClose()}>
@@ -486,13 +485,6 @@ const RegisterForm = () => {
             <DialogDescription>
               Enter the verification code sent to your {title.toLowerCase().includes('email') ? 'email address' : 'phone number'}.
             </DialogDescription>
-            {isDevelopment && (
-              <div className="mt-2 p-2 bg-indigo-50 border border-indigo-200 rounded-md">
-                <p className="text-xs text-indigo-700">
-                  Development mode: Verification code is {title.includes('Email') ? verification.emailCode : verification.phoneCode}
-                </p>
-              </div>
-            )}
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="grid gap-2">
