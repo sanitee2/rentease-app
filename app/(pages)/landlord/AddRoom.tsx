@@ -169,7 +169,7 @@ const AddRoom: React.FC<AddRoomProps> = ({ rooms, setRooms, listingCategory }) =
         {rooms.length > 0 ? (
           <>
             {/* Room Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-6 mt-6">
               {rooms.map((room, index) => (
                 <div
                   key={index}

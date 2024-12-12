@@ -167,6 +167,7 @@ const AddListing = () => {
   const [selectState, setSelectState] = useState({ isFocused: false });
   const [propertyAmenities, setPropertyAmenities] = useState<any[]>([]);
   const [isAmenitiesLoading, setIsAmenitiesLoading] = useState(true);
+  const [permitImages, setPermitImages] = useState<string[]>([]);
 
   const { register, handleSubmit, setValue, watch, formState: { errors }, reset } = useForm<FieldValues>({
     defaultValues: {
@@ -236,6 +237,7 @@ const AddListing = () => {
           };
         }),
         imageSrc: { images },
+        permitImages: { images: permitImages },
         // Handle listing-level maxTenantCount
         hasMaxTenantCount: data.hasMaxTenantCount || false,
         maxTenantCount: data.hasMaxTenantCount ? 
@@ -287,6 +289,8 @@ const AddListing = () => {
       }
     } else if (step === 7) {
       setStep(8);
+    } else if (step === 8 && permitImages.length > 0) {
+      setStep(9);
     }
   };
 
@@ -359,6 +363,7 @@ const AddListing = () => {
     'Description',
     'Property Amenities',
     'House Rules',
+    'Business Permit',
     'Overview'
   ];
 
@@ -390,7 +395,8 @@ const AddListing = () => {
                isPriceValid;
       case 6: return true;
       case 7: return !!watch('genderRestriction');
-      case 8: return true;
+      case 8: return permitImages.length > 0;
+      case 9: return true;
       default: return false;
     }
   };
@@ -684,7 +690,9 @@ const AddListing = () => {
               // IMAGES STEP
               <div className="bg-white shadow rounded-lg p-6 mb-6">
                 <Heading title="Add a photo of your place" subtitle="Show people what your place looks like!" />
-                <ImageUpload value={images} onChange={setImages} />
+                <div className='mt-6'>
+                  <ImageUpload value={images} onChange={setImages} />
+                </div>
               </div>
             )}
 
@@ -1049,6 +1057,42 @@ const AddListing = () => {
             )}
 
             {step === 8 && (
+              <div className="bg-white shadow rounded-lg p-6 mb-6">
+                <Heading 
+                  title="Upload Business Permit" 
+                  subtitle="Please upload images of your valid business permit"
+                />
+                <div className="space-y-4 mt-6">
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+                    <div className="flex items-start">
+                      <div className="flex-shrink-0">
+                        <IoInformationCircleOutline className="h-5 w-5 text-yellow-600" />
+                      </div>
+                      <div className="ml-3">
+                        <h3 className="text-sm font-medium text-yellow-800">
+                          Important Note
+                        </h3>
+                        <div className="mt-2 text-sm text-yellow-700">
+                          <ul className="list-disc list-inside">
+                            <li>Upload clear images of your business permit</li>
+                            <li>Maximum of 3 images allowed</li>
+                            <li>Accepted formats: JPG and PNG</li>
+                          </ul>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <ImageUpload
+                    value={permitImages}
+                    onChange={setPermitImages}
+                    maxImages={3}
+                  />
+                </div>
+              </div>
+            )}
+
+            {step === 9 && (
               // OVERVIEW STEP
               <div className="bg-white shadow rounded-lg p-6 mb-6">
                 <Heading title="Overview" subtitle="Review all the information before submitting." />
@@ -1247,6 +1291,25 @@ const AddListing = () => {
                       </div>
                       <button 
                         onClick={() => setStep(7)}
+                        className="text-indigo-600 hover:text-indigo-800 text-sm font-medium"
+                      >
+                        Edit
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Add Business Permit Card */}
+                  <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 hover:border-indigo-500 transition">
+                    <div className="flex justify-between items-start">
+                      <div className="flex gap-3">
+                        <IoDocumentTextOutline className="text-2xl text-indigo-600" />
+                        <div>
+                          <h3 className="font-semibold text-gray-700">Business Permit</h3>
+                          <p className="text-gray-600 mt-1">{permitImages.length} permit image(s) uploaded</p>
+                        </div>
+                      </div>
+                      <button 
+                        onClick={() => setStep(8)} 
                         className="text-indigo-600 hover:text-indigo-800 text-sm font-medium"
                       >
                         Edit

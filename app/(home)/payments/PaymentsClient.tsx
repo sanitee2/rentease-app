@@ -1,7 +1,7 @@
 'use client';
 
 import Container from "@/app/components/Container";
-import { Payment, PaymentStatus, PaymentMode } from "@prisma/client";
+import { Payment as PrismaPayment, PaymentStatus, PaymentMode } from "@prisma/client";
 import { format } from "date-fns";
 import { FaCheckCircle, FaTimesCircle, FaEye, FaSearch, FaBan, FaClock } from "react-icons/fa";
 import { MdChevronRight, MdChevronLeft } from "react-icons/md";
@@ -18,18 +18,17 @@ import { Button } from "@/components/ui/button";
 import TenantPaymentDetailsModal from "@/app/components/Modals/TenantPaymentDetailsModal";
 import { useRouter } from "next/navigation";
 
-interface PaymentsClientProps {
-  payments: (Payment & {
-    lease: {
-      room: {
-        title: string;
-      } | null;
-      listing: {
-        id: string;
-        title: string;
-      };
+interface PaymentWithLease extends PrismaPayment {
+  lease: {
+    listing: {
+      id: string;
+      title: string;
     };
-  })[];
+  };
+}
+
+interface PaymentsClientProps {
+  payments: PaymentWithLease[];
 }
 
 const ITEMS_PER_PAGE = 5;

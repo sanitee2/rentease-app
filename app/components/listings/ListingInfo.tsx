@@ -23,7 +23,7 @@ import { useCallback } from 'react';
 import { MdPhone, MdEmail } from 'react-icons/md';
 import Button from '../../components/Button';
 import useLoginModal from '@/app/hooks/useLoginModal';
-import { FaMars, FaVenus, FaVenusMars } from 'react-icons/fa';
+import { FaCheckCircle, FaMars, FaVenus, FaVenusMars } from 'react-icons/fa';
 import { FaUserClock, FaUserCheck } from 'react-icons/fa';
 import { FaPesoSign } from 'react-icons/fa6';
 
@@ -54,6 +54,7 @@ interface ListingInfoProps {
   locationValue: number[];
   barangay: string;
   street: string;
+  permitImages?: { images: string[] };
   rooms: SafeRoom[];
   contactNumber?: string | null;
   onRoomSelect?: (roomId: string, roomTitle: string) => void;
@@ -340,6 +341,27 @@ const ListingInfo: React.FC<ListingInfoProps> = ({
               </svg>
               <span>{overnightGuestsAllowed ? 'Overnight guests allowed' : 'No overnight guests'}</span>
             </div>
+              
+            
+            {(!currentUser || currentUser.role !== "ADMIN") ? (
+              <div className={`
+                flex items-center gap-1.5 
+                px-3 py-1.5 
+                rounded-full 
+                text-sm font-medium
+                bg-green-50 text-green-700
+              `}>
+                <FaCheckCircle size={14} className="flex-shrink-0" />
+                <span>
+                  Business permit verified
+                </span>
+              </div>
+            ) : null}
+            
+
+
+
+            
           </div>
         </div>
       </section>

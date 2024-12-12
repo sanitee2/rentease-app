@@ -223,6 +223,7 @@ model Listing {
   pricingType            PricingType   @default(LISTING_BASED) // Added: pricing type field
   hasMaxTenantCount      Boolean       @default(false)
   maxTenantCount         Int? // Optional: only required if hasMaxTenantCount is true
+  permitImages           ImageSrc? // Added: permit images field
 
   // Relations
   user                User                  @relation(fields: [userId], references: [id], onDelete: Cascade)

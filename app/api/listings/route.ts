@@ -37,6 +37,7 @@ export async function POST(request: Request) {
       propertyAmenities,
       hasMaxTenantCount,
       maxTenantCount,
+      permitImages,
     } = body;
 
     // Get the listing category to determine pricing type
@@ -62,6 +63,7 @@ export async function POST(request: Request) {
           roomCount,
           street,
           barangay,
+          permitImages: permitImages || null,
           locationValue: {
             latlng: [location[0], location[1]],
           },
