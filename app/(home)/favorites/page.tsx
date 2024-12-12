@@ -7,6 +7,12 @@ import prisma from "@/app/libs/prismadb";
 import FavoritesClient from "./FavoritesClient";
 import { SafeListing } from "@/app/types";
 import Footer from "@/app/components/Footer";
+import { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: 'Favorites - RentEase',
+  description: 'List of properties you have favorited',
+};
 
 // Add type for lease contract
 interface LeaseContract {
@@ -114,6 +120,7 @@ const FavoritesPage = async () => {
     price: favorite.price || null,
     userId: favorite.userId,
     landlordProfileId: favorite.landlordProfileId,
+    permitImages: favorite.imageSrc,
     rooms: favorite.rooms.map(room => ({
       id: room.id,
       title: room.title,

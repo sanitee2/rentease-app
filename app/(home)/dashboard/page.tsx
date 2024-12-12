@@ -4,6 +4,8 @@ import EmptyState from '@/app/components/EmptyState';
 import { getDashboardData } from '@/app/actions/getDashboardData';
 import { redirect } from 'next/navigation';
 
+
+
 const DashboardPage = async () => {
   const currentUser = await getCurrentUser();
   

@@ -5,6 +5,13 @@ import Container from "@/app/components/Container";
 import prisma from "@/app/libs/prismadb";
 import PaymentsClient from "./PaymentsClient";
 import Footer from "@/app/components/Footer";
+import { Metadata } from "next";
+
+
+export const metadata: Metadata = {
+  title: 'Payments - RentEase',
+  description: 'View all your payment transactions',
+};
 
 
 const PaymentsPage = async () => {

@@ -4,6 +4,13 @@ import EmptyState from "@/app/components/EmptyState";
 import ViewingRequestsClient from "./ViewingRequestsClient";
 import prisma from "@/app/libs/prismadb";
 import Footer from "@/app/components/Footer";
+import { Metadata } from "next";
+
+
+export const metadata: Metadata = {
+  title: 'Viewing Requests - RentEase',
+  description: 'Manage your viewing requests',
+};
 
 const ViewingRequestsPage = async () => {
   const currentUser = await getCurrentUser();

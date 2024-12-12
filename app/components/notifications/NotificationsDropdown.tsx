@@ -30,7 +30,7 @@ export default function NotificationsDropdown({
   // Refresh notifications when dropdown opens
   useEffect(() => {
     refreshNotifications();
-  }, []);
+  }, [refreshNotifications]);
 
   return (
     <DropdownMenu>

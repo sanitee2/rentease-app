@@ -133,7 +133,7 @@ const RegisterForm = () => {
     } else if (confirmPassword) {
       form.trigger('confirmPassword');
     }
-  }, [password, confirmPassword, form.setError, form.trigger]);
+  }, [password, confirmPassword, form.setError, form.trigger, form]);
 
   const getPasswordStrengthText = () => {
     const strength = Object.values(passwordStrength).filter(Boolean).length;

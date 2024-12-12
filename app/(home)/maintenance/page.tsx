@@ -6,6 +6,12 @@ import prisma from "@/app/libs/prismadb";
 
 import Footer from "@/app/components/Footer";
 import MaintenanceClient from "./MaintenanceClient";
+import { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: 'Maintenance - RentEase',
+  description: 'Track all your maintenance requests',
+};
 
 const MaintenancePage = async () => {
   const currentUser = await getCurrentUser();
