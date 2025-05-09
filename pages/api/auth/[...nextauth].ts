@@ -29,9 +29,19 @@ export const authOptions: AuthOptions = {
 
         const user = await prisma.user.findUnique({
           where: { email: credentials.email },
+          select: {
+            id: true,
+            email: true,
+            hashedPassword: true,
+            role: true,
+            image: true,
+            firstName: true,
+            lastName: true
+          }
         });
 
         if (!user || !user.hashedPassword) {
+          console.error('Auth failed: User not found or no password');
           throw new Error("Invalid credentials");
         }
 
@@ -41,10 +51,13 @@ export const authOptions: AuthOptions = {
         );
 
         if (!isCorrectPassword) {
+          console.error('Auth failed: Incorrect password');
           throw new Error("Invalid credentials");
         }
 
-        return user;
+        // Return user without hashed password
+        const { hashedPassword, ...userWithoutPass } = user;
+        return userWithoutPass;
       },
     }),
   ],
@@ -52,35 +65,42 @@ export const authOptions: AuthOptions = {
   session: {
     strategy: "jwt",
     maxAge: ONE_HOUR,
-    updateAge: 0, // Disable auto-update to handle it manually
+    updateAge: ONE_HOUR / 2, // Update session halfway through its lifetime
   },
   
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger, session }) {
+      if (trigger === "update" && session?.user) {
+        // Handle session updates
+        return { ...token, ...session.user };
+      }
+
       if (user) {
         token.id = user.id;
         token.role = user.role;
+        token.email = user.email;
+        token.name = user.name;
+        token.picture = user.image;
       }
 
-
-      // Only update expiration on new tokens or explicit updates
-      if (!token.exp || token.update) {
-        token.exp = Math.floor(Date.now() / 1000) + ONE_HOUR;
-        delete token.update;
-      }
-
+      // Set or update token expiration
+      token.exp = Math.floor(Date.now() / 1000) + ONE_HOUR;
+      
       return token;
     },
 
     async session({ session, token }) {
       try {
-        if (!token.exp || Date.now() >= token.exp * 1000) {
+        if (!token?.exp || Date.now() >= (token.exp * 1000)) {
           throw new Error('Session expired');
         }
 
         if (token && session.user) {
           session.user.id = token.id as string;
           session.user.role = token.role as string;
+          session.user.email = token.email as string;
+          session.user.name = token.name as string;
+          session.user.image = token.picture as string;
         }
         return session;
       } catch (error) {
@@ -91,16 +111,25 @@ export const authOptions: AuthOptions = {
   },
 
   events: {
-    async signOut({ session }) {
-      console.log("SignOut event:", {
-        timestamp: new Date().toISOString(),
-        user: session?.user?.email,
+    async signIn({ user, account, profile, isNewUser }) {
+      console.log('Sign in event:', {
+        userId: user.id,
+        provider: account?.provider,
+        isNewUser
       });
     },
-    async session({ session }) {
+    async signOut({ session, token }) {
+      console.log("SignOut event:", {
+        timestamp: new Date().toISOString(),
+        userId: token?.id,
+        email: session?.user?.email,
+      });
+    },
+    async session({ session, token }) {
       console.log("Session event:", {
         timestamp: new Date().toISOString(),
-        user: session?.user?.email,
+        userId: token?.id,
+        email: session?.user?.email,
       });
     },
   },
@@ -108,9 +137,21 @@ export const authOptions: AuthOptions = {
   pages: {
     signIn: "/",
     error: "/?error=true",
+    signOut: "/"
   },
   debug: process.env.NODE_ENV === "development",
   secret: process.env.NEXTAUTH_SECRET,
+  cookies: {
+    sessionToken: {
+      name: `${process.env.NODE_ENV === 'production' ? '__Secure-' : ''}next-auth.session-token`,
+      options: {
+        httpOnly: true,
+        sameSite: 'lax',
+        path: '/',
+        secure: process.env.NODE_ENV === 'production'
+      }
+    }
+  }
 };
 
 export default NextAuth(authOptions);

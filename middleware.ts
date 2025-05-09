@@ -12,31 +12,39 @@ export async function middleware(req: NextRequest) {
   try {
     const token = await getToken({ 
       req, 
-      secret: process.env.NEXTAUTH_SECRET 
+      secret: process.env.NEXTAUTH_SECRET,
+      secureCookie: process.env.NODE_ENV === 'production'
     });
 
-    // Handle expired token
-    // if (token?.exp) {
-    //   const expiryTime = Number(token.exp) * 1000;
-    //   const currentTime = Date.now();
-      
-    //   if (currentTime > expiryTime) {
-    //     const response = NextResponse.redirect(new URL('/?sessionExpired=true', req.url));
-    //     response.cookies.delete('next-auth.session-token');
-    //     response.cookies.delete('next-auth.csrf-token');
-    //     response.cookies.delete('next-auth.callback-url');
-    //     return response;
-    //   }
-    // }
+    // Debug logging for production issues
+    if (process.env.NODE_ENV === 'production') {
+      console.log('Middleware Debug:', {
+        pathname,
+        hasToken: !!token,
+        tokenRole: token?.role,
+        isPublicRoute
+      });
+    }
 
     // If no token and trying to access protected route, redirect to home
     if (!token && !isPublicRoute) {
+      console.log('No token found, redirecting to home');
       return NextResponse.redirect(new URL('/', req.url));
     }
 
     // If token exists, handle role-based routing
     if (token) {
       const userRole = token.role as 'ADMIN' | 'LANDLORD' | 'USER' | 'TENANT';
+      
+      // Debug log the role-based routing
+      if (process.env.NODE_ENV === 'production') {
+        console.log('Role-based routing:', {
+          userRole,
+          pathname,
+          shouldRedirect: pathname === '/'
+        });
+      }
+
       const dashboardRoutes = {
         ADMIN: '/admin/dashboard',
         LANDLORD: '/landlord/dashboard',
@@ -46,7 +54,9 @@ export async function middleware(req: NextRequest) {
 
       // Redirect to appropriate dashboard if on root or login page
       if (pathname === '/') {
-        return NextResponse.redirect(new URL(dashboardRoutes[userRole], req.url));
+        const redirectUrl = new URL(dashboardRoutes[userRole], req.url);
+        console.log(`Redirecting to dashboard: ${redirectUrl.pathname}`);
+        return NextResponse.redirect(redirectUrl);
       }
 
       // Check if user is accessing correct role-based routes
@@ -59,14 +69,17 @@ export async function middleware(req: NextRequest) {
       );
 
       if (!isCorrectRoute) {
-        return NextResponse.redirect(new URL(dashboardRoutes[userRole], req.url));
+        const redirectUrl = new URL(dashboardRoutes[userRole], req.url);
+        console.log(`Invalid route access, redirecting to: ${redirectUrl.pathname}`);
+        return NextResponse.redirect(redirectUrl);
       }
     }
 
     return NextResponse.next();
   } catch (error) {
     console.error('Middleware error:', error);
-    return NextResponse.redirect(new URL('/', req.url));
+    // On error, redirect to home with error parameter
+    return NextResponse.redirect(new URL('/?auth_error=true', req.url));
   }
 }
 
