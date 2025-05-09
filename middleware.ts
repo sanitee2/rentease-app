@@ -24,81 +24,63 @@ export async function middleware(req: NextRequest) {
     pathname.startsWith('/api/auth');
 
   try {
-    // Check cache first
-    const sessionToken = req.cookies.get('next-auth.session-token')?.value;
-    const cacheKey = sessionToken || 'no-token';
-    const cachedResult = tokenCache.get(cacheKey);
-    
-    let token;
-    if (cachedResult && Date.now() - cachedResult.timestamp < CACHE_DURATION) {
-      token = cachedResult.token;
-    } else {
-      token = await getToken({ 
-        req, 
-        secret: process.env.NEXTAUTH_SECRET,
-        secureCookie: process.env.NODE_ENV === 'production'
-      });
+    const token = await getToken({ 
+      req, 
+      secret: process.env.NEXTAUTH_SECRET 
+    });
+
+    // Handle expired token
+    // if (token?.exp) {
+    //   const expiryTime = Number(token.exp) * 1000;
+    //   const currentTime = Date.now();
       
-      // Cache the result
-      if (token) {
-        tokenCache.set(cacheKey, {
-          token,
-          timestamp: Date.now()
-        });
-      }
+    //   if (currentTime > expiryTime) {
+    //     const response = NextResponse.redirect(new URL('/?sessionExpired=true', req.url));
+    //     response.cookies.delete('next-auth.session-token');
+    //     response.cookies.delete('next-auth.csrf-token');
+    //     response.cookies.delete('next-auth.callback-url');
+    //     return response;
+    //   }
+    // }
+
+    // If no token and trying to access protected route, redirect to home
+    if (!token && !isPublicRoute) {
+      return NextResponse.redirect(new URL('/', req.url));
     }
 
-    // Handle public routes
-    if (isPublicRoute) {
-      // If user is authenticated and on root/signin, redirect to their dashboard
-      if (token && (pathname === '/' || pathname === '/api/auth/signin')) {
-        const userRole = token.role as 'ADMIN' | 'LANDLORD' | 'USER' | 'TENANT';
-        const dashboardRoutes = {
-          ADMIN: '/admin/dashboard',
-          LANDLORD: '/landlord/dashboard',
-          USER: '/listings',
-          TENANT: '/dashboard'
-        };
-        return NextResponse.redirect(new URL(dashboardRoutes[userRole], req.url));
-      }
-      return NextResponse.next();
-    }
-
-    // Handle protected routes
-    if (!token) {
-      // Store the original URL to redirect back after login
-      const callbackUrl = encodeURIComponent(req.url);
-      return NextResponse.redirect(new URL(`/api/auth/signin?callbackUrl=${callbackUrl}`, req.url));
-    }
-
-    const userRole = token.role as 'ADMIN' | 'LANDLORD' | 'USER' | 'TENANT';
-    
-    // Define role-specific route permissions
-    const roleRoutes = {
-      ADMIN: ['/admin'],
-      LANDLORD: ['/landlord'],
-      USER: ['/dashboard', '/listings'],
-      TENANT: ['/dashboard']
-    };
-
-    // Check if user has permission for the current route
-    const userAllowedPaths = roleRoutes[userRole];
-    const isAllowed = userAllowedPaths.some(path => pathname.startsWith(path));
-
-    if (!isAllowed) {
+    // If token exists, handle role-based routing
+    if (token) {
+      const userRole = token.role as 'ADMIN' | 'LANDLORD' | 'USER' | 'TENANT';
       const dashboardRoutes = {
         ADMIN: '/admin/dashboard',
         LANDLORD: '/landlord/dashboard',
         USER: '/listings',
         TENANT: '/dashboard'
       };
-      return NextResponse.redirect(new URL(dashboardRoutes[userRole], req.url));
+
+      // Redirect to appropriate dashboard if on root or login page
+      if (pathname === '/') {
+        return NextResponse.redirect(new URL(dashboardRoutes[userRole], req.url));
+      }
+
+      // Check if user is accessing correct role-based routes
+      const isCorrectRoute = (
+        (userRole === 'ADMIN' && pathname.startsWith('/admin')) ||
+        (userRole === 'LANDLORD' && pathname.startsWith('/landlord')) ||
+        (userRole === 'USER' && (pathname.startsWith('/dashboard') || pathname.startsWith('/listings'))) ||
+        (userRole === 'TENANT' && pathname.startsWith('/dashboard')) ||
+        isPublicRoute
+      );
+
+      if (!isCorrectRoute) {
+        return NextResponse.redirect(new URL(dashboardRoutes[userRole], req.url));
+      }
     }
 
     return NextResponse.next();
   } catch (error) {
     console.error('Middleware error:', error);
-    return NextResponse.redirect(new URL('/api/auth/signin?error=AuthError', req.url));
+    return NextResponse.redirect(new URL('/', req.url));
   }
 }
 
