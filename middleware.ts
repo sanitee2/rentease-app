@@ -23,10 +23,6 @@ export async function middleware(req: NextRequest) {
     pathname.startsWith('/listings') ||
     pathname.startsWith('/api/auth');
 
-  if (isPublicRoute) {
-    return NextResponse.next();
-  }
-  
   try {
     // Check cache first
     const sessionToken = req.cookies.get('next-auth.session-token')?.value;
@@ -44,51 +40,65 @@ export async function middleware(req: NextRequest) {
       });
       
       // Cache the result
-      tokenCache.set(cacheKey, {
-        token,
-        timestamp: Date.now()
-      });
+      if (token) {
+        tokenCache.set(cacheKey, {
+          token,
+          timestamp: Date.now()
+        });
+      }
     }
 
-    // If no token and trying to access protected route
+    // Handle public routes
+    if (isPublicRoute) {
+      // If user is authenticated and on root/signin, redirect to their dashboard
+      if (token && (pathname === '/' || pathname === '/api/auth/signin')) {
+        const userRole = token.role as 'ADMIN' | 'LANDLORD' | 'USER' | 'TENANT';
+        const dashboardRoutes = {
+          ADMIN: '/admin/dashboard',
+          LANDLORD: '/landlord/dashboard',
+          USER: '/listings',
+          TENANT: '/dashboard'
+        };
+        return NextResponse.redirect(new URL(dashboardRoutes[userRole], req.url));
+      }
+      return NextResponse.next();
+    }
+
+    // Handle protected routes
     if (!token) {
-      const redirectUrl = new URL('/api/auth/signin', req.url);
-      redirectUrl.searchParams.set('callbackUrl', encodeURI(req.url));
-      return NextResponse.redirect(redirectUrl);
+      // Store the original URL to redirect back after login
+      const callbackUrl = encodeURIComponent(req.url);
+      return NextResponse.redirect(new URL(`/api/auth/signin?callbackUrl=${callbackUrl}`, req.url));
     }
 
-    // If token exists, handle role-based routing
     const userRole = token.role as 'ADMIN' | 'LANDLORD' | 'USER' | 'TENANT';
-    const dashboardRoutes = {
-      ADMIN: '/admin/dashboard',
-      LANDLORD: '/landlord/dashboard',
-      USER: '/listings',
-      TENANT: '/dashboard'
+    
+    // Define role-specific route permissions
+    const roleRoutes = {
+      ADMIN: ['/admin'],
+      LANDLORD: ['/landlord'],
+      USER: ['/dashboard', '/listings'],
+      TENANT: ['/dashboard']
     };
 
-    // Only redirect if on root or signin page
-    if (pathname === '/' || pathname === '/api/auth/signin') {
-      return NextResponse.redirect(new URL(dashboardRoutes[userRole], req.url));
-    }
+    // Check if user has permission for the current route
+    const userAllowedPaths = roleRoutes[userRole];
+    const isAllowed = userAllowedPaths.some(path => pathname.startsWith(path));
 
-    // Check if user is accessing correct role-based routes
-    const isCorrectRoute = (
-      (userRole === 'ADMIN' && pathname.startsWith('/admin')) ||
-      (userRole === 'LANDLORD' && pathname.startsWith('/landlord')) ||
-      (userRole === 'USER' && (pathname.startsWith('/dashboard') || pathname.startsWith('/listings'))) ||
-      (userRole === 'TENANT' && pathname.startsWith('/dashboard'))
-    );
-
-    if (!isCorrectRoute) {
+    if (!isAllowed) {
+      const dashboardRoutes = {
+        ADMIN: '/admin/dashboard',
+        LANDLORD: '/landlord/dashboard',
+        USER: '/listings',
+        TENANT: '/dashboard'
+      };
       return NextResponse.redirect(new URL(dashboardRoutes[userRole], req.url));
     }
 
     return NextResponse.next();
   } catch (error) {
     console.error('Middleware error:', error);
-    const redirectUrl = new URL('/api/auth/signin', req.url);
-    redirectUrl.searchParams.set('error', 'AuthError');
-    return NextResponse.redirect(redirectUrl);
+    return NextResponse.redirect(new URL('/api/auth/signin?error=AuthError', req.url));
   }
 }
 
@@ -97,11 +107,11 @@ export const config = {
     // Protected routes
     '/admin/:path*',
     '/landlord/:path*',
-    '/tenant/:path*',
     '/dashboard/:path*',
     // Public routes that need processing
     '/',
     '/api/auth/signin',
+    '/listings/:path*',
     // Exclude static files and most API routes
     '/((?!_next/|static/|api/).*)'
   ],
