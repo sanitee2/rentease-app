@@ -38,8 +38,7 @@ const ListingsPage = async ({
     return (
       <div className="h-full bg-white">
         <div className="flex w-full">
-          {/* Desktop Filter Sidebar */}
-          <div className="hidden md:block w-[360px] fixed left-0 top-[88px] h-[calc(100vh-88px)] bg-white border-r overflow-hidden">
+          <div className="hidden md:block w-[360px] fixed left-0 top-[70px] h-[calc(100vh-70px)] bg-white border-r overflow-hidden">
             <ListingsFilter 
               categories={categories}
               propertyAmenities={propertyAmenities}
@@ -47,10 +46,8 @@ const ListingsPage = async ({
             />
           </div>
 
-          {/* Main Content Area */}
           <div className={cn(
             "flex-1 min-h-[calc(100vh-64px)]",
-            // Conditional margin for desktop only
             "md:ml-[360px]"
           )}>
             <ListingsContent 

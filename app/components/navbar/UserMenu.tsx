@@ -11,6 +11,16 @@ import { signOut } from "next-auth/react";
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 
 interface UserMenuProps {
   currentUser?: SafeUser | null
@@ -23,6 +33,7 @@ const UserMenu: React.FC<UserMenuProps> = ({
   const loginModal = useLoginModal();
   const rentModal = useRentModal();
   const [isOpen, setIsOpen] = useState(false);
+  const [showLogoutDialog, setShowLogoutDialog] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
   
@@ -34,6 +45,16 @@ const UserMenu: React.FC<UserMenuProps> = ({
     action();
     setIsOpen(false);
   }, []);
+
+  const handleLogout = () => {
+    setShowLogoutDialog(true);
+    setIsOpen(false);
+  };
+
+  const handleConfirmLogout = () => {
+    signOut();
+    setShowLogoutDialog(false);
+  };
 
   const handleNavigation = (path: string) => {
     setIsOpen(false);
@@ -98,35 +119,7 @@ const UserMenu: React.FC<UserMenuProps> = ({
             {currentUser ? (
               <>
                 <MenuItem 
-                  onClick={() => handleItemClick(() => {})}
-                  label="My trips"
-                  className="hover:bg-gray-50 px-4 py-3"
-                />
-                <MenuItem 
-                  onClick={() => handleItemClick(() => {})}
-                  label="My favorites"
-                  className="hover:bg-gray-50 px-4 py-3"
-                />
-                <MenuItem 
-                  onClick={() => handleItemClick(() => {})}
-                  label="My reservations"
-                  className="hover:bg-gray-50 px-4 py-3"
-                />
-                <MenuItem 
-                  onClick={() => handleItemClick(() => {})}
-                  label="My account"
-                  className="hover:bg-gray-50 px-4 py-3"
-                />
-                {currentUser.role === 'LANDLORD' && (
-                  <MenuItem 
-                    onClick={() => handleItemClick(rentModal.onOpen)}
-                    label="Add your rental"
-                    className="hover:bg-gray-50 px-4 py-3"
-                  />
-                )}
-                <hr className="my-2 border-gray-100" />
-                <MenuItem 
-                  onClick={() => handleItemClick(() => signOut())}
+                  onClick={handleLogout}
                   label="Logout"
                   className="hover:bg-gray-50 px-4 py-3 text-gray-600"
                 />
@@ -148,6 +141,31 @@ const UserMenu: React.FC<UserMenuProps> = ({
           </div>
         </div>
       )}
+
+      <Dialog open={showLogoutDialog} onOpenChange={setShowLogoutDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirm Logout</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to log out? You will need to log in again to access your account.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowLogoutDialog(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleConfirmLogout}
+            >
+              Logout
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
    );
 }

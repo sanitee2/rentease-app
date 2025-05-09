@@ -56,20 +56,40 @@ const LoginModal = () => {
       ...data,
       redirect: false,
     })
-    .then((callback) => {
+    .then(async (callback) => {
       setIsLoading(false);
 
-      if(callback?.ok){
-        toast.success('Logged in');
-        router.refresh();
-        loginModal.onClose();
-        reset();
+      if (callback?.ok) {
+        try {
+          // Fetch the current user data to get their role
+          const response = await axios.get('/api/auth/session');
+          const userRole = response.data?.user?.role;
+
+          // Define dashboard routes
+          const dashboardRoutes = {
+            ADMIN: '/admin/dashboard',
+            LANDLORD: '/landlord/dashboard',
+            USER: '/listings',
+            TENANT: '/dashboard'
+          };
+
+          // Redirect based on role
+          const redirectPath = dashboardRoutes[userRole as keyof typeof dashboardRoutes] || '/';
+          router.push(redirectPath);
+          router.refresh();
+          toast.success('Logged in');
+          loginModal.onClose();
+          reset();
+        } catch (error) {
+          console.error('Error fetching user role:', error);
+          toast.error('Something went wrong');
+        }
       }
 
-      if(callback?.error){
+      if (callback?.error) {
         setLoginError(callback.error);
       }
-    })
+    });
   }
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -143,10 +163,8 @@ const LoginModal = () => {
   const footerContent = (
     <div className="flex flex-col gap-4 mt-3">
         <hr />
-        <Button outline label="Continue with Google"
-        icon={FcGoogle}
-        onClick={() => signIn('google')}/>
-        <div className="text-neutral-500 text-center mt-4 font-light">
+        
+        <div className="text-neutral-500 text-center mt-2 font-light">
           <div className="flex flex-row items-center gap-2 justify-center">
             <div>
               First time using RentEase?

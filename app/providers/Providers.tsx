@@ -7,6 +7,7 @@ import RegisterModal from '../components/Modals/RegisterModal';
 import LoginModal from '../components/Modals/LoginModal';
 import ConfirmModal from '../components/Modals/ConfirmModal';
 import SessionExpiredModal from '../components/Modals/SessionExpiredModal';
+import { NotificationsProvider } from '../contexts/NotificationsContext';
 
 interface ProvidersProps {
   children: React.ReactNode;
@@ -15,7 +16,7 @@ interface ProvidersProps {
 export default function Providers({ children }: ProvidersProps) {
   return (
     <SessionProvider>
-      
+        <NotificationsProvider>
         <ToasterProvider />
         <RegisterModal />
         <LoginModal />
@@ -24,6 +25,7 @@ export default function Providers({ children }: ProvidersProps) {
         <SessionExpiryProvider>
           {children}
         </SessionExpiryProvider>
+        </NotificationsProvider>
     </SessionProvider>
   );
 } 

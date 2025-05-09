@@ -1,47 +1,56 @@
-import { FaHome, FaMoneyBill, FaFileContract } from 'react-icons/fa';
+'use client';
+
+import { IconType } from 'react-icons';
+import { HiInformationCircle } from 'react-icons/hi';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface TenantStatsProps {
-  leases: any[];
-  totalPaid: number;
-  activeLeaseCount: number;
+  icon: IconType;
+  label: string;
+  value: string;
+  description?: string;
 }
 
-const TenantStats = ({ leases, totalPaid, activeLeaseCount }: TenantStatsProps) => {
+const TenantStats = ({
+  icon: Icon,
+  label,
+  value,
+  description
+}: TenantStatsProps) => {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-      <div className="bg-white p-6 rounded-xl shadow-sm hover:shadow-md transition-shadow">
-        <div className="flex items-center gap-4">
-          <div className="p-3 bg-indigo-100 rounded-lg">
-            <FaFileContract className="text-indigo-600 w-6 h-6" />
-          </div>
-          <div>
-            <p className="text-sm text-gray-500">Active Lease</p>
-            <p className="text-2xl font-semibold">{activeLeaseCount}</p>
-          </div>
+    <div className="bg-white rounded-xl border border-gray-100 p-6 shadow-sm hover:shadow-md transition-shadow">
+      <div className="flex items-center gap-3">
+        <div className="p-3 bg-indigo-50 rounded-lg">
+          <Icon className="w-6 h-6 text-indigo-600" />
         </div>
+        <span className="text-sm font-medium text-gray-600">
+          {label}
+        </span>
+        {description && (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button className="ml-auto relative">
+                  <HiInformationCircle className="w-5 h-5 text-indigo-400 hover:text-indigo-600 transition-colors animate-pulse" />
+                  <span className="absolute inset-0 rounded-full animate-ping bg-indigo-400/30" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p className="text-sm">{description}</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
       </div>
-
-      <div className="bg-white p-6 rounded-xl shadow-sm hover:shadow-md transition-shadow">
-        <div className="flex items-center gap-4">
-          <div className="p-3 bg-green-100 rounded-lg">
-            <FaMoneyBill className="text-green-600 w-6 h-6" />
-          </div>
-          <div>
-            <p className="text-sm text-gray-500">Total Paid</p>
-            <p className="text-2xl font-semibold">₱{totalPaid.toLocaleString()}</p>
-          </div>
-        </div>
-      </div>
-
-      <div className="bg-white p-6 rounded-xl shadow-sm hover:shadow-md transition-shadow">
-        <div className="flex items-center gap-4">
-          <div className="p-3 bg-purple-100 rounded-lg">
-            <FaHome className="text-purple-600 w-6 h-6" />
-          </div>
-          <div>
-            <p className="text-sm text-gray-500">Total Leases</p>
-            <p className="text-2xl font-semibold">{leases.length}</p>
-          </div>
+      
+      <div className="mt-4">
+        <div className="text-2xl font-semibold text-gray-900">
+          {value}
         </div>
       </div>
     </div>

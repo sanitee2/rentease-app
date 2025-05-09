@@ -1,29 +1,60 @@
 import { NextResponse } from "next/server";
 import prisma from "@/app/libs/prismadb";
-import getCurrentUser from "@/app/actions/getCurrentUser";
 
 export async function GET(
   request: Request,
   { params }: { params: { listingId: string } }
 ) {
   try {
-    const currentUser = await getCurrentUser();
-    if (!currentUser) {
-      return NextResponse.error();
+    const { listingId } = params;
+
+    if (!listingId) {
+      return NextResponse.json(
+        { error: "Listing ID is required" },
+        { status: 400 }
+      );
     }
 
     const rooms = await prisma.room.findMany({
       where: {
-        listingId: params.listingId,
+        listingId: listingId
       },
       include: {
-        currentTenant: true,
+        tenants: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true
+          }
+        },
+        listing: {
+          select: {
+            id: true,
+            title: true,
+            pricingType: true
+          }
+        },
+        amenities: {
+          include: {
+            amenity: true
+          }
+        }
       }
     });
 
-    return NextResponse.json(rooms);
+    const roomsWithTenantCount = rooms.map(room => ({
+      ...room,
+      currentTenantCount: room.tenants.length,
+      isAtCapacity: room.maxTenantCount ? room.tenants.length >= room.maxTenantCount : false
+    }));
+
+    return NextResponse.json(roomsWithTenantCount);
   } catch (error) {
     console.error('[ROOMS_GET]', error);
-    return NextResponse.error();
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
   }
 } 

@@ -1,3 +1,5 @@
+'use client';
+
 import Link from 'next/link';
 import { 
   FaHome, 
@@ -11,12 +13,16 @@ import {
   FaUsersCog,
   FaClipboardList,
   FaCheckCircle,
-  FaArrowRight
+  FaArrowRight,
+  FaPlus
 } from 'react-icons/fa';
 import { MdManageAccounts } from 'react-icons/md';
 import Footer from '../components/Footer';
+import useLoginModal from "@/app/hooks/useLoginModal";
 
 export default function LandingPage() {
+  const loginModal = useLoginModal();
+
   return (
     <>
     <div className="min-h-screen">
@@ -37,18 +43,17 @@ export default function LandingPage() {
           <div className="max-w-4xl">
             <div className="inline-block mb-6 px-6 py-3 bg-indigo-500/10 backdrop-blur-md rounded-full border border-indigo-400/20">
               <p className="text-indigo-100 font-medium tracking-wide">
-                Discover Your Perfect Space in Surigao City
+                Streamlining Rental Space Search in Surigao City
               </p>
             </div>
             <h1 className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-bold mb-6 sm:mb-10 text-white leading-tight tracking-tight">
-              Find Your Ideal
+              Find Your Perfect
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-200 to-blue-200 block mt-2"> 
-                Home Away From Home
+                Rental Space
               </span>
             </h1>
             <p className="text-xl sm:text-2xl mb-10 sm:mb-14 max-w-2xl text-gray-200 leading-relaxed">
-              Experience hassle-free property hunting with RentEase. 
-              Your gateway to simplified rental solutions in Surigao City.
+              A centralized platform for finding and managing rental properties in Surigao City. Making the rental search process efficient and convenient.
             </p>
             <div className="flex gap-4 sm:gap-6 flex-col sm:flex-row">
               <Link 
@@ -60,10 +65,11 @@ export default function LandingPage() {
                 <FaArrowRight className="transition-transform duration-300 group-hover:translate-x-2" />
               </Link>
               <Link 
-                href="/auth/signup" 
+                href="/register-landlord" 
                 className="group bg-white/5 backdrop-blur-lg hover:bg-white/10 text-white border border-white/20 px-8 sm:px-10 py-4 sm:py-5 rounded-2xl text-lg font-semibold transition-all duration-300 transform hover:-translate-y-1 hover:shadow-2xl flex items-center justify-center gap-2"
               >
-                Get Started
+                <FaPlus className="text-xl" />
+                Add your rental property
               </Link>
             </div>
           </div>
@@ -89,17 +95,17 @@ export default function LandingPage() {
             <FeatureCard
               icon={<FaHome className="text-5xl" />}
               title="Centralized Listings"
-              description="Access all available rental spaces in one place. No more physical searching required."
+              description="Access all available rental spaces in one platform. No more extensive searching required."
             />
             <FeatureCard
               icon={<FaMobileAlt className="text-5xl" />}
-              title="Digital Management"
-              description="Easy-to-use platform for both tenants and landlords to manage rentals and payments."
+              title="User-Friendly Interface"
+              description="Easy-to-navigate platform designed for users of all technological proficiency levels."
             />
             <FeatureCard
               icon={<FaFileContract className="text-5xl" />}
-              title="Standardized Agreements"
-              description="Professional lease agreements and contracts to ensure clear terms for all parties."
+              title="Advanced Search"
+              description="Filter properties based on location, price range, property type, and specific amenities."
             />
           </div>
         </div>
@@ -120,22 +126,22 @@ export default function LandingPage() {
               icon={<FaUsersCog />}
               title="For Tenants"
               features={[
-                { icon: <FaSearch />, text: "Smart search with filters" },
-                { icon: <FaVideo />, text: "Virtual property tours" },
-                { icon: <FaComments />, text: "Instant landlord chat" },
-                { icon: <FaMoneyBillWave />, text: "Digital payments" },
-                { icon: <FaTools />, text: "24/7 maintenance support" }
+                { icon: <FaSearch />, text: "Comprehensive property search" },
+                { icon: <FaHome />, text: "Verified rental listings" },
+                { icon: <FaComments />, text: "Landlord contact information" },
+                { icon: <FaMoneyBillWave />, text: "Transparent pricing" },
+                { icon: <FaTools />, text: "Maintenance request system" }
               ]}
             />
             <SolutionCard
               icon={<MdManageAccounts />}
               title="For Landlords"
               features={[
-                { icon: <FaUsersCog />, text: "Smart tenant management" },
-                { icon: <FaMoneyBillWave />, text: "Automated payments" },
-                { icon: <FaClipboardList />, text: "Listing analytics" },
+                { icon: <FaUsersCog />, text: "Tenant management system" },
+                { icon: <FaClipboardList />, text: "Property listings management" },
                 { icon: <FaTools />, text: "Maintenance tracking" },
-                { icon: <FaFileContract />, text: "Legal documentation" }
+                { icon: <FaMoneyBillWave />, text: "Payment records" },
+                { icon: <FaCheckCircle />, text: "Viewing request handling" }
               ]}
             />
           </div>
@@ -146,19 +152,19 @@ export default function LandingPage() {
       <section className="py-40 bg-gradient-to-br from-indigo-700 via-indigo-800 to-indigo-900 text-white relative overflow-hidden">
         <div className="container mx-auto px-6 text-center relative z-10">
           <h2 className="text-5xl md:text-6xl font-bold mb-10 animate-fade-in-up">
-            Ready to Transform Your Rental Experience?
+            Ready to Simplify Your Rental Experience?
           </h2>
           <p className="text-2xl mb-14 max-w-3xl mx-auto text-indigo-100 animate-fade-in-up delay-100">
-            Join RentEase today and discover a better way to manage rental spaces in Surigao City.
+            Join RentEase today and discover a more efficient way to find and manage rental spaces in Surigao City.
           </p>
-          <Link 
-            href="/auth/signup"
+          <button 
+            onClick={() => loginModal.onOpen()}
             className="group inline-flex items-center gap-4 bg-white text-indigo-600 px-12 py-6 rounded-2xl text-xl font-semibold hover:bg-gray-50 transition-all duration-300 transform hover:-translate-y-1 hover:shadow-2xl animate-fade-in-up delay-200"
           >
             <FaCheckCircle className="text-2xl" />
             Get Started Now
             <FaArrowRight className="transition-transform duration-300 group-hover:translate-x-2" />
-          </Link>
+          </button>
         </div>
 
         {/* Enhanced Decorative Elements */}
@@ -173,9 +179,9 @@ export default function LandingPage() {
   );
 }
 
-// Modern Feature Card Component
+// Update FeatureCard component
 const FeatureCard = ({ icon, title, description }: { icon: React.ReactNode; title: string; description: string }) => (
-  <div className="group p-8 bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:translate-y-[-4px]">
+  <div className="group p-8 bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:translate-y-[-4px] text-center">
     <div className="flex justify-center mb-6">
       <div className="p-4 bg-gradient-to-br from-indigo-50 to-indigo-100 rounded-xl text-indigo-500 group-hover:text-indigo-600 transition-colors duration-300">
         {icon}
@@ -186,7 +192,7 @@ const FeatureCard = ({ icon, title, description }: { icon: React.ReactNode; titl
   </div>
 );
 
-// Modern Solution Card Component
+// Update SolutionCard component
 const SolutionCard = ({ icon, title, features }: { icon: React.ReactNode; title: string; features: { icon: React.ReactNode; text: string }[] }) => (
   <div className="bg-white p-10 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:translate-y-[-4px]">
     <div className="flex items-center gap-4 mb-10">
@@ -206,5 +212,4 @@ const SolutionCard = ({ icon, title, features }: { icon: React.ReactNode; title:
       ))}
     </ul>
   </div>
-  
 ); 

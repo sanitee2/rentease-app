@@ -2,23 +2,16 @@ import { NextRequest, NextResponse } from 'next/server';
 import getCurrentUser from '@/app/actions/getCurrentUser';
 import getTenants from '@/app/actions/getTenants';
 import prisma from '@/app/libs/prismadb';
-import { PaymentStatus } from '@prisma/client';
+import { LeaseStatus, PaymentStatus } from '@prisma/client';
 
 export async function POST(request: Request) {
   try {
     const currentUser = await getCurrentUser();
     
-    if (!currentUser) {
+    if (!currentUser || currentUser.role !== 'LANDLORD') {
       return NextResponse.json(
         { error: "Unauthorized" }, 
         { status: 401 }
-      );
-    }
-
-    if (currentUser.role !== 'LANDLORD') {
-      return NextResponse.json(
-        { error: "Unauthorized access" }, 
-        { status: 403 }
       );
     }
 
@@ -27,155 +20,132 @@ export async function POST(request: Request) {
       userId, 
       listingId, 
       roomId,
-      leaseContract: { 
-        startDate, 
-        rentAmount, 
-        terms,
-        monthlyDueDate,
-        payment 
-      } 
+      tenantProfileId,
+      leaseContract 
     } = body;
 
-    // Validate required fields
-    if (!userId || !listingId || !startDate || !rentAmount || !terms || !monthlyDueDate) {
+    // Validate required fields (excluding endDate)
+    const missingFields = [];
+    if (!userId) missingFields.push('userId');
+    if (!listingId) missingFields.push('listingId');
+    if (!tenantProfileId) missingFields.push('tenantProfileId');
+    if (!leaseContract?.startDate) missingFields.push('leaseContract.startDate');
+    if (!leaseContract?.rentAmount) missingFields.push('leaseContract.rentAmount');
+    if (!leaseContract?.leaseTerms) missingFields.push('leaseContract.leaseTerms');
+    if (!leaseContract?.monthlyDueDate) missingFields.push('leaseContract.monthlyDueDate');
+
+    if (missingFields.length > 0) {
       return NextResponse.json(
-        { error: "Missing required fields" },
+        { 
+          error: "Missing required fields",
+          missingFields 
+        },
         { status: 400 }
       );
     }
 
-    // Validate monthly due date
-    if (monthlyDueDate < 1 || monthlyDueDate > 31) {
-      return NextResponse.json(
-        { error: "Monthly due date must be between 1 and 31" },
-        { status: 400 }
-      );
-    }
-
-    // If roomId is provided, check if it's already occupied
-    if (roomId) {
-      const existingTenant = await prisma.tenantProfile.findFirst({
-        where: { roomId }
-      });
-
-      if (existingTenant) {
-        return NextResponse.json(
-          { error: "This room is already occupied by another tenant" },
-          { status: 400 }
-        );
-      }
-    }
-
-    // Check if user exists
-    const userExists = await prisma.user.findUnique({
-      where: { id: userId }
-    });
-
-    if (!userExists) {
-      return NextResponse.json(
-        { error: "User not found" },
-        { status: 404 }
-      );
-    }
-
-    // Check if listing exists and belongs to current user
-    const listing = await prisma.listing.findUnique({
-      where: { 
-        id: listingId,
-        userId: currentUser.id // Ensure listing belongs to current landlord
-      }
-    });
-
-    if (!listing) {
-      return NextResponse.json(
-        { error: "Listing not found or unauthorized" },
-        { status: 404 }
-      );
-    }
-
-    // Use transaction to ensure all operations succeed or fail together
+    // Create lease contract and update relationships in a transaction
     const result = await prisma.$transaction(async (tx) => {
-      // 1. Create tenant profile if it doesn't exist
-      let tenantProfile = await tx.tenantProfile.findUnique({
-        where: { userId }
-      });
-
-      if (!tenantProfile) {
-        tenantProfile = await tx.tenantProfile.create({
-          data: {
-            userId,
-            roomId: roomId || null,
-            favoriteIds: []
-          }
-        });
-      } else {
-        // Update existing tenant profile
-        tenantProfile = await tx.tenantProfile.update({
-          where: { userId },
-          data: {
-            roomId: roomId || null
-          }
-        });
-      }
-
-      // 2. Update user role to TENANT
-      await tx.user.update({
-        where: { id: userId },
-        data: { role: 'TENANT' }
-      });
-
-      // 3. Create lease contract
+      // 1. Create lease contract
       const lease = await tx.leaseContract.create({
         data: {
-          startDate: new Date(startDate),
-          rentAmount,
-          terms,
-          monthlyDueDate,
-          isActive: true,
           userId,
           listingId,
-          tenantProfileId: tenantProfile.id,
+          roomId: roomId || undefined,
+          tenantProfileId,
+          startDate: new Date(leaseContract.startDate),
+          endDate: null,
+          monthlyDueDate: leaseContract.monthlyDueDate,
+          rentAmount: leaseContract.rentAmount,
+          outstandingBalance: leaseContract.rentAmount,
+          leaseTerms: leaseContract.leaseTerms,
+          status: 'PENDING' as LeaseStatus
         }
       });
 
-      // 4. Create initial payment record (PENDING)
-      const dueDate = new Date(startDate);
-      dueDate.setDate(monthlyDueDate);
-      
-      await tx.payment.create({
-        data: {
-          amount: 0, // No payment made yet
-          totalAmount: rentAmount,
-          status: PaymentStatus.PENDING,
-          userId,
-          leaseId: lease.id,
-          tenantProfileId: tenantProfile.id,
-          date: new Date(),
-          dueDate,
-          paymentPeriod: new Date(startDate),
-          description: 'Initial rent payment',
-          isPartial: false
-        }
-      });
-
-      // 5. If room is specified, update room's current tenants
+      // 2. Update tenant profile with currentRoom relation
       if (roomId) {
+        await tx.tenantProfile.update({
+          where: { id: tenantProfileId },
+          data: { 
+            currentRoom: {
+              connect: { id: roomId }
+            }
+          }
+        });
+
+        // 3. Update room's tenants array
         await tx.room.update({
           where: { id: roomId },
           data: {
-            currentTenants: {
-              push: userId
+            tenants: {
+              connect: { id: userId }
             }
           }
         });
       }
 
+      // 4. Update user role to TENANT
+      await tx.user.update({
+        where: { id: userId },
+        data: { role: 'TENANT' }
+      });
+
       return lease;
     });
 
-    return NextResponse.json(result);
+    // Return the created tenant with lease contract and room info
+    const tenant = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        tenant: {
+          select: {
+            id: true,
+            currentRoom: {
+              select: {
+                id: true,
+                title: true,
+                price: true
+              },
+            },
+          },
+        },
+        leaseContracts: {
+          select: {
+            id: true,
+            startDate: true,
+            endDate: true,
+            monthlyDueDate: true,
+            rentAmount: true,
+            status: true,
+            room: {
+              select: {
+                id: true,
+                title: true,
+                price: true
+              }
+            },
+            listing: {
+              select: {
+                id: true,
+                title: true,
+              },
+            },
+          },
+          orderBy: {
+            createdAt: 'desc',
+          },
+        },
+      },
+    });
+
+    return NextResponse.json(tenant);
   } catch (error: any) {
-    console.error('POST /api/tenants error:', error);
+    console.error('[TENANTS_POST]', error);
     return NextResponse.json(
       { error: error.message || "Internal server error" }, 
       { status: 500 }
@@ -195,95 +165,91 @@ export async function GET(request: Request) {
       );
     }
 
-    // Get tenants with their active leases and related data
-    const tenants = await prisma.tenantProfile.findMany({
+    const tenants = await prisma.user.findMany({
       where: {
-        leases: {
+        leaseContracts: {
           some: {
             listing: {
               userId: currentUser.id
-            },
-            isActive: true
+            }
           }
         }
       },
-      include: {
-        user: {
+      select: {
+        id: true,
+        firstName: true,
+        middleName: true,
+        lastName: true,
+        suffix: true,
+        email: true,
+        phoneNumber: true,
+        image: true,
+        tenant: {
           select: {
             id: true,
-            firstName: true,
-            middleName: true,
-            lastName: true,
-            suffix: true,
-            email: true,
-            phoneNumber: true,
-            image: true
+            currentRoom: {
+              select: {
+                id: true,
+                title: true
+              }
+            }
           }
         },
-        leases: {
+        leaseContracts: {
           where: {
-            isActive: true,
             listing: {
               userId: currentUser.id
             }
           },
-          include: {
+          orderBy: {
+            createdAt: 'desc'
+          },
+          select: {
+            id: true,
+            startDate: true,
+            endDate: true,
+            rentAmount: true,
+            monthlyDueDate: true,
+            outstandingBalance: true,
+            leaseTerms: true,
+            status: true,
+            createdAt: true,
             listing: {
               select: {
                 id: true,
-                title: true,
-                rooms: true
+                title: true
               }
             },
-            payments: {
-              where: {
-                status: 'PENDING'
-              },
+            room: {
+              select: {
+                id: true,
+                title: true
+              }
+            },
+            Payment: {
               orderBy: {
-                dueDate: 'asc'
+                createdAt: 'desc'
               },
-              take: 1
+              select: {
+                id: true,
+                amount: true,
+                status: true,
+                paymentMethod: true,
+                createdAt: true,
+                description: true,
+                periodStart: true,
+                periodEnd: true,
+                image: true
+              }
             }
-          },
-          orderBy: {
-            startDate: 'desc'
-          }
-        },
-        currentRoom: {
-          select: {
-            id: true,
-            title: true,
-            price: true
           }
         }
       }
     });
 
-    // Transform the data to include computed fields
-    const transformedTenants = tenants.map(tenant => ({
-      id: tenant.user.id,
-      firstName: tenant.user.firstName,
-      middleName: tenant.user.middleName,
-      lastName: tenant.user.lastName,
-      suffix: tenant.user.suffix,
-      email: tenant.user.email,
-      phoneNumber: tenant.user.phoneNumber,
-      image: tenant.user.image,
-      currentRoom: tenant.currentRoom,
-      leaseContracts: tenant.leases.map(lease => ({
-        id: lease.id,
-        startDate: lease.startDate,
-        rentAmount: lease.rentAmount,
-        monthlyDueDate: lease.monthlyDueDate,
-        isActive: lease.isActive,
-        listing: lease.listing,
-        nextPayment: lease.payments[0] || null
-      }))
-    }));
-
-    return NextResponse.json(transformedTenants);
+    return NextResponse.json(tenants);
   } catch (error: any) {
-    console.error('GET /api/tenants error:', error);
+    console.error('[TENANTS_GET]', error);
     return NextResponse.json(
       { error: error.message || "Internal server error" }, 
       { status: 500 }

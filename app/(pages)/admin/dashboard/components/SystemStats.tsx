@@ -71,19 +71,17 @@ export default function SystemStats() {
         icon={LuUsers}
         label="Total Landlords"
         value={stats.totalLandlords}
-        trend={stats.landlordGrowth}
         colorClass="text-indigo-500"
       />
       <StatCard
         icon={LuHome}
         label="Active Listings"
         value={stats.activeListings}
-        trend={stats.listingGrowth}
         colorClass="text-indigo-500"
       />
       <StatCard
         icon={LuCheckCircle}
-        label="Pending Verifications"
+        label="Pending Listings Verifications"
         value={stats.pendingListings}
         colorClass="text-indigo-500"
       />

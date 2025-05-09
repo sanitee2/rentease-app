@@ -23,8 +23,9 @@ import { useCallback } from 'react';
 import { MdPhone, MdEmail } from 'react-icons/md';
 import Button from '../../components/Button';
 import useLoginModal from '@/app/hooks/useLoginModal';
-import { FaMars, FaVenus, FaVenusMars } from 'react-icons/fa';
+import { FaCheckCircle, FaMars, FaVenus, FaVenusMars } from 'react-icons/fa';
 import { FaUserClock, FaUserCheck } from 'react-icons/fa';
+import { FaPesoSign } from 'react-icons/fa6';
 
 const Map = dynamic(() => import('../../components/Map'), {
   ssr: false,
@@ -45,7 +46,7 @@ interface ListingInfoProps {
     icon: string;
     desc: string;
     needsMaxTenant: boolean;
-    pricingType: string;
+    pricingType: 'ROOM_BASED' | 'LISTING_BASED';
     roomTypes: string[];
   } | null;
   description: string;
@@ -53,12 +54,14 @@ interface ListingInfoProps {
   locationValue: number[];
   barangay: string;
   street: string;
+  permitImages?: { images: string[] };
   rooms: SafeRoom[];
   contactNumber?: string | null;
   onRoomSelect?: (roomId: string, roomTitle: string) => void;
   hasAgeRequirement: boolean;
   minimumAge?: number | null;
   overnightGuestsAllowed: boolean;
+  
   rules: {
     petsAllowed: boolean;
     childrenAllowed: boolean;
@@ -77,6 +80,8 @@ interface ListingInfoProps {
   currentUser?: SafeUser | null | undefined;
   userEmail: string | null | undefined;
   genderRestriction: string;
+  pricingType: 'ROOM_BASED' | 'LISTING_BASED';
+  price?: number | null;
 }
 
 const ListingInfo: React.FC<ListingInfoProps> = ({
@@ -99,6 +104,8 @@ const ListingInfo: React.FC<ListingInfoProps> = ({
   currentUser,
   userEmail,
   genderRestriction,
+  pricingType,
+  price,
 }) => {
   const [selectedRoom, setSelectedRoom] = useState<SafeRoom | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -257,6 +264,17 @@ const ListingInfo: React.FC<ListingInfoProps> = ({
             </div>
           </div>
 
+          {/* Price Display for Listing-Based Pricing */}
+          {pricingType === 'LISTING_BASED' && price && (
+            <div className="flex items-center gap-2 bg-indigo-50 px-4 py-2 rounded-lg w-fit">
+              <FaPesoSign size={16} className="text-indigo-600" />
+              <span className="text-lg font-semibold text-indigo-600">
+                {price.toLocaleString('en-US')}
+                <span className="text-sm font-normal text-indigo-400 ml-1">/month</span>
+              </span>
+            </div>
+          )}
+
           {/* Key Requirements Banner */}
           <div className="flex flex-wrap gap-3">
             {/* Gender Restriction */}
@@ -323,6 +341,27 @@ const ListingInfo: React.FC<ListingInfoProps> = ({
               </svg>
               <span>{overnightGuestsAllowed ? 'Overnight guests allowed' : 'No overnight guests'}</span>
             </div>
+              
+            
+            {(!currentUser || currentUser.role !== "ADMIN") ? (
+              <div className={`
+                flex items-center gap-1.5 
+                px-3 py-1.5 
+                rounded-full 
+                text-sm font-medium
+                bg-green-50 text-green-700
+              `}>
+                <FaCheckCircle size={14} className="flex-shrink-0" />
+                <span>
+                  Business permit verified
+                </span>
+              </div>
+            ) : null}
+            
+
+
+
+            
           </div>
         </div>
       </section>

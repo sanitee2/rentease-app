@@ -3,36 +3,54 @@ import prisma from '@/app/libs/prismadb';
 import getCurrentUser from '@/app/actions/getCurrentUser';
 import { startOfMonth, subMonths, format } from 'date-fns';
 
-export async function GET(request: Request) {
+export async function GET() {
   try {
     const currentUser = await getCurrentUser();
-    if (!currentUser) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+    if (!currentUser || currentUser.role !== 'LANDLORD') {
+      return new NextResponse('Unauthorized', { status: 401 });
     }
 
-    const listings = await prisma.listing.findMany({
-      where: {
-        userId: currentUser.id
-      },
-      include: {
-        rooms: true,
-        leaseContracts: {
+    // Get last 6 months of data
+    const months = Array.from({ length: 6 }, (_, i) => {
+      const date = subMonths(new Date(), i);
+      return {
+        start: startOfMonth(date),
+        month: format(date, 'MMM yyyy')
+      };
+    }).reverse();
+
+    const occupancyData = await Promise.all(
+      months.map(async ({ start, month }) => {
+        const totalRooms = await prisma.room.count({
           where: {
-            isActive: true,
-            startDate: {
-              lte: new Date()
-            }
+            listing: { userId: currentUser.id },
+            createdAt: { lte: start }
           }
-        }
-      }
-    });
+        });
 
-    // Calculate occupancy trends
-    // ... your existing calculations ...
+        const occupiedRooms = await prisma.room.count({
+          where: {
+            listing: { userId: currentUser.id },
+            createdAt: { lte: start },
+            currentTenants: { isEmpty: false }
+          }
+        });
 
-    return NextResponse.json(listings);
+        const occupancyRate = totalRooms > 0 
+          ? Math.round((occupiedRooms / totalRooms) * 100)
+          : 0;
+
+        return {
+          month,
+          occupancyRate
+        };
+      })
+    );
+
+    return NextResponse.json(occupancyData);
   } catch (error) {
-    console.error("[OCCUPANCY_TRENDS]", error);
-    return NextResponse.json({ error: "Internal error" }, { status: 500 });
+    console.error('[OCCUPANCY_TRENDS_GET]', error);
+    return new NextResponse('Internal Error', { status: 500 });
   }
 } 

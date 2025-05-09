@@ -19,6 +19,12 @@ export async function GET(request: Request) {
           include: {
             amenity: true
           }
+        },
+        tenants: true,
+        listing: {
+          select: {
+            pricingType: true
+          }
         }
       }
     });

@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { format } from 'date-fns';
-import { PaymentStatus, PaymentType } from '@prisma/client';
+import { PaymentStatus, PaymentMode } from '@prisma/client';
 
 interface Payment {
   id: string;
@@ -12,7 +12,7 @@ interface Payment {
   remainingBalance?: number;
   dueDate?: Date;
   status: PaymentStatus;
-  paymentType: PaymentType;
+  paymentMode: PaymentMode;
   lease: {
     id: string;
     user: {
