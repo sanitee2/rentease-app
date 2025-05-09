@@ -35,26 +35,31 @@ const Navbar: React.FC<NavbarProps> = ({
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const { notifications, unreadCount } = useNotifications();
 
-  const navigationItems: NavItem[] = [
-    { 
-      label: currentUser ? 'Dashboard' : 'Home', 
-      href: currentUser ? '/dashboard' : '/' 
-    },
+  const navigationItems: NavItem[] = currentUser ? [
+    { label: 'Dashboard', href: '/dashboard' },
     { label: 'Listings', href: '/listings' },
-    
-    { label: currentUser ? 'Payments' : 'About Us',
-      href: currentUser ? '/payments' : '/about-us' },
-      { label: currentUser ? 'Maintenance' : '', href: currentUser ? '/maintenance' : '' },
-    { label: currentUser ? 'Favorites' : '', href: currentUser ? '/favorites' : '' },
-    { label: currentUser ? 'Viewing Requests' : '', href: currentUser ? '/viewing-requests' : '' },
+    { label: 'Payments', href: '/payments' },
+    { label: 'Maintenance', href: '/maintenance' },
+    { label: 'Favorites', href: '/favorites' },
+    { label: 'Viewing Requests', href: '/viewing-requests' }
+  ] : [
+    { label: 'Home', href: '/' },
+    { label: 'Listings', href: '/listings' },
+    { label: 'About Us', href: '/about-us' }
   ];
 
+  // Filter out any items that should be hidden based on user role
+  const filteredNavItems = navigationItems.filter(item => item.label !== '');
+
   return (
-      <div className="fixed bg-white z-40 shadow-sm">
+      <div className="fixed w-full bg-white z-40 shadow-sm">
         <div className="py-4 border-b-[1px]">
           <Container isNavbar>
             <div className="flex items-center justify-between gap-3 md:gap-0">
-              <Logo />
+              {/* Logo */}
+              <div className="flex-shrink-0">
+                <Logo />
+              </div>
               
               {/* Mobile Menu Button */}
               <button
@@ -64,45 +69,49 @@ const Navbar: React.FC<NavbarProps> = ({
                 {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
               </button>
 
-              {/* Desktop Navigation */}
-              <div className="hidden md:flex items-center justify-center flex-1">
-                <nav className="flex items-center gap-8 mr-2">
-                  {navigationItems.map((item) => (
-                    <Link 
-                      key={item.href}
-                      href={item.href} 
-                      className={cn(
-                        "relative px-2 py-1 text-sm font-medium transition-all duration-200 ease-in-out",
-                        pathname === item.href
-                          ? "text-indigo-600"
-                          : "text-gray-600 hover:text-indigo-600",
-                        "group"
-                      )}
-                    >
-                      {item.label}
-                      <span 
-                        className={cn(
-                          "absolute bottom-0 left-0 w-full h-0.5 bg-indigo-600 transform transition-transform duration-200 ease-in-out",
-                          pathname === item.href
-                            ? "scale-x-100"
-                            : "scale-x-0 group-hover:scale-x-100"
-                        )}
-                      />
-                    </Link>
-                  ))}
-                </nav>
+              {/* Desktop Navigation - Centered */}
+              <div className="hidden md:flex flex-1 justify-center items-center">
+                <div className="flex items-center gap-8">
+                  <nav className="flex items-center gap-8">
+                    {filteredNavItems.map((item) => (
+                      item.label && (
+                        <Link 
+                          key={item.href}
+                          href={item.href} 
+                          className={cn(
+                            "relative px-2 py-1 text-sm font-medium transition-all duration-200 ease-in-out",
+                            pathname === item.href
+                              ? "text-indigo-600"
+                              : "text-gray-600 hover:text-indigo-600",
+                            "group"
+                          )}
+                        >
+                          {item.label}
+                          <span 
+                            className={cn(
+                              "absolute bottom-0 left-0 w-full h-0.5 bg-indigo-600 transform transition-transform duration-200 ease-in-out",
+                              pathname === item.href
+                                ? "scale-x-100"
+                                : "scale-x-0 group-hover:scale-x-100"
+                            )}
+                          />
+                        </Link>
+                      )
+                    ))}
+                  </nav>
 
-                {!currentUser && (
-                  <Button
-                    onClick={() => router.push('/register-landlord')}
-                    className="relative flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 h-auto rounded-full transition-all duration-300 font-medium text-sm hover:shadow-[0_0_20px_rgba(79,70,229,0.3)] hover:-translate-y-0.5 active:translate-y-0"
-                  >
-                    <span className="relative flex items-center gap-2">
-                      <span className="text-xl">+</span>
-                      Add your property
-                    </span>
-                  </Button>
-                )}
+                  {!currentUser && (
+                    <Button
+                      onClick={() => router.push('/register-landlord')}
+                      className="relative flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 h-auto rounded-full transition-all duration-300 font-medium text-sm hover:shadow-[0_0_20px_rgba(79,70,229,0.3)] hover:-translate-y-0.5 active:translate-y-0"
+                    >
+                      <span className="relative flex items-center gap-2">
+                        <span className="text-xl">+</span>
+                        Add your property
+                      </span>
+                    </Button>
+                  )}
+                </div>
               </div>
 
               {/* Mobile Navigation */}
@@ -111,20 +120,22 @@ const Navbar: React.FC<NavbarProps> = ({
                 isMenuOpen ? "translate-y-0 opacity-100" : "-translate-y-full opacity-0 pointer-events-none"
               )}>
                 <nav className="flex flex-col gap-4">
-                  {navigationItems.map((item) => (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      onClick={() => setIsMenuOpen(false)}
-                      className={cn(
-                        "px-4 py-2 text-sm font-medium rounded-lg transition-colors",
-                        pathname === item.href
-                          ? "bg-indigo-50 text-indigo-600"
-                          : "text-gray-600 hover:bg-gray-50"
-                      )}
-                    >
-                      {item.label}
-                    </Link>
+                  {filteredNavItems.map((item) => (
+                    item.label && (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        onClick={() => setIsMenuOpen(false)}
+                        className={cn(
+                          "px-4 py-2 text-sm font-medium rounded-lg transition-colors",
+                          pathname === item.href
+                            ? "bg-indigo-50 text-indigo-600"
+                            : "text-gray-600 hover:bg-gray-50"
+                        )}
+                      >
+                        {item.label}
+                      </Link>
+                    )
                   ))}
                   {!currentUser && (
                     <Button
@@ -141,10 +152,9 @@ const Navbar: React.FC<NavbarProps> = ({
                 </nav>
               </div>
 
-              {/* Notification Bell and User Menu */}
-              <div className="flex items-center gap-4">
-                
-                {/* {currentUser && (
+              {/* Right Side - User Menu */}
+              <div className="flex-shrink-0 flex items-center gap-4">
+                {currentUser && (
                   <NotificationsDropdown>
                     <div className="flex items-center justify-center p-2 rounded-full border border-gray-300 hover:bg-gray-100 transition-colors cursor-pointer relative">
                       <Bell className="text-gray-600" size={18} />
@@ -158,7 +168,7 @@ const Navbar: React.FC<NavbarProps> = ({
                       )}
                     </div>
                   </NotificationsDropdown>
-                )} */}
+                )}
                 <UserMenu currentUser={currentUser} />
               </div>
             </div>

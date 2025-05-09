@@ -4,7 +4,7 @@ import { SafeUser } from '@/app/types';
 import React, { useState } from 'react';
 import Image from 'next/image';
 import HeartButton from './HeartButton';
-import FullScreenGallery from '../FullScreenGallery';
+import { DynamicFullScreenGallery } from '../dynamic';
 
 interface ListingHeadProps {
   imageSrc: string[];
@@ -24,7 +24,7 @@ const ListingHead: React.FC<ListingHeadProps> = ({ imageSrc, id, currentUser }) 
   return (
     <>
       {isFullScreen && (
-        <FullScreenGallery 
+        <DynamicFullScreenGallery 
           images={imageSrc} 
           onClose={() => setIsFullScreen(false)}
           initialIndex={selectedImageIndex}

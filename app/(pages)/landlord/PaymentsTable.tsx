@@ -24,7 +24,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import Image from "next/image";
-import FullScreenGallery from "@/app/components/FullScreenGallery";
+import { DynamicFullScreenGallery } from '@/app/components/dynamic';
 import { toast } from "react-hot-toast";
 import axios from "axios";
 import { sendPaymentNotification } from '@/app/notifications/actions/sendPaymentNotification';
@@ -491,7 +491,7 @@ export default function PaymentsTable({
       </Dialog>
 
       {showGallery && tempPayment?.image && (
-        <FullScreenGallery
+        <DynamicFullScreenGallery
           images={[tempPayment.image]}
           onClose={handleGalleryClose}
           initialIndex={0}

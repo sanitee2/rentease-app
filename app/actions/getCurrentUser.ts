@@ -1,11 +1,35 @@
 import {getServerSession} from 'next-auth/next';
-
+import { unstable_cache } from 'next/cache';
 import { authOptions } from '@/pages/api/auth/[...nextauth]';
 import prisma from '@/app/libs/prismadb';
 
 export async function getSession(){
   return await getServerSession(authOptions);
 }
+
+// Cache the database query for 5 minutes
+const getCachedUser = unstable_cache(
+  async (email: string) => {
+    const user = await prisma.user.findUnique({
+      where: { email }
+    });
+
+    if (!user) return null;
+
+    return {
+      ...user,
+      createdAt: user.createdAt.toISOString(),
+      updatedAt: user.updatedAt.toISOString(),
+      emailVerified: user.emailVerified?.toISOString() || null,
+      role: user.role
+    };
+  },
+  ['user-data'],
+  {
+    revalidate: 300, // 5 minutes
+    tags: ['user-data']
+  }
+);
 
 export default async function getCurrentUser(){
   try {
@@ -14,22 +38,7 @@ export default async function getCurrentUser(){
       return null;
     }
 
-    const currentUser = await prisma.user.findUnique({
-      where: {
-        email: session.user.email as string
-      }
-    });
-
-    if(!currentUser){
-      return null;
-    }
-    return {
-      ...currentUser,
-      createdAt: currentUser.createdAt.toISOString(),
-      updatedAt: currentUser.updatedAt.toISOString(),
-      emailVerified: currentUser.emailVerified?.toISOString() || null,
-      role: currentUser.role
-    }
+    return getCachedUser(session.user.email);
   } catch (error: any) {
     return null;
   }

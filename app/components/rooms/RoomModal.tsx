@@ -4,7 +4,7 @@ import { SafeRoom } from '@/app/types';
 import Image from 'next/image';
 import React, { useState } from 'react';
 import Modal from '../Modals/Modal';
-import FullScreenGallery from '../FullScreenGallery';
+import { DynamicFullScreenGallery } from '../dynamic';
 import Slider from 'react-slick';
 import 'slick-carousel/slick/slick.css';
 import 'slick-carousel/slick/slick-theme.css';
@@ -237,7 +237,7 @@ const RoomModal: React.FC<RoomModalProps> = ({ isOpen, onClose, roomData, onRequ
   return (
     <>
       {isFullScreen ? (
-        <FullScreenGallery 
+        <DynamicFullScreenGallery 
           images={roomData.imageSrc.images} 
           onClose={() => setIsFullScreen(false)}
           initialIndex={currentSlideIndex}

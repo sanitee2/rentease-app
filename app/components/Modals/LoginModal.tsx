@@ -48,48 +48,51 @@ const LoginModal = () => {
     criteriaMode: 'all'
   });
 
-  const onSubmit: SubmitHandler<FieldValues> = (data) => {
+  const onSubmit: SubmitHandler<FieldValues> = async (data) => {
     setIsLoading(true);
     setLoginError('');
 
-    signIn('credentials', {
-      ...data,
-      redirect: false,
-    })
-    .then(async (callback) => {
+    try {
+      const result = await signIn('credentials', {
+        ...data,
+        redirect: false,
+      });
+
+      if (result?.error) {
+        setLoginError(result.error);
+        toast.error('Failed to login');
+        return;
+      }
+
+      if (result?.ok) {
+        // Fetch session to ensure it's established
+        const session = await axios.get('/api/auth/session');
+        const userRole = session.data?.user?.role;
+
+        // Define dashboard routes
+        const dashboardRoutes = {
+          ADMIN: '/admin/dashboard',
+          LANDLORD: '/landlord/dashboard',
+          USER: '/listings',
+          TENANT: '/dashboard'
+        };
+
+        // Get the correct redirect path
+        const redirectPath = dashboardRoutes[userRole as keyof typeof dashboardRoutes] || '/';
+        
+        toast.success('Logged in successfully');
+        loginModal.onClose();
+        
+        // Use replace instead of push to avoid back button issues
+        router.replace(redirectPath);
+        router.refresh();
+      }
+    } catch (error) {
+      console.error('Login error:', error);
+      toast.error('Something went wrong');
+    } finally {
       setIsLoading(false);
-
-      if (callback?.ok) {
-        try {
-          // Fetch the current user data to get their role
-          const response = await axios.get('/api/auth/session');
-          const userRole = response.data?.user?.role;
-
-          // Define dashboard routes
-          const dashboardRoutes = {
-            ADMIN: '/admin/dashboard',
-            LANDLORD: '/landlord/dashboard',
-            USER: '/listings',
-            TENANT: '/dashboard'
-          };
-
-          // Redirect based on role
-          const redirectPath = dashboardRoutes[userRole as keyof typeof dashboardRoutes] || '/';
-          router.push(redirectPath);
-          router.refresh();
-          toast.success('Logged in');
-          loginModal.onClose();
-          reset();
-        } catch (error) {
-          console.error('Error fetching user role:', error);
-          toast.error('Something went wrong');
-        }
-      }
-
-      if (callback?.error) {
-        setLoginError(callback.error);
-      }
-    });
+    }
   }
 
   const handleKeyPress = (e: React.KeyboardEvent) => {

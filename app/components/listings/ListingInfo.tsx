@@ -8,7 +8,7 @@ import Avatar from '../../components/Avatar';
 import ListingCategory from './ListingCategory';
 import dynamic from 'next/dynamic';
 import Heading from '../Heading';
-import GoogleMapComponent from '../GoogleMapComponent';
+import { DynamicGoogleMap } from '../dynamic';
 import RoomCard from '../rooms/RoomCard';
 import Slider from 'react-slick';
 import 'slick-carousel/slick/slick.css';
@@ -602,7 +602,7 @@ const ListingInfo: React.FC<ListingInfoProps> = ({
       <section className="bg-white rounded-lg p-6 shadow-sm">
         <h2 className="text-xl font-semibold mb-4">Location</h2>
         <div className="h-[400px] rounded-lg overflow-hidden">
-          <GoogleMapComponent lat={locationValue[0]} lng={locationValue[1]} />
+          <DynamicGoogleMap lat={locationValue[0]} lng={locationValue[1]} />
         </div>
       </section>
 

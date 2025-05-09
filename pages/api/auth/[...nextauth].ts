@@ -55,9 +55,15 @@ export const authOptions: AuthOptions = {
           throw new Error("Invalid credentials");
         }
 
-        // Return user without hashed password
-        const { hashedPassword, ...userWithoutPass } = user;
-        return userWithoutPass;
+        // Return user with required fields and handle null values
+        return {
+          id: user.id,
+          email: user.email || '',
+          role: user.role,
+          firstName: user.firstName || '',
+          lastName: user.lastName || '',
+          image: user.image || ''
+        };
       },
     }),
   ],
@@ -79,7 +85,10 @@ export const authOptions: AuthOptions = {
         token.id = user.id;
         token.role = user.role;
         token.email = user.email;
-        token.name = user.name;
+        // Combine firstName and lastName for the name
+        token.name = user.firstName && user.lastName 
+          ? `${user.firstName} ${user.lastName}`
+          : user.email?.split('@')[0] || 'User';
         token.picture = user.image;
       }
 
