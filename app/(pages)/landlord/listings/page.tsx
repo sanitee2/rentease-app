@@ -29,7 +29,7 @@ const Listings = async() => {
           <div className="flex items-center justify-between">
             <h1 className="text-4xl font-bold bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent">
               Listings
-            </h1>
+            </h1> 
             <Link 
               href="/landlord/listings/add-listing"
               className="inline-flex items-center px-4 py-2 bg-black text-white rounded-full hover:bg-gray-800 transition text-sm font-medium"

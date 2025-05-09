@@ -13,7 +13,9 @@ export default async function getUserListings(userId: string): Promise<SafeListi
             amenity: true
           }
         },
-        rules: true
+        rules: true,
+        rooms: true,
+        leaseContracts: true
       }
     });
 
@@ -37,7 +39,8 @@ export default async function getUserListings(userId: string): Promise<SafeListi
         childrenAllowed: listing.rules.childrenAllowed,
         smokingAllowed: listing.rules.smokingAllowed,
         additionalNotes: listing.rules.additionalNotes
-      } : null
+      } : null,
+      rooms: listing.rooms
     }));
 
     return safeListing;

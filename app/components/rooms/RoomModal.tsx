@@ -14,17 +14,26 @@ import { useRouter } from 'next/navigation';
 import * as FaIcons from 'react-icons/fa';
 import { IconType } from 'react-icons';
 import { getIconComponent } from '@/app/libs/utils';
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 
 interface RoomModalProps {
   isOpen: boolean;
   onClose: () => void;
-  roomData: SafeRoom;
+  roomData: SafeRoom & {
+    tenants: { id: string }[];
+    listing: {
+      pricingType: 'ROOM_BASED' | 'LISTING_BASED';
+    };
+  };
   onRequestViewing?: (roomId: string) => void;
 }
 
 const RoomModal: React.FC<RoomModalProps> = ({ isOpen, onClose, roomData, onRequestViewing }) => {
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
+
+  const isRoomFull = roomData.maxTenantCount && roomData.tenants.length >= roomData.maxTenantCount;
 
   // Custom arrows for the slider
   const PrevArrow = (props: any) => {
@@ -88,23 +97,31 @@ const RoomModal: React.FC<RoomModalProps> = ({ isOpen, onClose, roomData, onRequ
   };
 
   const bodyContent = (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-8">
       <style>{sliderStyles}</style>
       
       {/* Image Slider */}
-      <div className="relative w-full h-[400px] rounded-lg overflow-hidden">
+      <div className="relative w-full h-[400px] rounded-xl overflow-hidden">
+        {isRoomFull && (
+          <div className="absolute inset-x-0 top-0 z-20">
+            <Badge 
+              variant="destructive" 
+              className="w-full rounded-none px-0 py-2 flex items-center justify-center font-medium text-base"
+            >
+              Not Available
+            </Badge>
+          </div>
+        )}
         <Slider {...settings}>
           {roomData.imageSrc.images.map((image, index) => (
             <div key={index} onClick={() => setIsFullScreen(true)}>
-              <div className="relative h-[400px] cursor-pointer group">
+              <div className="relative h-[400px] cursor-zoom-in">
                 <Image
                   src={image}
                   alt={`Room ${index + 1}`}
                   fill
                   className="object-cover"
                 />
-                {/* Dark overlay for better dot visibility */}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
               </div>
             </div>
           ))}
@@ -112,83 +129,90 @@ const RoomModal: React.FC<RoomModalProps> = ({ isOpen, onClose, roomData, onRequ
       </div>
 
       {/* Room Details */}
-      <div className="space-y-6">
-        {/* Basic Details */}
-        <div className="bg-gray-50 p-4 rounded-lg space-y-3">
-          <div className="flex items-center justify-between">
-            <span className="text-gray-600">Category</span>
-            <span className="font-medium">{roomData.roomCategory}</span>
-          </div>
-          {roomData.pricingType !== 'LISTING_BASED' && roomData.price && (
-            <div className="flex items-center justify-between">
-              <span className="text-gray-600">Price</span>
-              <span className="font-medium text-indigo-600">
-                ₱{roomData.price.toLocaleString('en-US')}/month
-              </span>
+      <div className="space-y-8">
+        {/* Basic Details Card */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="bg-gray-50/80 p-5 rounded-xl space-y-4">
+            <h3 className="font-semibold text-gray-900">Room Details</h3>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-gray-600">Category</span>
+                <Badge variant="outline" className="font-medium">
+                  {roomData.roomCategory}
+                </Badge>
+              </div>
+              {roomData.pricingType !== 'LISTING_BASED' && roomData.price && (
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-600">Price</span>
+                  <div className="text-indigo-600 font-semibold">
+                    ₱{roomData.price.toLocaleString('en-US')}/month
+                  </div>
+                </div>
+              )}
             </div>
-          )}
-          {roomData.maxTenantCount && (
-            <div className="flex items-center justify-between">
-              <span className="text-gray-600">Max Tenants</span>
-              <div className="flex items-center gap-2">
-                <FaUsers className="text-gray-400" />
-                <span>{roomData.maxTenantCount}</span>
+          </div>
+
+          {roomData.listing.pricingType === 'ROOM_BASED' && (
+            <div className="bg-gray-50/80 p-5 rounded-xl space-y-4">
+              <h3 className="font-semibold text-gray-900">Occupancy</h3>
+              <div className="space-y-3">
+                {roomData.maxTenantCount && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-600">Max Tenants</span>
+                    <div className="flex items-center gap-2">
+                      <FaUsers className="text-gray-400" />
+                      <span className="font-medium">{roomData.maxTenantCount}</span>
+                    </div>
+                  </div>
+                )}
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-600">Current Tenants</span>
+                  <Badge variant={isRoomFull ? "destructive" : "secondary"}>
+                    {roomData.tenants.length} occupied
+                  </Badge>
+                </div>
               </div>
             </div>
           )}
-          <div className="flex items-center justify-between">
-            <span className="text-gray-600">Current Tenants</span>
-            <span>{roomData.currentTenants.length}</span>
-          </div>
         </div>
 
         {/* Description */}
-        <div>
-          <h3 className="text-lg font-semibold mb-2">Description</h3>
-          <p className="text-gray-600 leading-relaxed">
-            {roomData.description}
-          </p>
+        <div className="bg-gray-50/80 p-5 rounded-xl space-y-3">
+          <h3 className="font-semibold text-gray-900">Description</h3>
+          <div 
+            className="text-gray-600 leading-relaxed prose prose-indigo max-w-none"
+            dangerouslySetInnerHTML={{ __html: roomData.description }}
+          />
         </div>
 
         {/* Room Amenities */}
         {roomData.amenities && roomData.amenities.length > 0 && (
-          <div>
-            <h3 className="text-lg font-semibold mb-3">Room Amenities</h3>
+          <div className="space-y-4">
+            <h3 className="font-semibold text-gray-900">Room Amenities</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {roomData.amenities.map((item) => {
                 const Icon = getIcon(item.amenity.icon);
-                
                 return (
                   <div 
                     key={item.amenity.id}
-                    className="
-                      rounded-xl
-                      border
-                      p-4
-                      flex
-                      items-start
-                      gap-3
-                      hover:border-indigo-800
-                      hover:bg-indigo-50
-                      transition
-                      border-neutral-200
-                    "
+                    className={cn(
+                      "rounded-xl border p-4 flex items-start gap-3",
+                      "hover:border-indigo-600/20 hover:bg-indigo-50/50 transition",
+                      "border-gray-100"
+                    )}
                   >
-                    <div className="p-2 bg-indigo-100 rounded-lg">
-                      <Icon 
-                        size={20} 
-                        className="text-indigo-600"
-                      />
+                    <div className="p-2 bg-indigo-100 rounded-lg shrink-0">
+                      <Icon size={20} className="text-indigo-600" />
                     </div>
                     <div>
                       <h3 className="font-medium text-gray-900">
                         {item.amenity.title}
                       </h3>
-                      <p className="text-sm text-gray-500">
+                      <p className="text-sm text-gray-500 mt-1">
                         {item.amenity.desc}
                       </p>
                       {item.note && (
-                        <p className="text-sm italic text-indigo-600 mt-1">
+                        <p className="text-sm italic text-indigo-600 mt-2">
                           Note: {item.note}
                         </p>
                       )}
@@ -222,8 +246,18 @@ const RoomModal: React.FC<RoomModalProps> = ({ isOpen, onClose, roomData, onRequ
         <Modal
           isOpen={isOpen}
           onClose={onClose}
-          onSubmit={handleRequestViewing}
-          actionLabel="Request Viewing"
+          onSubmit={
+            !isRoomFull && 
+            roomData.listing.pricingType === 'ROOM_BASED' 
+              ? handleRequestViewing 
+              : undefined
+          }
+          actionLabel={
+            !isRoomFull && 
+            roomData.listing.pricingType === 'ROOM_BASED' 
+              ? "Request Viewing" 
+              : undefined
+          }
           secondaryActionLabel="Close"
           secondaryAction={onClose}
           title={roomData.title}

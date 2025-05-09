@@ -5,6 +5,7 @@ node_modules
 
 # Testing
 /coverage
+scripts/update-balances.sh
 
 # Next.js
 /.next/

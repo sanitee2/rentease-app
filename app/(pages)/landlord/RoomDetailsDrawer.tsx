@@ -206,25 +206,71 @@ const RoomDetailsDrawer: React.FC<RoomDetailsDrawerProps> = ({
   };
 
   const handleSave = () => {
-    if (!isFormValid()) return;
+    if (!isFormValid()) {
+      toast.error('Please fill in all required fields');
+      return;
+    }
 
     const formData: Room = {
       title: watch('title'),
       description: watch('description'),
       roomCategory: watch('roomCategory'),
-      images: watch('images'),
-      amenities: watch('amenities'),
+      images: watch('images') || [],
+      amenities: watch('amenities') || {},
       price: listingCategory?.pricingType === 'ROOM_BASED' 
         ? parseFloat(watch('price')) 
         : null,
       maxTenantCount: parseInt(watch('maxTenantCount')?.toString() || '1')
     };
 
-    
+    // Validate images array
+    if (!formData.images || formData.images.length === 0) {
+      toast.error('Please add at least one room image');
+      return;
+    }
 
-    onChange(false);
-    onSave(formData);
-    handleActualClose();
+    // Validate required fields
+    if (!formData.title || formData.title.trim().length < 3) {
+      toast.error('Title must be at least 3 characters long');
+      return;
+    }
+
+    if (!formData.description || formData.description.trim().length < 10) {
+      toast.error('Description must be at least 10 characters long');
+      return;
+    }
+
+    if (!formData.roomCategory) {
+      toast.error('Please select a room category');
+      return;
+    }
+
+    // Validate price for room-based pricing
+    if (listingCategory?.pricingType === 'ROOM_BASED') {
+      if (!formData.price || formData.price <= 0) {
+        toast.error('Please enter a valid price');
+        return;
+      }
+    }
+
+    // Check if room category requires max tenant count
+    const selectedCategory = categories.find(c => c.title === formData.roomCategory);
+    if (selectedCategory?.needsMaxTenant && (!formData.maxTenantCount || formData.maxTenantCount < 1)) {
+      toast.error('Please specify maximum number of tenants');
+      return;
+    }
+
+    try {
+      onChange(false);
+      onSave(formData);
+      reset(EMPTY_ROOM); // Reset form after successful save
+      handleActualClose();
+      toast.success(room ? 'Room updated successfully' : 'Room added successfully');
+    } catch (error) {
+      console.error('Error saving room:', error);
+      toast.error('Failed to save room');
+      onChange(true); // Keep the form dirty state if save fails
+    }
   };
 
   const handleClose = () => {

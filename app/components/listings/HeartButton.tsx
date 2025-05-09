@@ -5,6 +5,7 @@ import { SafeUser } from '@/app/types'
 import React, { useState } from 'react'
 import { AiFillHeart, AiOutlineHeart } from 'react-icons/ai'
 import { toast } from "react-hot-toast"
+import useLoginModal from "@/app/hooks/useLoginModal"
 
 interface HeartButtonProps {
   listingId: string
@@ -15,6 +16,7 @@ const HeartButton: React.FC<HeartButtonProps> = ({
   listingId,
   currentUser
 }) => {
+  const loginModal = useLoginModal();
   const [isLoading, setIsLoading] = useState(false);
   const { hasFavorited, toggleFavorite } = useFavorite({
     listingId,
@@ -26,7 +28,7 @@ const HeartButton: React.FC<HeartButtonProps> = ({
     e.preventDefault();
     
     if (!currentUser) {
-      return toast.error('Please login to save favorites');
+      return loginModal.onOpen();
     }
 
     if (isLoading) return;

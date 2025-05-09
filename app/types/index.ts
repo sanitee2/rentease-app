@@ -1,7 +1,8 @@
-import { Listing, Room, User, UserRole, ListingStatus, PaymentType, PaymentStatus } from "@prisma/client";
+import { Listing, Room, User, UserRole, ListingStatus, PaymentMode, PaymentStatus } from "@prisma/client";
 import { Server as NetServer, Socket } from 'net';
 import { NextApiResponse } from "next";
 import { Server as SocketIOServer } from 'socket.io';
+import { LeaseStatus as PrismaLeaseStatus } from "@prisma/client";
 
 
 
@@ -22,30 +23,35 @@ export type SafeListing = Omit<
     note: string | null;
   }[];
   rules: SafeHouseRules | null;
-  rooms?: {
+  rooms: {
     id: string;
     title: string;
-    price: number;
+    price: number | null;
+    maxTenantCount: number | null;
+    currentTenants: string[];
   }[];
   tenants?: string[];
   pricingType: 'LISTING_BASED' | 'ROOM_BASED';
   price: number | null;
   status: ListingStatus; // Changed to use Prisma's ListingStatus enum
   user?: SafeUser;
+  leaseContracts?: {
+    status: string;
+  }[];
 };
 
 // SafeRoom type excluding date fields, but making them a string type
 export type SafeRoom = {
   id: string;
   title: string;
+  maxTenantCount: number | null;
+  currentTenants: string[];
   description: string;
   imageSrc: {
     images: string[];
   };
   roomCategory: string;
   price: number;
-  maxTenantCount?: number;
-  currentTenants: string[];
   pricingType: 'LISTING_BASED' | 'ROOM_BASED';
   listingId: string;
   amenities: {
@@ -57,6 +63,10 @@ export type SafeRoom = {
     };
     note: string | null;
   }[];
+  tenants: { id: string }[];
+  listing: {
+    pricingType: 'ROOM_BASED' | 'LISTING_BASED';
+  };
 };
 
 // SafeUser type excluding date fields and making them a string type,
@@ -105,6 +115,35 @@ export interface MinimalUser {
   phoneNumber: string | null;
 }
 
+export type LeaseStatus = PrismaLeaseStatus;
+
+export interface LeaseContract {
+  id: string;
+  startDate: Date;
+  endDate?: Date | null;
+  rentAmount: number;
+  monthlyDueDate: number;
+  outstandingBalance?: number;
+  leaseTerms: string;
+  status: LeaseStatus;
+  listing?: {
+    id: string;
+    title: string;
+  };
+  room?: {
+    id: string;
+    title: string;
+  };
+  Payment?: Array<{
+    id: string;
+    amount: number;
+    status: PaymentStatus;
+    createdAt: Date;
+    paymentMethod: PaymentMode;
+  }>;
+  createdAt: Date;
+}
+
 export interface TenantData {
   id: string;
   firstName: string;
@@ -112,6 +151,7 @@ export interface TenantData {
   lastName: string;
   suffix?: string | null;
   email: string | null;
+  phoneNumber?: string | null;
   image?: string | null;
   tenant: {
     id: string;
@@ -120,24 +160,7 @@ export interface TenantData {
       title: string;
     } | null;
   } | null;
-  leaseContracts: {
-    id: string;
-    startDate: Date;
-    endedAt?: Date | null;
-    rentAmount: number | null;
-    monthlyDueDate?: number | null;
-    isActive: boolean;
-    listing: {
-      id: string;
-      title: string;
-    };
-    payments: {
-      id: string;
-      status: string;
-      dueDate: Date | null;
-      amount: number;
-    }[];
-  }[];
+  leaseContracts: LeaseContract[];
 }
 
 export interface NextApiResponseServerIO extends NextApiResponse {
@@ -146,4 +169,35 @@ export interface NextApiResponseServerIO extends NextApiResponse {
       io: SocketIOServer;
     };
   };
+}
+
+export interface MaintenanceRequest {
+  id: string;
+  title: string;
+  description: string;
+  status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
+  priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
+  createdAt: string;
+  images?: string[];
+  listing: {
+    id: string;
+    title: string;
+  };
+  room?: {
+    title: string;
+  } | null;
+}
+
+export interface ChartData {
+  listingStatus: {
+    label: string;
+    value: number;
+    color: string;
+  }[];
+  monthlyListings: {
+    date: Date;
+    month: string;
+    categories: Record<string, number>;
+  }[];
+  // ... rest of the interface
 }

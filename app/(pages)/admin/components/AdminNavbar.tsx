@@ -9,6 +9,7 @@ import { IoNotificationsOutline } from "react-icons/io5";
 // import { useNotifications } from "@/app/contexts/NotificationsContext";
 import { Badge } from "@/components/ui/badge";
 import { IoMdNotifications } from "react-icons/io";
+import { Bell } from "lucide-react";
 
 interface AdminNavbarProps {
   currentUser?: SafeUser | null;
@@ -22,7 +23,7 @@ const AdminNavbar: React.FC<AdminNavbarProps> = ({ currentUser, onMenuClick }) =
   if (!currentUser) return null;
 
   return (
-    <div className="fixed w-full bg-white z-10 shadow-sm px-4">
+    <div className="fixed w-full bg-white z-40 shadow-sm px-4">
       <div className="py-4 border-b-[1px]">
         <div className="flex flex-row items-center justify-between gap-3 md:gap-0">
           <div className="flex items-center gap-2">
@@ -55,7 +56,14 @@ const AdminNavbar: React.FC<AdminNavbarProps> = ({ currentUser, onMenuClick }) =
                 </Button>
               }
             /> */}
-            <UserMenu currentUser={currentUser} />
+            <div className="flex items-center gap-4">
+              {/* {currentUser && (
+                <div className="p-2 rounded-full border border-gray-300 hover:bg-gray-100 transition-colors cursor-pointer">
+                  <Bell className="text-gray-600" size={17} />
+                </div>
+              )} */}
+              <UserMenu currentUser={currentUser} />
+            </div>
           </div>
         </div>
       </div>

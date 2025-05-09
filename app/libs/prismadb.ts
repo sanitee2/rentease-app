@@ -1,11 +1,20 @@
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient } from '@prisma/client'
+import { withAccelerate } from '@prisma/extension-accelerate'
 
-declare global {
-  var prisma: PrismaClient | undefined
+const prismaClientSingleton = () => {
+  const prisma = new PrismaClient()
+  return prisma.$extends(withAccelerate())
 }
 
-const client = globalThis.prisma || new PrismaClient()
+declare global {
+  var prisma: undefined | ReturnType<typeof prismaClientSingleton>
+}
 
-if(process.env.NODE_ENV !== 'production') globalThis.prisma = client
+const prisma = globalThis.prisma ?? prismaClientSingleton()
 
-export default client
+// Create a separate instance without Accelerate for NextAuth adapter
+export const authPrisma = new PrismaClient()
+
+export default prisma
+
+if (process.env.NODE_ENV !== 'production') globalThis.prisma = prisma

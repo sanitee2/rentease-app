@@ -1,13 +1,42 @@
-'use client';
+import CategoriesClient from './CategoriesClient';
+import getCurrentUser from "@/app/actions/getCurrentUser";
+import { redirect } from 'next/navigation';
+import prisma from "@/app/libs/prismadb";
 
-import { useState, useEffect } from 'react';
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { LuPlus, LuX, LuArrowLeft } from "react-icons/lu";
-import { useRouter } from 'next/navigation';
+export const dynamic = 'force-dynamic';
 
-export default function CategoriesPage() {
-  // ... similar structure to AmenitiesPage with listing and room categories ...
-} 
+const CategoriesPage = async ({ 
+  searchParams 
+}: { 
+  searchParams: { [key: string]: string | undefined } 
+}) => {
+  const currentUser = await getCurrentUser();
+  if (!currentUser || currentUser.role !== 'ADMIN') {
+    return redirect('/');
+  }
+
+  const listingCategories = await prisma.listingCategories.findMany({
+    orderBy: {
+      title: 'asc'
+    }
+  });
+
+  const roomCategories = await prisma.roomCategories.findMany({
+    orderBy: {
+      title: 'asc'
+    }
+  });
+
+  return (
+    <div className="min-h-screen bg-gray-50/50">
+      <div className="max-w-[1500px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <CategoriesClient 
+          listingCategories={listingCategories}
+          roomCategories={roomCategories}
+        />
+      </div>
+    </div>
+  );
+};
+
+export default CategoriesPage; 

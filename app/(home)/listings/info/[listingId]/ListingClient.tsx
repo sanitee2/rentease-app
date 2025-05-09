@@ -13,10 +13,16 @@ import ListingHead from '@/app/components/listings/ListingHead';
 import ListingInfo from '@/app/components/listings/ListingInfo';
 import SelectDateTime from '@/app/components/inputs/SelectDateTime';
 import { ListingCategories } from '@prisma/client';
+import Footer from '@/app/components/Footer';
+import { FaPesoSign } from 'react-icons/fa6';
 
 interface ListingClientProps {
   listing: SafeListing & {
     user: SafeUser;
+    leaseContracts?: {
+      id: string;
+      status: string;
+    }[];
   };
   currentUser?: SafeUser | null;
 }
@@ -64,9 +70,22 @@ const ListingClient: React.FC<ListingClientProps> = ({
     setSelectedRoomOption(option);
   };
 
+  // Calculate current tenants based on room occupancy and listing tenants
+  const currentTenants = useMemo(() => {
+    if (listing.pricingType === 'LISTING_BASED') {
+      // For listing-based, get tenants directly from the listing
+      return listing.tenants || [];
+    } else {
+      // For room-based, aggregate tenants from all rooms
+      return rooms.reduce((acc, room) => {
+        return [...acc, ...(room.tenants?.map(tenant => tenant.id) || [])];
+      }, [] as string[]);
+    }
+  }, [listing, rooms]);
 
   return (
-      <div className="max-w-screen-xl mx-auto">
+    <>
+      <div className="max-w-screen-xl mx-auto py-4 md:py-12">
         <div className="flex flex-col gap-6">
           <ListingHead
             imageSrc={listing.imageSrc.images}
@@ -101,22 +120,29 @@ const ListingClient: React.FC<ListingClientProps> = ({
               overnightGuestsAllowed={listing.overnightGuestsAllowed}
               userEmail={listing.user.email}
               contactNumber={listing.user.phoneNumber}
+              pricingType={listing.pricingType}
+              price={listing.price}
             />
           </div>
 
           <div className="md:col-span-2">
-            <div className="sticky top-20">
+            <div className="sticky top-24 mb-10">
               <SelectDateTime
                 rooms={rooms}
                 currentUser={currentUser}
                 listingId={listing.id}
                 selectedRoom={selectedRoomOption}
                 onRoomChange={handleRoomChange}
+                pricingType={listing.pricingType}
+                listing={listing}
+                hasMaxTenantCount={listing.hasMaxTenantCount}
               />
             </div>
           </div>
         </div>
       </div>
+      <Footer />
+    </>
   );
 };
 
