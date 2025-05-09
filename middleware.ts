@@ -160,11 +160,10 @@ export async function middleware(req: NextRequest) {
 
 export const config = {
   matcher: [
-    // Protected routes
+    // Protected routes that require authentication
     '/admin/:path*',
     '/landlord/:path*',
     '/dashboard/:path*',
-    // Common routes
     '/maintenance/:path*',
     '/notifications/:path*',
     '/messages/:path*',
@@ -174,14 +173,16 @@ export const config = {
     '/viewing-requests/:path*',
     '/requests/:path*',
     '/profile/:path*',
-    // Public routes
+    
+    // Public pages that still need middleware for role-based redirects
+    '/',
     '/about/:path*',
     '/about-us/:path*',
     '/contact/:path*',
-    '/',
-    '/api/auth/signin',
     '/listings/:path*',
-    // Exclude static files and most API routes
-    '/((?!_next/|static/|api/).*)'
+    '/api/auth/signin',
+
+    // Exclude all static files, images, and API routes
+    '/((?!_next/|static/|images/|favicon|api/).*)' 
   ],
 };
