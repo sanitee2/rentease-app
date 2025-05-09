@@ -11,18 +11,18 @@ export const metadata: Metadata = {
 
 const teamMembers = [
   {
-    name: 'Edward Doe',
+    name: 'Raymond Sales',
     role: 'CEO',
     image: '/images/project-manager.jpg'
   },
   {
-    name: 'Joshua Eleykuti',
-    role: 'Senior Full-Stack Developer',
+    name: 'Franz Mozar',
+    role: 'Full-Stack Developer',
     image: '/images/lead-dev.jpg'
   },
   {
     name: 'Reyan Ryan',
-    role: 'Senior Full-Stack Developer',
+    role: 'UI/UX Designer',
     image: '/images/ui-ux-designer.jpg'
   }
 ];
